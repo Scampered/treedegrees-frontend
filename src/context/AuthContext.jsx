@@ -11,12 +11,29 @@ export function AuthProvider({ children }) {
   const loadUser = useCallback(async () => {
     const token = localStorage.getItem('td_token')
     if (!token) { setLoading(false); return }
+
+    // Optimistic restore: if we have cached user data, show it immediately
+    // while the real /me request is in flight. This prevents a blank/loading
+    // screen on Render cold start wakeup (which can take 30+ seconds).
+    const cached = localStorage.getItem('td_user_cache')
+    if (cached) {
+      try { setUser(JSON.parse(cached)) } catch {}
+    }
+
     try {
       const { data } = await authApi.me()
       setUser(data)
-    } catch {
-      localStorage.removeItem('td_token')
-      localStorage.removeItem('td_user')
+      // Update the cache with fresh data
+      localStorage.setItem('td_user_cache', JSON.stringify(data))
+    } catch (err) {
+      // Only clear session if the token was genuinely rejected (401)
+      // Network errors / timeouts (no err.response) keep the user logged in
+      if (err.response?.status === 401) {
+        localStorage.removeItem('td_token')
+        localStorage.removeItem('td_user_cache')
+        setUser(null)
+      }
+      // Any other error (500, timeout, offline) → stay logged in with cached data
     } finally {
       setLoading(false)
     }
@@ -27,6 +44,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const { data } = await authApi.login({ email, password })
     localStorage.setItem('td_token', data.token)
+    localStorage.setItem('td_user_cache', JSON.stringify(data.user))
     setUser(data.user)
     return data.user
   }
@@ -34,17 +52,24 @@ export function AuthProvider({ children }) {
   const signup = async (formData) => {
     const { data } = await authApi.signup(formData)
     localStorage.setItem('td_token', data.token)
+    localStorage.setItem('td_user_cache', JSON.stringify(data.user))
     setUser(data.user)
     return data.user
   }
 
   const logout = () => {
     localStorage.removeItem('td_token')
-    localStorage.removeItem('td_user')
+    localStorage.removeItem('td_user_cache')
     setUser(null)
   }
 
-  const updateUser = (partial) => setUser(prev => ({ ...prev, ...partial }))
+  const updateUser = (partial) => {
+    setUser(prev => {
+      const updated = { ...prev, ...partial }
+      localStorage.setItem('td_user_cache', JSON.stringify(updated))
+      return updated
+    })
+  }
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser, reload: loadUser }}>
