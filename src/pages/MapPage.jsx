@@ -1,6 +1,7 @@
 // src/pages/MapPage.jsx
 import { useEffect, useState, useCallback } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Polyline, Popup, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Polyline, Popup, Tooltip, useMapEvents } from 'react-leaflet'
+import L from 'leaflet'
 import { graphApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -11,6 +12,14 @@ const DEGREE_STYLES = {
   3: { color: '#6868b8', fillColor: '#3a3a6a', radius: 5,  weight: 1.5, fillOpacity: 0.65 },
 }
 
+// Circle colours per degree for the divIcon
+const DEGREE_COLORS = {
+  0: { bg: '#1f7e1f', border: '#80d580', size: 22 },
+  1: { bg: '#2d7a2d', border: '#5dba5d', size: 18 },
+  2: { bg: '#7a5028', border: '#c8a060', size: 14 },
+  3: { bg: '#2a2a5e', border: '#5858a8', size: 11 },
+}
+
 const LINE_STYLES = {
   0: { color: '#2d9e2d', weight: 2, opacity: 0.8 },
   1: { color: '#4dba4d', weight: 1.5, opacity: 0.7 },
@@ -18,6 +27,76 @@ const LINE_STYLES = {
   3: { color: '#3a3a6a', weight: 1, opacity: 0.4, dashArray: '3 5' },
 }
 const PRIVATE_LINE = { color: '#555', weight: 1, opacity: 0.35, dashArray: '2 6' }
+
+// ── Build a DivIcon with optional note badge ──────────────────────────────────
+function buildNoteIcon(degree, hasNote) {
+  const { bg, border, size } = DEGREE_COLORS[degree] || DEGREE_COLORS[3]
+  const half = size / 2
+
+  const badge = hasNote
+    ? `<div style="
+        position:absolute;
+        top:-4px;right:-4px;
+        width:10px;height:10px;
+        border-radius:50%;
+        background:white;
+        border:2px solid #0d2b0d;
+        box-shadow:0 0 4px rgba(0,0,0,0.6);
+        z-index:10;
+      "></div>`
+    : ''
+
+  return L.divIcon({
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+    popupAnchor: [0, -half - 4],
+    tooltipAnchor: [0, -half - 4],
+    html: `
+      <div style="position:relative;width:${size}px;height:${size}px;">
+        <div style="
+          width:${size}px;height:${size}px;
+          border-radius:50%;
+          background:${bg};
+          border:${degree === 0 ? 3 : 2}px solid ${border};
+          box-shadow:0 0 ${degree === 0 ? 10 : 5}px ${bg}88;
+        "></div>
+        ${badge}
+      </div>`,
+  })
+}
+
+// ── Note tooltip popup styling ────────────────────────────────────────────────
+const noteTooltipStyle = `
+  .note-tooltip .leaflet-tooltip {
+    background: #0d2b0d !important;
+    border: 1px solid #2d9e2d !important;
+    color: #e0ffe0 !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    font-family: Dosis, sans-serif !important;
+    font-size: 13px !important;
+    max-width: 220px !important;
+    white-space: normal !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+  }
+  .note-tooltip .leaflet-tooltip::before {
+    border-top-color: #2d9e2d !important;
+  }
+  .leaflet-popup-content-wrapper {
+    background: #0d2b0d !important;
+    border: 1px solid #196219 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.6) !important;
+    padding: 0 !important;
+  }
+  .leaflet-popup-content {
+    margin: 0 !important;
+  }
+  .leaflet-popup-tip {
+    background: #0d2b0d !important;
+  }
+`
 
 function ZoomTracker({ onZoom }) {
   const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) })
@@ -32,7 +111,6 @@ const popupStyle = {
   padding: '12px 14px',
   minWidth: 160,
   fontFamily: 'Dosis, sans-serif',
-  boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
 }
 
 export default function MapPage() {
@@ -82,6 +160,9 @@ export default function MapPage() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Inject tooltip CSS */}
+      <style>{noteTooltipStyle}</style>
+
       {/* Toolbar */}
       <div className="px-4 py-3 border-b border-forest-800 glass-dark flex flex-wrap items-center gap-3">
         <h2 className="font-display text-forest-200 text-lg mr-2">🗺️ Globe Map</h2>
@@ -155,21 +236,39 @@ export default function MapPage() {
             )
           })}
 
-          {/* Nodes — rendered at exact real coordinates, no artificial spreading */}
+          {/* Nodes */}
           {filteredNodes.map(node => {
-            const style = DEGREE_STYLES[node.degree] || DEGREE_STYLES[3]
             const isMe = node.id === mapData?.myId
+            const hasNote = !isMe && !!node.dailyNote
+            const icon = buildNoteIcon(node.degree, hasNote)
 
             return (
-              <CircleMarker
+              <Marker
                 key={node.id}
-                center={[node.latitude, node.longitude]}
-                radius={style.radius}
-                color={style.color}
-                fillColor={style.fillColor}
-                weight={style.weight}
-                fillOpacity={style.fillOpacity}
+                position={[node.latitude, node.longitude]}
+                icon={icon}
+                zIndexOffset={node.degree === 0 ? 1000 : 0}
               >
+                {/* Note tooltip — shows on hover above the node */}
+                {hasNote && (
+                  <Tooltip
+                    direction="top"
+                    offset={[0, -4]}
+                    className="note-tooltip"
+                    sticky={false}
+                  >
+                    <div style={{ fontFamily: 'Dosis, sans-serif' }}>
+                      <p style={{ fontSize: 11, color: '#80d580', margin: '0 0 4px', fontWeight: 600 }}>
+                        {node.nickname}
+                      </p>
+                      <p style={{ fontSize: 12, color: '#c0f0c0', margin: 0, fontStyle: 'italic', lineHeight: 1.4 }}>
+                        "{node.dailyNote}"
+                      </p>
+                    </div>
+                  </Tooltip>
+                )}
+
+                {/* Full profile popup — shows on click */}
                 <Popup autoPan={false} closeButton={false}>
                   <div style={popupStyle}>
                     <div style={{ marginBottom: 8 }}>
@@ -213,8 +312,9 @@ export default function MapPage() {
                         </p>
                         {node.dailyNote && (
                           <p style={{
-                            fontSize: 11, color: '#80d580', marginTop: 8,
-                            fontStyle: 'italic', borderTop: '1px solid #196219', paddingTop: 6
+                            fontSize: 12, color: '#80d580', marginTop: 8,
+                            fontStyle: 'italic', borderTop: '1px solid #196219', paddingTop: 6,
+                            lineHeight: 1.4
                           }}>
                             "{node.dailyNote}"
                           </p>
@@ -223,7 +323,7 @@ export default function MapPage() {
                     )}
                   </div>
                 </Popup>
-              </CircleMarker>
+              </Marker>
             )
           })}
         </MapContainer>
@@ -236,6 +336,10 @@ export default function MapPage() {
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-forest-600 border border-forest-400 inline-block"/>1st°</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-bark-700 border border-bark-400 inline-block"/>2nd°</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-indigo-900 border border-indigo-600 inline-block"/>3rd°</span>
+        <span className="flex items-center gap-1.5">
+          <span style={{ width:10, height:10, borderRadius:'50%', background:'white', border:'2px solid #555', display:'inline-block' }}/>
+          Has a note
+        </span>
         <span className="flex items-center gap-1.5 ml-auto">
           <span className="w-6 border-t border-dashed border-forest-600"/>Private link
         </span>
