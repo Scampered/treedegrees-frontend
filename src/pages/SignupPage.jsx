@@ -11,10 +11,28 @@ async function geocodeCity(city, country) {
       { headers: { 'Accept-Language': 'en' } }
     )
     const data = await res.json()
-    if (data.length > 0) {
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }
-    }
-  } catch { /* silent fail */ }
+    if (data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }
+  } catch {}
+  return null
+}
+
+async function reverseGeocode(lat, lon) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      { headers: { 'Accept-Language': 'en' } }
+    )
+    const data = await res.json()
+    const city =
+      data.address?.city ||
+      data.address?.town ||
+      data.address?.village ||
+      data.address?.suburb ||
+      data.address?.county ||
+      ''
+    const country = data.address?.country || ''
+    return { city, country }
+  } catch {}
   return null
 }
 
@@ -25,26 +43,61 @@ export default function SignupPage() {
     fullName: '', email: '', password: '', confirmPassword: '',
     dateOfBirth: '', city: '', country: '',
   })
+  const [coords, setCoords] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [gpsLoading, setGpsLoading] = useState(false)
+  const [gpsStatus, setGpsStatus] = useState('')
   const [step, setStep] = useState(1)
 
   const set = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }))
 
+  const handleGPS = async () => {
+    if (!navigator.geolocation) {
+      setGpsStatus('GPS not supported by your browser')
+      return
+    }
+    setGpsLoading(true)
+    setGpsStatus('Requesting location…')
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        setCoords({ lat: latitude, lon: longitude })
+        setGpsStatus('Looking up your city…')
+        const place = await reverseGeocode(latitude, longitude)
+        if (place) {
+          setForm(p => ({ ...p, city: place.city, country: place.country }))
+          setGpsStatus('✓ Location detected!')
+        } else {
+          setGpsStatus('✓ Got GPS coords — please fill city/country manually')
+        }
+        setGpsLoading(false)
+      },
+      (err) => {
+        setGpsStatus(
+          err.code === 1
+            ? 'Location permission denied — please fill in manually'
+            : 'Could not get location — please fill in manually'
+        )
+        setGpsLoading(false)
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    )
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match')
       return
     }
-
     setLoading(true)
     try {
-      // Geocode city → lat/lon for map
-      const coords = await geocodeCity(form.city, form.country)
-
+      let finalCoords = coords
+      if (!finalCoords) {
+        finalCoords = await geocodeCity(form.city, form.country)
+      }
       await signup({
         fullName: form.fullName,
         email: form.email,
@@ -52,8 +105,8 @@ export default function SignupPage() {
         dateOfBirth: form.dateOfBirth,
         city: form.city,
         country: form.country,
-        latitude: coords?.lat || null,
-        longitude: coords?.lon || null,
+        latitude: finalCoords?.lat || null,
+        longitude: finalCoords?.lon || null,
       })
       navigate('/dashboard')
     } catch (err) {
@@ -130,8 +183,27 @@ export default function SignupPage() {
                 <div>
                   <label className="block text-forest-400 text-xs mb-1.5 uppercase tracking-wide">Date of birth</label>
                   <input type="date" className="input" value={form.dateOfBirth} onChange={set('dateOfBirth')} required />
-                  <p className="text-forest-600 text-xs mt-1">Used to generate your unique friend code — never displayed</p>
+                  <p className="text-forest-600 text-xs mt-1">Used to generate your friend code — never displayed</p>
                 </div>
+
+                {/* GPS button */}
+                <div className="rounded-xl bg-forest-900/60 border border-forest-800 p-3">
+                  <button
+                    type="button"
+                    onClick={handleGPS}
+                    disabled={gpsLoading}
+                    className="btn-ghost w-full text-sm py-2"
+                  >
+                    {gpsLoading ? '⏳ Detecting…' : '📍 Check my location'}
+                  </button>
+                  {gpsStatus && (
+                    <p className={`text-xs mt-2 text-center ${gpsStatus.startsWith('✓') ? 'text-forest-400' : 'text-forest-500'}`}>
+                      {gpsStatus}
+                    </p>
+                  )}
+                  <p className="text-forest-700 text-xs text-center mt-1">or fill in manually below</p>
+                </div>
+
                 <div>
                   <label className="block text-forest-400 text-xs mb-1.5 uppercase tracking-wide">City</label>
                   <input type="text" className="input" placeholder="Tokyo" value={form.city} onChange={set('city')} required />
