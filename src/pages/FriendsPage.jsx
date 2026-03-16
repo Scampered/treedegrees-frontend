@@ -1,6 +1,6 @@
 // src/pages/FriendsPage.jsx
-import { useEffect, useState, useRef } from 'react'
-import { friendsApi } from '../api/client'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { friendsApi, nicknamesApi } from '../api/client'
 
 // ── 3-dot dropdown menu ───────────────────────────────────────────────────────
 function FriendMenu({ friend, onRemove, onTogglePrivacy }) {
@@ -74,6 +74,76 @@ function PrivacyPill({ value, onChange }) {
   )
 }
 
+
+// ── Per-connection nickname input ─────────────────────────────────────────────
+function NicknameInput({ friend, savedNickname, onSave, onRemove }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(savedNickname || '')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  const handleSave = async () => {
+    if (!value.trim()) {
+      if (savedNickname) await onRemove()
+      setEditing(false)
+      return
+    }
+    await onSave(value.trim())
+    setEditing(false)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSave()
+    if (e.key === 'Escape') { setValue(savedNickname || ''); setEditing(false) }
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2 mt-1.5">
+        <span className="text-forest-700 text-xs">Your nickname for them:</span>
+        <button
+          onClick={() => setEditing(true)}
+          className="text-xs text-forest-500 hover:text-forest-300 transition-colors flex items-center gap-1"
+        >
+          {savedNickname
+            ? <><span className="text-forest-400 font-medium">"{savedNickname}"</span> <span className="text-forest-700">✏️</span></>
+            : <span className="text-forest-700 hover:text-forest-500">+ Add nickname</span>
+          }
+        </button>
+        {savedNickname && (
+          <button onClick={onRemove} className="text-forest-800 hover:text-red-400 text-xs transition-colors">✕</button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2 mt-1.5">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Your personal nickname…"
+        maxLength={50}
+        className="text-xs bg-forest-950 border border-forest-700 focus:border-forest-500 text-forest-200
+                   placeholder-forest-700 rounded-lg px-2.5 py-1 outline-none flex-1 min-w-0 transition-colors"
+      />
+      <button onClick={handleSave} className="text-xs text-forest-400 hover:text-forest-200 px-2 py-1 rounded-lg bg-forest-800 hover:bg-forest-700 transition-colors flex-shrink-0">
+        Save
+      </button>
+      <button onClick={() => { setValue(savedNickname || ''); setEditing(false) }}
+        className="text-xs text-forest-700 hover:text-forest-500 transition-colors flex-shrink-0">
+        Cancel
+      </button>
+    </div>
+  )
+}
+
 export default function FriendsPage() {
   const [friends, setFriends] = useState([])
   const [requests, setRequests] = useState([])
@@ -84,6 +154,7 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('friends')
   const [removeConfirm, setRemoveConfirm] = useState(null)
+  const [myNicknames, setMyNicknames] = useState({}) // targetId -> nickname
   // Per-request privacy choice when accepting
   const [acceptPrivacy, setAcceptPrivacy] = useState({})
 
@@ -93,7 +164,14 @@ export default function FriendsPage() {
     setRequests(r.data)
   }
 
-  useEffect(() => { reload().finally(() => setLoading(false)) }, [])
+  useEffect(() => {
+    reload().finally(() => setLoading(false))
+    nicknamesApi.list().then(r => {
+      const map = {}
+      r.data.forEach(n => { map[n.targetId] = n.nickname })
+      setMyNicknames(map)
+    }).catch(() => {})
+  }, [])
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -117,6 +195,20 @@ export default function FriendsPage() {
     try {
       await friendsApi.respond(requestId, action, isPrivate)
       reload()
+    } catch (err) { console.error(err) }
+  }
+
+  const handleSetNickname = async (targetId, nickname) => {
+    try {
+      await nicknamesApi.set(targetId, nickname)
+      setMyNicknames(p => ({ ...p, [targetId]: nickname }))
+    } catch (err) { console.error(err) }
+  }
+
+  const handleRemoveNickname = async (targetId) => {
+    try {
+      await nicknamesApi.remove(targetId)
+      setMyNicknames(p => { const n = { ...p }; delete n[targetId]; return n })
     } catch (err) { console.error(err) }
   }
 
@@ -245,6 +337,12 @@ export default function FriendsPage() {
                         <p className="text-forest-800 text-xs mt-1">
                           Since {new Date(f.connectedSince).toLocaleDateString()}
                         </p>
+                        <NicknameInput
+                          friend={f}
+                          savedNickname={myNicknames[f.id]}
+                          onSave={(nick) => handleSetNickname(f.id, nick)}
+                          onRemove={() => handleRemoveNickname(f.id)}
+                        />
                       </div>
                       {/* 3-dot menu */}
                       <FriendMenu

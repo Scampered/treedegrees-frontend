@@ -55,3 +55,10 @@ export const usersApi = {
   postDailyNote: (note) => api.post('/api/users/daily-note', { note }),
   feed: () => api.get('/api/users/feed'),
 }
+
+// ── Nicknames ─────────────────────────────────────────────────────────────────
+export const nicknamesApi = {
+  list:   ()                    => api.get('/api/nicknames'),
+  set:    (targetId, nickname)  => api.put(`/api/nicknames/${targetId}`, { nickname }),
+  remove: (targetId)            => api.delete(`/api/nicknames/${targetId}`),
+}

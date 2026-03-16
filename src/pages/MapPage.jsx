@@ -13,6 +13,9 @@ const DEGREE_STYLES = {
 }
 
 // Circle colours per degree for the divIcon
+// Hidden-by-private-link style
+const HIDDEN_COLOR = { bg: '#1a1a1a', border: '#555555', size: 14 }
+
 const DEGREE_COLORS = {
   0: { bg: '#1f7e1f', border: '#80d580', size: 22 },
   1: { bg: '#2d7a2d', border: '#5dba5d', size: 18 },
@@ -29,7 +32,25 @@ const LINE_STYLES = {
 const PRIVATE_LINE = { color: '#555', weight: 1, opacity: 0.35, dashArray: '2 6' }
 
 // ── Build a DivIcon with optional note badge ──────────────────────────────────
-function buildNoteIcon(degree, hasNote) {
+function buildNoteIcon(degree, hasNote, isHidden) {
+  if (isHidden) {
+    const { bg, border, size } = HIDDEN_COLOR
+    const half = size / 2
+    return L.divIcon({
+      className: '',
+      iconSize: [size, size],
+      iconAnchor: [half, half],
+      popupAnchor: [0, -half - 4],
+      tooltipAnchor: [0, -half - 4],
+      html: `<div style="position:relative;width:${size}px;height:${size}px;">
+        <div style="width:${size}px;height:${size}px;border-radius:50%;
+          background:${bg};border:2px dashed ${border};
+          display:flex;align-items:center;justify-content:center;
+          font-size:9px;color:#777;font-weight:bold;">?</div>
+      </div>`,
+    })
+  }
+
   const { bg, border, size } = DEGREE_COLORS[degree] || DEGREE_COLORS[3]
   const half = size / 2
 
@@ -294,7 +315,7 @@ export default function MapPage() {
           {filteredNodes.map(node => {
             const isMe = node.id === mapData?.myId
             const hasNote = !isMe && !!node.dailyNote
-            const icon = buildNoteIcon(node.degree, hasNote)
+            const icon = buildNoteIcon(node.degree, hasNote, node.hiddenByPrivateLink)
 
             return (
               <Marker
@@ -303,8 +324,8 @@ export default function MapPage() {
                 icon={icon}
                 zIndexOffset={node.degree === 0 ? 1000 : 0}
               >
-                {/* Note tooltip — shows on hover above the node */}
-                {hasNote && (
+                {/* Note tooltip — shows on hover above the node, not for hidden nodes */}
+                {hasNote && !node.hiddenByPrivateLink && (
                   <Tooltip
                     direction="top"
                     offset={[0, -4]}
@@ -353,25 +374,40 @@ export default function MapPage() {
                       </>
                     ) : (
                       <>
-                        <p style={{ fontWeight: 700, fontSize: 15, margin: '0 0 2px', color: '#e0ffe0' }}>
-                          {node.nickname}
-                        </p>
-                        {node.fullName && (
-                          <p style={{ fontSize: 11, color: '#4d7a4d', margin: '0 0 4px' }}>
-                            {node.fullName}
-                          </p>
-                        )}
-                        <p style={{ fontSize: 11, color: '#4dba4d', margin: 0 }}>
-                          {node.city}, {node.country}
-                        </p>
-                        {node.dailyNote && (
-                          <p style={{
-                            fontSize: 12, color: '#80d580', marginTop: 8,
-                            fontStyle: 'italic', borderTop: '1px solid #196219', paddingTop: 6,
-                            lineHeight: 1.4
-                          }}>
-                            "{node.dailyNote}"
-                          </p>
+                        {node.hiddenByPrivateLink ? (
+                          <>
+                            <p style={{ fontWeight: 700, fontSize: 16, margin: '0 0 4px', color: '#666' }}>?</p>
+                            <p style={{ fontSize: 11, color: '#555', margin: 0, fontStyle: 'italic' }}>
+                              Private connection — identity hidden
+                            </p>
+                            <p style={{ fontSize: 11, color: '#4d5a4d', margin: '4px 0 0' }}>
+                              📍 {node.country} (approx.)
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p style={{ fontWeight: 700, fontSize: 15, margin: '0 0 2px', color: '#e0ffe0' }}>
+                              {node.nickname}
+                            </p>
+                            {node.fullName && (
+                              <p style={{ fontSize: 11, color: '#4d7a4d', margin: '0 0 4px' }}>
+                                {node.fullName}
+                              </p>
+                            )}
+                            <p style={{ fontSize: 11, color: '#4dba4d', margin: 0 }}>
+                              {node.city}, {node.country}
+                              {node.locationPrivacy && <span style={{ marginLeft: 4, color: '#3a6a3a' }}>📍 Approx.</span>}
+                            </p>
+                            {node.dailyNote && (
+                              <p style={{
+                                fontSize: 12, color: '#80d580', marginTop: 8,
+                                fontStyle: 'italic', borderTop: '1px solid #196219', paddingTop: 6,
+                                lineHeight: 1.4
+                              }}>
+                                "{node.dailyNote}"
+                              </p>
+                            )}
+                          </>
                         )}
                       </>
                     )}
@@ -396,6 +432,10 @@ export default function MapPage() {
         </span>
         <span className="flex items-center gap-1.5 ml-auto">
           <span className="w-6 border-t border-dashed border-forest-600"/>Private link
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span style={{width:11,height:11,borderRadius:'50%',background:'#1a1a1a',border:'2px dashed #555',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:'7px',color:'#777',fontWeight:'bold'}}>?</span>
+          Private link
         </span>
         <span className="text-forest-600">{filteredNodes.length} nodes · {filteredEdges.length} edges</span>
       </div>
