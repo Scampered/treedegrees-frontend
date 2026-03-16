@@ -1,6 +1,6 @@
 // src/pages/MapPage.jsx
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Polyline, Popup, useMap, useMapEvents } from 'react-leaflet'
+import { useEffect, useState, useCallback } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Polyline, Popup, useMapEvents } from 'react-leaflet'
 import { graphApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -19,62 +19,12 @@ const LINE_STYLES = {
 }
 const PRIVATE_LINE = { color: '#555', weight: 1, opacity: 0.35, dashArray: '2 6' }
 
-// ── Clustering: spread overlapping nodes into a circle ────────────────────────
-// Groups nodes within CLUSTER_THRESHOLD degrees of each other,
-// then places them evenly spaced around a tiny circle so they don't overlap.
-const CLUSTER_THRESHOLD = 0.8  // lat/lon degrees (~80km)
-
-function clusterNodes(nodes) {
-  const used = new Set()
-  const clusters = []
-
-  for (let i = 0; i < nodes.length; i++) {
-    if (used.has(i)) continue
-    const group = [i]
-    used.add(i)
-    for (let j = i + 1; j < nodes.length; j++) {
-      if (used.has(j)) continue
-      const dlat = Math.abs(nodes[i].latitude - nodes[j].latitude)
-      const dlon = Math.abs(nodes[i].longitude - nodes[j].longitude)
-      if (dlat < CLUSTER_THRESHOLD && dlon < CLUSTER_THRESHOLD) {
-        group.push(j)
-        used.add(j)
-      }
-    }
-    clusters.push(group)
-  }
-
-  // For groups > 1, spread them in a circle
-  const result = []
-  for (const group of clusters) {
-    if (group.length === 1) {
-      result.push({ ...nodes[group[0]], displayLat: nodes[group[0]].latitude, displayLon: nodes[group[0]].longitude })
-      continue
-    }
-    // Centre of the group
-    const clat = group.reduce((s, i) => s + nodes[i].latitude, 0) / group.length
-    const clon = group.reduce((s, i) => s + nodes[i].longitude, 0) / group.length
-    const spread = 0.35  // degrees to spread outward
-    group.forEach((idx, k) => {
-      const angle = (2 * Math.PI * k) / group.length - Math.PI / 2
-      result.push({
-        ...nodes[idx],
-        displayLat: clat + spread * Math.cos(angle),
-        displayLon: clon + spread * Math.sin(angle),
-      })
-    })
-  }
-  return result
-}
-
-// ── Zoom-aware marker radius ──────────────────────────────────────────────────
 function ZoomTracker({ onZoom }) {
   const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) })
   useEffect(() => { onZoom(map.getZoom()) }, [])
   return null
 }
 
-// ── Popup styles ──────────────────────────────────────────────────────────────
 const popupStyle = {
   background: '#0d2b0d',
   color: '#f0faf0',
@@ -88,13 +38,11 @@ const popupStyle = {
 export default function MapPage() {
   const { user } = useAuth()
   const [mapData, setMapData] = useState(null)
-  const [clustered, setClustered] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all')
   const [hidePrivate, setHidePrivate] = useState(false)
   const [zoom, setZoom] = useState(2)
-  const mapRef = useRef(null)
 
   const loadMap = useCallback(async () => {
     setLoading(true)
@@ -111,16 +59,11 @@ export default function MapPage() {
 
   useEffect(() => { loadMap() }, [loadMap])
 
-  // Re-cluster whenever nodes or filter changes
-  useEffect(() => {
-    if (!mapData) return
-    const filtered = mapData.nodes.filter(n => {
-      if (!n.latitude || !n.longitude) return false
-      if (filter === 'all') return true
-      return n.degree === parseInt(filter) || n.degree === 0
-    })
-    setClustered(clusterNodes(filtered))
-  }, [mapData, filter])
+  const filteredNodes = mapData?.nodes.filter(n => {
+    if (!n.latitude || !n.longitude) return false
+    if (filter === 'all') return true
+    return n.degree === parseInt(filter) || n.degree === 0
+  }) || []
 
   const filteredEdges = mapData?.edges.filter(e => {
     if (hidePrivate && e.isPrivate) return false
@@ -128,15 +71,7 @@ export default function MapPage() {
     return e.degree <= parseInt(filter)
   }) || []
 
-  // Build edge coord lookup from clustered positions
-  const posMap = Object.fromEntries(clustered.map(n => [n.id, { lat: n.displayLat, lon: n.displayLon }]))
-  // Also include original positions for nodes not in clustered (e.g. filtered out)
-  mapData?.nodes.forEach(n => {
-    if (!posMap[n.id]) posMap[n.id] = { lat: n.latitude, lon: n.longitude }
-  })
-
-  // Scale radius with zoom so bubbles don't overlap at high zoom
-  const scaleRadius = (base) => Math.max(base, Math.min(base + (zoom - 2) * 0.5, base + 4))
+  const nodeMap = Object.fromEntries((mapData?.nodes || []).map(n => [n.id, n]))
 
   const degreeLabel = (d) => {
     if (d === 0) return 'You'
@@ -196,7 +131,6 @@ export default function MapPage() {
           maxZoom={18}
           style={{ height: '100%', width: '100%' }}
           worldCopyJump
-          ref={mapRef}
         >
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -207,40 +141,37 @@ export default function MapPage() {
 
           <ZoomTracker onZoom={setZoom} />
 
-          {/* Edges — use clustered display positions */}
+          {/* Edges */}
           {filteredEdges.map((edge, i) => {
-            const src = posMap[edge.source]
-            const tgt = posMap[edge.target]
-            if (!src?.lat || !tgt?.lat) return null
+            const src = nodeMap[edge.source]
+            const tgt = nodeMap[edge.target]
+            if (!src?.latitude || !tgt?.latitude) return null
             const style = edge.isPrivate ? PRIVATE_LINE : (LINE_STYLES[edge.degree] || LINE_STYLES[3])
             return (
               <Polyline key={i}
-                positions={[[src.lat, src.lon], [tgt.lat, tgt.lon]]}
+                positions={[[src.latitude, src.longitude], [tgt.latitude, tgt.longitude]]}
                 pathOptions={style}
               />
             )
           })}
 
-          {/* Nodes — clustered positions, no zoom-out on click */}
-          {clustered.map(node => {
+          {/* Nodes — rendered at exact real coordinates, no artificial spreading */}
+          {filteredNodes.map(node => {
             const style = DEGREE_STYLES[node.degree] || DEGREE_STYLES[3]
             const isMe = node.id === mapData?.myId
-            const radius = scaleRadius(style.radius)
 
             return (
               <CircleMarker
                 key={node.id}
-                center={[node.displayLat, node.displayLon]}
-                radius={radius}
+                center={[node.latitude, node.longitude]}
+                radius={style.radius}
                 color={style.color}
                 fillColor={style.fillColor}
                 weight={style.weight}
                 fillOpacity={style.fillOpacity}
-                // IMPORTANT: no eventHandlers that call flyTo — prevents zoom-out
               >
                 <Popup autoPan={false} closeButton={false}>
                   <div style={popupStyle}>
-                    {/* Degree badge */}
                     <div style={{ marginBottom: 8 }}>
                       <span style={{
                         fontSize: 10, padding: '2px 8px', borderRadius: 999,
@@ -254,7 +185,6 @@ export default function MapPage() {
                     </div>
 
                     {isMe ? (
-                      // Self popup — nickname big, full name smaller
                       <>
                         <p style={{ fontWeight: 800, fontSize: 18, margin: '0 0 2px', color: '#80d580' }}>
                           {user?.nickname || node.nickname}
@@ -269,7 +199,6 @@ export default function MapPage() {
                         </p>
                       </>
                     ) : (
-                      // Others — nickname always shown, full name only if allowed
                       <>
                         <p style={{ fontWeight: 700, fontSize: 15, margin: '0 0 2px', color: '#e0ffe0' }}>
                           {node.nickname}
@@ -310,7 +239,7 @@ export default function MapPage() {
         <span className="flex items-center gap-1.5 ml-auto">
           <span className="w-6 border-t border-dashed border-forest-600"/>Private link
         </span>
-        <span className="text-forest-600">{clustered.length} nodes · {filteredEdges.length} edges · zoom {zoom}</span>
+        <span className="text-forest-600">{filteredNodes.length} nodes · {filteredEdges.length} edges</span>
       </div>
     </div>
   )
