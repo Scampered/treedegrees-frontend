@@ -4,9 +4,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"DM Serif Display"', 'Georgia', 'serif'],
-        body: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        display: ['"Dosis"', 'sans-serif'],
+        body: ['"Dosis"', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      fontWeight: {
+        display: '700',
       },
       colors: {
         forest: {
@@ -35,9 +38,6 @@ export default {
           900: '#553526',
           950: '#2e1b12',
         },
-      },
-      backgroundImage: {
-        'tree-mesh': 'radial-gradient(ellipse at 20% 50%, #1f7e1f22 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, #196219 0%, transparent 40%)',
       },
     },
   },
