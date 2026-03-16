@@ -73,3 +73,12 @@ export const nicknamesApi = {
   set:    (targetId, nickname) => api.put(`/api/nicknames/${targetId}`, { nickname }),
   remove: (targetId)           => api.delete(`/api/nicknames/${targetId}`),
 }
+
+// ── Letters ───────────────────────────────────────────────────────────────────
+export const lettersApi = {
+  send:      (recipientId, content) => api.post('/api/letters', { recipientId, content }),
+  list:      ()                     => api.get('/api/letters'),
+  inTransit: ()                     => api.get('/api/letters/in-transit'),
+  streaks:   ()                     => api.get('/api/letters/streaks'),
+  open:      (id)                   => api.patch(`/api/letters/${id}/open`),
+}

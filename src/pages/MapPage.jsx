@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Marker, Polyline, Popup, Tooltip, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
-import { graphApi } from '../api/client'
+import { graphApi, lettersApi, friendsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 const DEGREE_STYLES = {
@@ -170,6 +170,99 @@ function CustomLabels({ zoom }) {
   )
 }
 
+
+// ── Vehicle markers for in-transit letters ────────────────────────────────────
+function buildVehicleIcon(emoji, senderInitial) {
+  return L.divIcon({
+    className: '',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    html: `<div style="
+      position:relative;width:36px;height:36px;
+      display:flex;align-items:center;justify-content:center;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));
+    ">
+      <div style="font-size:26px;line-height:1;">${emoji}</div>
+      <div style="
+        position:absolute;bottom:-2px;right:-2px;
+        width:14px;height:14px;border-radius:50%;
+        background:#1f7e1f;border:2px solid #80d580;
+        display:flex;align-items:center;justify-content:center;
+        font-size:7px;color:#e0ffe0;font-weight:bold;
+        font-family:Dosis,sans-serif;
+      ">${senderInitial}</div>
+    </div>`,
+  })
+}
+
+function interpolatePosition(lat1, lon1, lat2, lon2, t) {
+  return {
+    lat: lat1 + (lat2 - lat1) * t,
+    lon: lon1 + (lon2 - lon1) * t,
+  }
+}
+
+// ── Fuel bar component ────────────────────────────────────────────────────────
+function FuelBar({ streaks }) {
+  const active = streaks.filter(s => s.streakDays > 0 || s.fuel > 0)
+  if (active.length === 0) return null
+
+  return (
+    <div className="leaflet-bottom leaflet-left" style={{ pointerEvents: 'none' }}>
+      <div className="leaflet-control" style={{
+        background: 'rgba(8,34,8,0.85)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(45,158,45,0.3)',
+        borderRadius: 12,
+        padding: '8px 10px',
+        marginBottom: 8,
+        marginLeft: 8,
+        maxWidth: 180,
+        pointerEvents: 'auto',
+      }}>
+        <p style={{ fontSize: 9, color: '#4d7a4d', fontFamily: 'Dosis,sans-serif', marginBottom: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Letter Streaks
+        </p>
+        {active.slice(0, 4).map(s => (
+          <div key={s.friendId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+            <span style={{ fontSize: 14 }}>{s.tierEmoji}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 10, color: '#c0e0c0', fontFamily: 'Dosis,sans-serif', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {s.displayName}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                {[0,1,2].map(i => (
+                  <div key={i} style={{
+                    width: 7, height: 7, borderRadius: '50%',
+                    background: i < s.fuel ? '#2d9e2d' : '#113f11',
+                    border: `1px solid ${i < s.fuel ? '#4dba4d' : '#196219'}`,
+                  }} />
+                ))}
+                {s.streakDays > 0 && (
+                  <span style={{ fontSize: 9, color: '#6a6a2a', fontFamily: 'Dosis,sans-serif', marginLeft: 2 }}>
+                    🔥{s.streakDays}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Inline send modal */}
+      {showSendModal && (
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4 bg-black/70">
+          <MapSendModal
+            friends={friends}
+            streaks={streaks}
+            onSend={() => { loadMap(); setShowSendModal(false) }}
+            onClose={() => setShowSendModal(false)}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ZoomTracker({ onZoom }) {
   const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) })
   useEffect(() => { onZoom(map.getZoom()) }, [])
@@ -185,6 +278,90 @@ const popupStyle = {
   fontFamily: 'Dosis, sans-serif',
 }
 
+
+// ── Quick send modal on the map ───────────────────────────────────────────────
+function MapSendModal({ friends, streaks, onSend, onClose }) {
+  const [step, setStep] = useState(1)
+  const [selected, setSelected] = useState(null)
+  const [content, setContent] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+  const selectedStreak = streaks.find(s => s.friendId === selected?.id)
+
+  const handleSend = async () => {
+    if (!content.trim()) return
+    setSending(true)
+    try {
+      await lettersApi.send(selected.id, content)
+      onSend()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to send')
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-sm rounded-2xl bg-forest-950 border border-forest-700 shadow-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-forest-800">
+        <h3 className="text-forest-200 font-medium">
+          {step === 1 ? '✉️ Send a Letter' : `To ${selected?.displayName}`}
+        </h3>
+        <button onClick={onClose} className="text-forest-600 hover:text-forest-300 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-forest-800 transition-colors">✕</button>
+      </div>
+
+      {step === 1 && (
+        <div className="p-3 max-h-64 overflow-y-auto space-y-2">
+          {friends.map(f => {
+            const s = streaks.find(st => st.friendId === f.id)
+            return (
+              <button key={f.id} onClick={() => { setSelected(f); setStep(2) }}
+                className="w-full flex items-center gap-2 p-2.5 rounded-xl bg-forest-900/50 hover:bg-forest-800 border border-forest-800 hover:border-forest-600 transition-colors text-left">
+                <div className="w-8 h-8 rounded-full bg-forest-700 flex items-center justify-center text-forest-200 text-xs flex-shrink-0">
+                  {f.displayName?.[0]?.toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-forest-200 text-sm">{f.displayName}</p>
+                  <p className="text-forest-600 text-xs">{f.city}</p>
+                </div>
+                <span className="text-base">{s?.tierEmoji || '🚗'}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="p-4 space-y-3">
+          {selectedStreak && (
+            <div className="flex items-center gap-2 text-xs text-forest-500">
+              <span>{selectedStreak.tierEmoji}</span>
+              <span>{selectedStreak.tierLabel} · 🔥 {selectedStreak.streakDays} days</span>
+              <span className="ml-auto">Fuel: {selectedStreak.fuel}/3</span>
+            </div>
+          )}
+          <textarea
+            className="w-full bg-forest-900/60 border border-forest-800 focus:border-forest-600 text-forest-100
+                       placeholder-forest-700 rounded-xl px-3 py-2.5 text-sm resize-none outline-none transition-colors h-28"
+            placeholder="Write your letter…"
+            maxLength={500}
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setStep(1)} className="flex-1 btn-ghost text-sm py-2 rounded-xl">← Back</button>
+            <button onClick={handleSend} disabled={sending || !content.trim()}
+              className="flex-1 btn-primary text-sm py-2 rounded-xl">
+              {sending ? '…' : 'Send ✉️'}
+            </button>
+          </div>
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MapPage() {
   const { user } = useAuth()
   const [mapData, setMapData] = useState(null)
@@ -193,13 +370,26 @@ export default function MapPage() {
   const [filter, setFilter] = useState('all')
   const [hidePrivate, setHidePrivate] = useState(false)
   const [zoom, setZoom] = useState(2)
+  const [inTransit, setInTransit] = useState([])
+  const [vehiclePositions, setVehiclePositions] = useState([])
+  const [streaks, setStreaks] = useState([])
+  const [friends, setFriends] = useState([])
+  const [showSendModal, setShowSendModal] = useState(false)
 
   const loadMap = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const { data } = await graphApi.mapData()
-      setMapData(data)
+      const [mapRes, transitRes, streakRes, friendRes] = await Promise.all([
+        graphApi.mapData(),
+        lettersApi.inTransit().catch(() => ({ data: [] })),
+        lettersApi.streaks().catch(() => ({ data: [] })),
+        friendsApi.list().catch(() => ({ data: [] })),
+      ])
+      setMapData(mapRes.data)
+      setInTransit(transitRes.data)
+      setStreaks(streakRes.data)
+      setFriends(friendRes.data)
     } catch {
       setError('Failed to load map data.')
     } finally {
@@ -229,6 +419,28 @@ export default function MapPage() {
     if (d === 2) return '2nd degree'
     return '3rd degree'
   }
+
+
+  // Animate vehicle positions every 3 seconds
+  useEffect(() => {
+    function tick() {
+      const now = Date.now()
+      const positions = inTransit
+        .filter(l => l.senderLat && l.recipientLat)
+        .map(l => {
+          const sentAt   = new Date(l.sentAt).getTime()
+          const arrivesAt = new Date(l.arrivesAt).getTime()
+          const t = Math.min(1, Math.max(0, (now - sentAt) / (arrivesAt - sentAt)))
+          const pos = interpolatePosition(l.senderLat, l.senderLon, l.recipientLat, l.recipientLon, t)
+          return { ...l, currentLat: pos.lat, currentLon: pos.lon, progress: t }
+        })
+        .filter(l => l.progress < 1)
+      setVehiclePositions(positions)
+    }
+    tick()
+    const interval = setInterval(tick, 3000)
+    return () => clearInterval(interval)
+  }, [inTransit])
 
   return (
     <div className="flex flex-col h-full">
@@ -416,7 +628,33 @@ export default function MapPage() {
               </Marker>
             )
           })}
+          {/* Animated vehicle markers for in-transit letters */}
+          {vehiclePositions.map(v => (
+            <Marker
+              key={v.id}
+              position={[v.currentLat, v.currentLon]}
+              icon={buildVehicleIcon(v.vehicleEmoji, v.senderName?.[0]?.toUpperCase() || '?')}
+              zIndexOffset={500}
+              interactive={false}
+            />
+          ))}
+
         </MapContainer>
+
+        {/* Fuel bar — renders inside the map container div but outside MapContainer */}
+        <div className="absolute bottom-0 left-0 z-[999] pointer-events-none">
+          <FuelBar streaks={streaks} />
+        </div>
+
+        {/* Send letter button — bottom right */}
+        <button
+          onClick={() => setShowSendModal(true)}
+          className="absolute bottom-14 right-4 z-[999] w-12 h-12 rounded-full bg-forest-600 hover:bg-forest-500 shadow-lg flex items-center justify-center text-2xl transition-colors active:scale-95"
+          title="Send a letter"
+        >
+          +
+        </button>
+
       </div>
 
       {/* Legend */}

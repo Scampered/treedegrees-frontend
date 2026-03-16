@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage'
 import MapPage from './pages/MapPage'
 import FriendsPage from './pages/FriendsPage'
 import FeedPage from './pages/FeedPage'
+import LettersPage from './pages/LettersPage'
 import SettingsPage from './pages/SettingsPage'
 import Layout from './components/Layout'
 
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/map" element={<MapPage />} />
             <Route path="/friends" element={<FriendsPage />} />
             <Route path="/feed" element={<FeedPage />} />
+            <Route path="/letters" element={<LettersPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 

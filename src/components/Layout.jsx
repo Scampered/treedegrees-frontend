@@ -9,6 +9,7 @@ const navItems = [
   { to: '/map',       icon: '🗺️',  label: 'Map',         fullLabel: 'Globe Map'    },
   { to: '/friends',   icon: '🌱',  label: 'Friends',     fullLabel: 'Connections'  },
   { to: '/feed',      icon: '📋',  label: 'Notes',       fullLabel: 'Daily Notes'  },
+  { to: '/letters',   icon: '✉️',   label: 'Letters',     fullLabel: 'Letters'      },
   { to: '/settings',  icon: '⚙️',  label: 'Settings',    fullLabel: 'Settings'     },
 ]
 
