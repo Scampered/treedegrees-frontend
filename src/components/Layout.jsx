@@ -1,5 +1,5 @@
 // src/components/Layout.jsx
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 // Desktop sidebar + mobile bottom nav items
@@ -25,16 +25,16 @@ export default function Layout() {
 
       {/* ── Desktop Sidebar (lg+) ─────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 glass-dark border-r border-forest-800">
-        {/* Logo */}
-        <div className="p-6 border-b border-forest-800">
+        {/* Logo — clickable, goes to dashboard */}
+        <Link to="/dashboard" className="block p-6 border-b border-forest-800 hover:bg-forest-900/40 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-forest-700 flex items-center justify-center text-xl">🌳</div>
+            <img src="/tree-icon.svg" alt="TreeDegrees" className="w-9 h-9 rounded-lg" />
             <div>
               <h1 className="font-display text-forest-100 text-lg leading-none">TreeDegrees</h1>
               <p className="text-forest-500 text-xs mt-0.5">Social Graph</p>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* User chip */}
         <div className="px-4 py-3 mx-4 mt-4 rounded-xl bg-forest-900/60 border border-forest-800">
@@ -69,10 +69,10 @@ export default function Layout() {
 
         {/* Mobile top bar — just logo + nickname, no hamburger */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-forest-800 glass-dark flex-shrink-0 z-20">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🌳</span>
+          <Link to="/dashboard" className="flex items-center gap-2">
+            <img src="/tree-icon.svg" alt="TreeDegrees" className="w-7 h-7 rounded-lg" />
             <span className="font-display text-forest-200 text-base">TreeDegrees</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-2">
             <span className="text-forest-400 text-sm">{user?.nickname || user?.fullName?.split(' ')[0]}</span>
             <div className="w-7 h-7 rounded-full bg-forest-700 flex items-center justify-center text-xs text-forest-200">
