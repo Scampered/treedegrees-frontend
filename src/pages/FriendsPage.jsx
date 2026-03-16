@@ -280,6 +280,13 @@ export default function FriendsPage() {
                     <p className="text-forest-700 text-xs ml-auto">{new Date(r.createdAt).toLocaleDateString()}</p>
                   </div>
 
+                  {/* Bio preview */}
+                  {r.user.bio && (
+                    <p className="text-forest-500 text-xs italic mb-3 pl-3 border-l-2 border-forest-800">
+                      "{r.user.bio}"
+                    </p>
+                  )}
+
                   {/* Privacy choice before accepting */}
                   <div className="mb-3">
                     <p className="text-forest-500 text-xs mb-1.5">Add as:</p>

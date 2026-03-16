@@ -18,12 +18,11 @@ async function reverseGeocode(lat, lon) {
 }
 
 const LOCATION_PRIVACY_OPTIONS = [
-  { value: 'exact', label: 'Exact location', desc: 'Everyone sees your precise city pin', icon: '📍' },
-  { value: 'private', label: 'Direct friends only', desc: 'Friends see exact; others see your country capital', icon: '🔒' },
-  { value: 'hidden', label: 'Approximate for everyone', desc: 'Everyone sees only your country capital', icon: '🌐' },
+  { value: 'exact',   label: 'Exact location',            desc: 'Everyone sees your precise city pin', icon: '📍' },
+  { value: 'private', label: 'Direct friends only',       desc: 'Friends see exact; others see your country capital', icon: '🔒' },
+  { value: 'hidden',  label: 'Approximate for everyone',  desc: 'Everyone sees only your country capital', icon: '🌐' },
 ]
 
-// ── Toggle Switch component ───────────────────────────────────────────────────
 function Toggle({ checked, onChange, label, desc }) {
   return (
     <div className="flex items-start justify-between gap-4">
@@ -31,12 +30,9 @@ function Toggle({ checked, onChange, label, desc }) {
         <p className="text-forest-200 text-sm">{label}</p>
         {desc && <p className="text-forest-600 text-xs mt-0.5">{desc}</p>}
       </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
+      <button type="button" onClick={() => onChange(!checked)}
         className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none
-          ${checked ? 'bg-forest-600' : 'bg-forest-800'}`}
-      >
+          ${checked ? 'bg-forest-600' : 'bg-forest-800'}`}>
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200
           ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
       </button>
@@ -50,7 +46,6 @@ function ConnectionsModal({ onClose }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
-  // local state: friendshipId -> isPrivate
   const [privacy, setPrivacy] = useState({})
 
   useEffect(() => {
@@ -65,14 +60,10 @@ function ConnectionsModal({ onClose }) {
   const publicFriends = friends.filter(f => !privacy[f.friendshipId])
   const privateFriends = friends.filter(f => privacy[f.friendshipId])
 
-  const moveToPublic = (f) => setPrivacy(p => ({ ...p, [f.friendshipId]: false }))
-  const moveToPrivate = (f) => setPrivacy(p => ({ ...p, [f.friendshipId]: true }))
-
   const handleSave = async () => {
     setSaving(true)
     setSaveStatus('')
     try {
-      // Only update connections whose privacy changed
       const original = {}
       friends.forEach(f => { original[f.friendshipId] = f.isPrivate })
       const changed = Object.entries(privacy).filter(([id, val]) => original[id] !== val)
@@ -89,74 +80,48 @@ function ConnectionsModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
       <div className="w-full max-w-xl rounded-2xl bg-forest-950 border border-forest-700 shadow-2xl flex flex-col max-h-[85vh]">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-forest-800">
           <h2 className="font-display text-forest-100 text-xl">Manage Connections</h2>
           <button onClick={onClose} className="text-forest-500 hover:text-forest-300 text-xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-forest-800 transition-colors">✕</button>
         </div>
-
         {loading ? (
           <div className="flex-1 flex items-center justify-center py-12 text-forest-600">Loading…</div>
         ) : friends.length === 0 ? (
           <div className="flex-1 flex items-center justify-center py-12 text-forest-600">No connections yet</div>
         ) : (
           <>
-            <p className="px-6 pt-4 pb-2 text-forest-500 text-xs">
-              Use the arrows to move connections between public and private. Click Save when done.
-            </p>
-            {/* Two columns */}
+            <p className="px-6 pt-4 pb-2 text-forest-500 text-xs">Hover a name and use the arrow to move it between columns. Click Save when done.</p>
             <div className="flex-1 overflow-y-auto px-6 pb-4">
               <div className="grid grid-cols-2 gap-4 min-h-[200px]">
-                {/* Public column */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-sm">🌐</span>
                     <p className="text-forest-300 text-sm font-medium">Public ({publicFriends.length})</p>
                   </div>
                   <div className="space-y-2">
-                    {publicFriends.length === 0 && (
-                      <p className="text-forest-700 text-xs italic py-4 text-center border border-dashed border-forest-800 rounded-xl">Empty</p>
-                    )}
+                    {publicFriends.length === 0 && <p className="text-forest-700 text-xs italic py-4 text-center border border-dashed border-forest-800 rounded-xl">Empty</p>}
                     {publicFriends.map(f => (
                       <div key={f.friendshipId} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-900/60 border border-forest-800 group">
-                        <div className="w-7 h-7 rounded-full bg-forest-700 flex items-center justify-center text-xs text-forest-200 flex-shrink-0">
-                          {f.displayName?.[0]?.toUpperCase()}
-                        </div>
+                        <div className="w-7 h-7 rounded-full bg-forest-700 flex items-center justify-center text-xs text-forest-200 flex-shrink-0">{f.displayName?.[0]?.toUpperCase()}</div>
                         <p className="text-forest-200 text-xs flex-1 truncate">{f.displayName}</p>
-                        <button
-                          onClick={() => moveToPrivate(f)}
-                          title="Make private"
-                          className="text-forest-600 hover:text-forest-300 opacity-0 group-hover:opacity-100 transition-all text-sm flex-shrink-0"
-                        >
-                          →
-                        </button>
+                        <button onClick={() => setPrivacy(p => ({ ...p, [f.friendshipId]: true }))} title="Make private"
+                          className="text-forest-600 hover:text-forest-300 opacity-0 group-hover:opacity-100 transition-all text-sm flex-shrink-0">→</button>
                       </div>
                     ))}
                   </div>
                 </div>
-
-                {/* Private column */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-sm">🔒</span>
                     <p className="text-forest-300 text-sm font-medium">Private ({privateFriends.length})</p>
                   </div>
                   <div className="space-y-2">
-                    {privateFriends.length === 0 && (
-                      <p className="text-forest-700 text-xs italic py-4 text-center border border-dashed border-forest-800 rounded-xl">Empty</p>
-                    )}
+                    {privateFriends.length === 0 && <p className="text-forest-700 text-xs italic py-4 text-center border border-dashed border-forest-800 rounded-xl">Empty</p>}
                     {privateFriends.map(f => (
                       <div key={f.friendshipId} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-900/60 border border-forest-800 group">
-                        <button
-                          onClick={() => moveToPublic(f)}
-                          title="Make public"
-                          className="text-forest-600 hover:text-forest-300 opacity-0 group-hover:opacity-100 transition-all text-sm flex-shrink-0"
-                        >
-                          ←
-                        </button>
-                        <div className="w-7 h-7 rounded-full bg-forest-700 flex items-center justify-center text-xs text-forest-200 flex-shrink-0">
-                          {f.displayName?.[0]?.toUpperCase()}
-                        </div>
+                        <button onClick={() => setPrivacy(p => ({ ...p, [f.friendshipId]: false }))} title="Make public"
+                          className="text-forest-600 hover:text-forest-300 opacity-0 group-hover:opacity-100 transition-all text-sm flex-shrink-0">←</button>
+                        <div className="w-7 h-7 rounded-full bg-forest-700 flex items-center justify-center text-xs text-forest-200 flex-shrink-0">{f.displayName?.[0]?.toUpperCase()}</div>
                         <p className="text-forest-200 text-xs flex-1 truncate">{f.displayName}</p>
                       </div>
                     ))}
@@ -164,12 +129,8 @@ function ConnectionsModal({ onClose }) {
                 </div>
               </div>
             </div>
-
-            {/* Footer */}
             <div className="px-6 py-4 border-t border-forest-800 flex items-center justify-between">
-              <span className={`text-sm ${saveStatus.startsWith('✓') ? 'text-forest-400' : 'text-red-400'}`}>
-                {saveStatus}
-              </span>
+              <span className={`text-sm ${saveStatus.startsWith('✓') ? 'text-forest-400' : 'text-red-400'}`}>{saveStatus}</span>
               <div className="flex gap-3">
                 <button onClick={onClose} className="btn-ghost text-sm py-2 px-5">Cancel</button>
                 <button onClick={handleSave} disabled={saving} className="btn-primary text-sm py-2 px-5 rounded-full">
@@ -184,6 +145,49 @@ function ConnectionsModal({ onClose }) {
   )
 }
 
+// ── Locked field with edit button ─────────────────────────────────────────────
+function LockedField({ label, value, hint, onChange, maxLength = 120 }) {
+  const [editing, setEditing] = useState(false)
+  const [local, setLocal] = useState(value)
+
+  const handleEdit = () => { setLocal(value); setEditing(true) }
+  const handleCancel = () => { setEditing(false); setLocal(value) }
+  const handleDone = () => { onChange(local); setEditing(false) }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-forest-400 text-xs uppercase tracking-wide">{label}</label>
+        {!editing
+          ? <button type="button" onClick={handleEdit}
+              className="text-forest-500 hover:text-forest-300 text-xs px-3 py-1 rounded-lg border border-forest-800 hover:border-forest-600 transition-colors">
+              ✏️ Edit
+            </button>
+          : <div className="flex gap-2">
+              <button type="button" onClick={handleDone}
+                className="text-forest-300 hover:text-forest-100 text-xs px-3 py-1 rounded-lg bg-forest-700 hover:bg-forest-600 transition-colors">
+                Done
+              </button>
+              <button type="button" onClick={handleCancel}
+                className="text-forest-600 hover:text-forest-400 text-xs px-2 py-1 rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+        }
+      </div>
+      <input
+        type="text"
+        className={`input text-sm transition-all ${editing ? '' : 'opacity-60 cursor-not-allowed bg-forest-950/30'}`}
+        value={editing ? local : value}
+        onChange={e => editing && setLocal(e.target.value)}
+        readOnly={!editing}
+        maxLength={maxLength}
+      />
+      {hint && <p className="text-forest-700 text-xs mt-1">{hint}</p>}
+    </div>
+  )
+}
+
 // ── Main Settings Page ────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { user, updateUser, logout } = useAuth()
@@ -191,6 +195,7 @@ export default function SettingsPage() {
   const [showConnectionsModal, setShowConnectionsModal] = useState(false)
 
   const [profile, setProfile] = useState({
+    fullName: user?.fullName || '',
     bio: user?.bio || '',
     nickname: user?.nickname || '',
     city: user?.city || '',
@@ -202,7 +207,6 @@ export default function SettingsPage() {
   const [profileLoading, setProfileLoading] = useState(false)
   const [gpsLoading, setGpsLoading] = useState(false)
   const [gpsStatus, setGpsStatus] = useState('')
-
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteStatus, setDeleteStatus] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -275,6 +279,16 @@ export default function SettingsPage() {
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <h2 className="text-forest-200 font-medium mb-4">Profile</h2>
         <form onSubmit={saveProfile} className="space-y-4">
+
+          {/* Full name — locked behind edit button */}
+          <LockedField
+            label="Full name"
+            value={profile.fullName}
+            hint="Only visible to you and direct connections who you allow"
+            onChange={(val) => setProfile(p => ({ ...p, fullName: val }))}
+          />
+
+          {/* Nickname — always editable */}
           <div>
             <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1.5">Nickname</label>
             <input type="text" className="input text-sm" placeholder="What people call you"
@@ -283,13 +297,18 @@ export default function SettingsPage() {
               maxLength={50} />
             <p className="text-forest-700 text-xs mt-1">The name everyone will see, except those you allow</p>
           </div>
+
+          {/* Bio — always editable */}
           <div>
             <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1.5">Bio</label>
-            <textarea className="input resize-none h-20 text-sm" placeholder="A few words about yourself…"
+            <textarea className="input resize-none h-20 text-sm" placeholder="A few words about yourself… (shown on connection requests)"
               value={profile.bio}
               onChange={e => setProfile(p => ({ ...p, bio: e.target.value }))}
               maxLength={200} />
+            <p className="text-forest-700 text-xs mt-1">Shown to people who receive or send you a connection request</p>
           </div>
+
+          {/* Location */}
           <div className="rounded-xl bg-forest-950/60 border border-forest-800 p-3">
             <button type="button" onClick={handleGPS} disabled={gpsLoading}
               className="w-full text-center text-forest-300 hover:text-forest-100 text-sm py-2 transition-colors">
@@ -309,6 +328,7 @@ export default function SettingsPage() {
                 onChange={e => setProfile(p => ({ ...p, country: e.target.value }))} />
             </div>
           </div>
+
           <div className="flex items-center justify-between mt-2">
             <span className={`text-sm ${profileStatus.startsWith('✓') ? 'text-forest-400' : 'text-red-400'}`}>{profileStatus}</span>
             <button type="submit" className="btn-primary text-sm rounded-full px-6" disabled={profileLoading}>
@@ -322,38 +342,29 @@ export default function SettingsPage() {
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <h2 className="text-forest-200 font-medium mb-4">Privacy Controls</h2>
         <div className="space-y-5">
-          {/* Public profile toggle */}
           <Toggle
             checked={profile.isPublic}
             onChange={(val) => setProfile(p => ({ ...p, isPublic: val }))}
             label="Public profile"
             desc="Your nickname, bio, and daily notes are visible to your network"
           />
-
-          {/* Manage connections */}
           <div className="flex items-start justify-between gap-4 pt-1 border-t border-forest-800">
             <div>
               <p className="text-forest-200 text-sm">Manage private connections</p>
               <p className="text-forest-600 text-xs mt-0.5">Move connections between public and private visibility</p>
             </div>
-            <button
-              onClick={() => setShowConnectionsModal(true)}
-              className="flex-shrink-0 bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs px-4 py-2 rounded-xl transition-colors"
-            >
+            <button onClick={() => setShowConnectionsModal(true)}
+              className="flex-shrink-0 bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs px-4 py-2 rounded-xl transition-colors">
               Manage →
             </button>
           </div>
-
-          {/* Location privacy */}
           <div className="pt-1 border-t border-forest-800">
             <p className="text-forest-300 text-sm font-medium mb-1">📍 Location Privacy</p>
-            <p className="text-forest-600 text-xs mb-3">Controls where your pin appears on the map. Approximate = country capital.</p>
+            <p className="text-forest-600 text-xs mb-3">Approximate = your country capital is shown instead.</p>
             <div className="space-y-2">
               {LOCATION_PRIVACY_OPTIONS.map(opt => (
                 <label key={opt.value} className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-colors
-                  ${profile.locationPrivacy === opt.value
-                    ? 'border-forest-600 bg-forest-800/50'
-                    : 'border-forest-800 hover:border-forest-700 bg-forest-900/30'}`}>
+                  ${profile.locationPrivacy === opt.value ? 'border-forest-600 bg-forest-800/50' : 'border-forest-800 hover:border-forest-700 bg-forest-900/30'}`}>
                   <input type="radio" name="locationPrivacy" value={opt.value}
                     checked={profile.locationPrivacy === opt.value}
                     onChange={() => setProfile(p => ({ ...p, locationPrivacy: opt.value }))}
@@ -379,14 +390,12 @@ export default function SettingsPage() {
         <h2 className="text-forest-200 font-medium mb-1">Your Friend Code</h2>
         <p className="text-forest-600 text-xs mb-3">Generated with SHA-256 — cannot be reverse-engineered.</p>
         <div className="flex items-center gap-3">
-          <p className="friend-code text-forest-100 text-xl tracking-[0.2em] bg-forest-900 px-4 py-2 rounded-xl">
-            {user?.friendCode}
-          </p>
+          <p className="friend-code text-forest-100 text-xl tracking-[0.2em] bg-forest-900 px-4 py-2 rounded-xl">{user?.friendCode}</p>
           <button onClick={() => navigator.clipboard?.writeText(user?.friendCode)} className="btn-ghost text-xs py-2 px-3 rounded-xl">Copy</button>
         </div>
       </div>
 
-      {/* Account info */}
+      {/* Account */}
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <h2 className="text-forest-200 font-medium mb-3">Account</h2>
         <div className="space-y-2 text-sm">
@@ -416,7 +425,6 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* Connections modal */}
       {showConnectionsModal && <ConnectionsModal onClose={() => setShowConnectionsModal(false)} />}
     </div>
   )
