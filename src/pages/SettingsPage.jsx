@@ -54,6 +54,7 @@ export default function SettingsPage() {
 
   const [profile, setProfile] = useState({
     bio: user?.bio || '',
+    nickname: user?.nickname || '',
     city: user?.city || '',
     country: user?.country || '',
     isPublic: user?.isPublic ?? true,
@@ -162,6 +163,18 @@ export default function SettingsPage() {
           </div>
 
           {/* GPS button */}
+          <div>
+            <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1.5">Nickname</label>
+            <input
+              type="text" className="input text-sm"
+              placeholder="What people see instead of your full name"
+              value={profile.nickname}
+              onChange={e => setProfile(p => ({ ...p, nickname: e.target.value }))}
+              maxLength={50}
+            />
+            <p className="text-forest-700 text-xs mt-1">The name everyone will see, except those you allow</p>
+          </div>
+
           <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
             <button type="button" onClick={handleGPS} disabled={gpsLoading} className="btn-ghost w-full text-sm py-2">
               {gpsLoading ? '⏳ Detecting…' : '📍 Check my location'}
