@@ -47,7 +47,7 @@ export default function FeedPage() {
           <div key={note.id} className="glass rounded-xl p-5 slide-up">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="text-forest-100 font-medium text-sm">{note.fullName}</p>
+                <p className="text-forest-100 font-medium text-sm">{note.displayName}</p>
                 <p className="text-forest-500 text-xs">{note.city}, {note.country}</p>
               </div>
               <span className="text-forest-600 text-xs flex-shrink-0">{timeAgo(note.postedAt)}</span>

@@ -98,6 +98,57 @@ const noteTooltipStyle = `
   }
 `
 
+
+// ── Custom region labels overlay ──────────────────────────────────────────────
+// These labels render on top of the base tile layer.
+// Add/edit entries here to relabel any region on the map.
+const CUSTOM_LABELS = [
+  // Palestinian territories
+  { name: 'Palestine 🇵🇸', lat: 31.9, lon: 35.2, minZoom: 3 },
+  // Western Sahara
+  { name: 'Western Sahara 🇪🇭', lat: 24.2, lon: -13.0, minZoom: 4 },
+  // Kashmir (disputed)
+  { name: 'Kashmir', lat: 34.0, lon: 76.5, minZoom: 5 },
+  // Taiwan
+  { name: 'Taiwan 🇹🇼', lat: 23.7, lon: 121.0, minZoom: 4 },
+  // Add more here as needed:
+  // { name: 'Your Label', lat: 0.0, lon: 0.0, minZoom: 3 },
+]
+
+function CustomLabels({ zoom }) {
+  return (
+    <>
+      {CUSTOM_LABELS.map(label => {
+        if (zoom < label.minZoom) return null
+        const icon = L.divIcon({
+          className: '',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+          html: `<div style="
+            font-family: Dosis, sans-serif;
+            font-size: ${zoom >= 6 ? 13 : zoom >= 4 ? 11 : 10}px;
+            font-weight: 700;
+            color: #e0ffe0;
+            white-space: nowrap;
+            text-shadow: 0 0 6px #000, 0 0 12px #000, 1px 1px 0 #000, -1px -1px 0 #000;
+            pointer-events: none;
+            letter-spacing: 0.03em;
+          ">${label.name}</div>`,
+        })
+        return (
+          <Marker
+            key={label.name}
+            position={[label.lat, label.lon]}
+            icon={icon}
+            interactive={false}
+            zIndexOffset={-100}
+          />
+        )
+      })}
+    </>
+  )
+}
+
 function ZoomTracker({ onZoom }) {
   const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) })
   useEffect(() => { onZoom(map.getZoom()) }, [])
@@ -221,6 +272,9 @@ export default function MapPage() {
           />
 
           <ZoomTracker onZoom={setZoom} />
+
+          {/* Custom region labels */}
+          <CustomLabels zoom={zoom} />
 
           {/* Edges */}
           {filteredEdges.map((edge, i) => {
