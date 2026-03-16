@@ -288,13 +288,14 @@ export default function MapPage() {
         friendsApi.list().catch(() => ({ data: [] })),
       ])
       setMapData(mRes.data)
-      setInTransit(tRes.data)
-      setStreaks(sRes.data)
-      setFriends(fRes.data)
-    } catch {
+      setInTransit(Array.isArray(tRes.data) ? tRes.data : [])
+      setStreaks(Array.isArray(sRes.data) ? sRes.data : [])
+      setFriends(Array.isArray(fRes.data) ? fRes.data : [])
+    } catch (e) {
+      console.error('Map load error:', e)
       setError('Failed to load map data.')
     } finally {
-      setLoading(false)
+      setLoading(false)  // always clears — no more green screen
     }
   }, [])
 
@@ -305,15 +306,15 @@ export default function MapPage() {
     function tick() {
       const now = Date.now()
       const pos = inTransit
-        .filter(l => l.senderLat && l.recipientLat)
+        .filter(l => l.senderLat && l.recipientLat && !isNaN(parseFloat(l.senderLat)) && !isNaN(parseFloat(l.recipientLat)))
         .map(l => {
           const sent    = new Date(l.sentAt).getTime()
           const arrives = new Date(l.arrivesAt).getTime()
           const t = Math.min(1, Math.max(0, (now - sent) / (arrives - sent)))
           return {
             ...l,
-            currentLat: lerp(l.senderLat, l.recipientLat, t),
-            currentLon: lerp(l.senderLon, l.recipientLon, t),
+            currentLat: lerp(parseFloat(l.senderLat), parseFloat(l.recipientLat), t),
+            currentLon: lerp(parseFloat(l.senderLon), parseFloat(l.recipientLon), t),
             progress: t,
           }
         })
@@ -505,7 +506,7 @@ export default function MapPage() {
           })}
 
           {/* Vehicle markers — pure emoji, no node inside */}
-          {vehiclePos.map(v => (
+          {vehiclePos.filter(v => !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (
             <Marker key={v.id}
               position={[v.currentLat, v.currentLon]}
               icon={buildVehicleIcon(v.vehicleTier)}
