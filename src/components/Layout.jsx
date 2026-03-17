@@ -15,6 +15,7 @@ const sidebarItems = [
   { to: '/feed',      icon: '📋',  fullLabel: 'Daily Notes' },
   { to: '/letters',   icon: '✉️',   fullLabel: 'Letters'     },
   { to: '/settings',  icon: '⚙️',  fullLabel: 'Settings'    },
+  { to: '/guide',     icon: '📖',  fullLabel: 'Guide'       },
 ]
 
 // Mobile bottom nav — 5 items, Home dead centre, NO Letters (moved to topbar)

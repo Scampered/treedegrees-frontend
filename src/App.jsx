@@ -13,6 +13,7 @@ import FeedPage from './pages/FeedPage'
 import LettersPage from './pages/LettersPage'
 import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/AdminPage'
+import GuidePage from './pages/GuidePage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="/letters" element={<MaintenanceGuard pageKey="letters"><LettersPage /></MaintenanceGuard>} />
             <Route path="/settings" element={<MaintenanceGuard pageKey="settings"><SettingsPage /></MaintenanceGuard>} />
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+            <Route path="/guide" element={<GuidePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
