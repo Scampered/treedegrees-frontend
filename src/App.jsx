@@ -1,5 +1,6 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
 import LandingPage from './pages/LandingPage'
@@ -11,7 +12,26 @@ import FriendsPage from './pages/FriendsPage'
 import FeedPage from './pages/FeedPage'
 import LettersPage from './pages/LettersPage'
 import SettingsPage from './pages/SettingsPage'
+import AdminPage from './pages/AdminPage'
+import MaintenanceGuard from './components/MaintenanceGuard'
+import { adminApi } from './api/client'
 import Layout from './components/Layout'
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    if (!user) { setChecking(false); return }
+    adminApi.me().then(r => setIsAdmin(r.data.isAdmin)).catch(() => {}).finally(() => setChecking(false))
+  }, [user])
+
+  if (loading || checking) return <FullScreenLoader />
+  if (!user) return <Navigate to="/login" replace />
+  if (!isAdmin) return <Navigate to="/dashboard" replace />
+  return children
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -54,11 +74,12 @@ export default function App() {
           {/* Protected */}
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/map" element={<MapPage />} />
-            <Route path="/friends" element={<FriendsPage />} />
-            <Route path="/feed" element={<FeedPage />} />
-            <Route path="/letters" element={<LettersPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/map" element={<MaintenanceGuard pageKey="map"><MapPage /></MaintenanceGuard>} />
+            <Route path="/friends" element={<MaintenanceGuard pageKey="friends"><FriendsPage /></MaintenanceGuard>} />
+            <Route path="/feed" element={<MaintenanceGuard pageKey="feed"><FeedPage /></MaintenanceGuard>} />
+            <Route path="/letters" element={<MaintenanceGuard pageKey="letters"><LettersPage /></MaintenanceGuard>} />
+            <Route path="/settings" element={<MaintenanceGuard pageKey="settings"><SettingsPage /></MaintenanceGuard>} />
+            <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

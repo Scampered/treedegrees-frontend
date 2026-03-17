@@ -84,3 +84,19 @@ export const lettersApi = {
   open:      (id)                   => api.patch(`/api/letters/${id}/open`),
   recall:    (id)                   => api.delete(`/api/letters/${id}`),
 }
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export const adminApi = {
+  me:               ()                     => api.get('/api/admin/me'),
+  stats:            ()                     => api.get('/api/admin/stats'),
+  users:            (search, page)         => api.get('/api/admin/users', { params: { search, page } }),
+  editUser:         (id, data)             => api.patch(`/api/admin/users/${id}`, data),
+  banUser:          (id)                   => api.delete(`/api/admin/users/${id}`),
+  maintenance:      ()                     => api.get('/api/admin/maintenance'),
+  setMaintenance:   (page, isDown, msg)    => api.patch(`/api/admin/maintenance/${page}`, { isDown, message: msg }),
+  log:              ()                     => api.get('/api/admin/log'),
+}
+
+export const maintenanceApi = {
+  check: () => fetch(`${import.meta.env.VITE_API_URL || ''}/api/maintenance`).then(r => r.json()).catch(() => ({})),
+}
