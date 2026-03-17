@@ -1,5 +1,9 @@
 // src/components/Layout.jsx
 import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { registerSW } from '../utils/notifications'
+import NotificationPrompt from './NotificationPrompt'
+import { lettersApi } from '../api/client'
 import PopupSystem from './PopupSystem'
 import { useAuth } from '../context/AuthContext'
 
@@ -18,6 +22,28 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+
+  const [unreadLetters, setUnreadLetters] = useState(0)
+
+  useEffect(() => {
+    // Register service worker for PWA
+    registerSW()
+  }, [])
+
+  useEffect(() => {
+    // Poll for unread letters every 2 minutes
+    function checkUnread() {
+      lettersApi.list().then(r => {
+        const count = r.data.filter(l => l.isInbox && !l.openedAt && !l.inTransit).length
+        setUnreadLetters(count)
+      }).catch(() => {})
+    }
+    if (user) {
+      checkUnread()
+      const iv = setInterval(checkUnread, 120000)
+      return () => clearInterval(iv)
+    }
+  }, [user])
 
   const handleLogout = () => { logout(); navigate('/') }
   const isMap = location.pathname === '/map'
@@ -55,7 +81,12 @@ export default function Layout() {
               }
             >
               <span className="text-base">{icon}</span>
-              {fullLabel}
+              <span className="flex-1">{fullLabel}</span>
+              {to === '/letters' && unreadLetters > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
+                  {unreadLetters > 9 ? '9+' : unreadLetters}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -94,6 +125,8 @@ export default function Layout() {
 
       {/* Admin popups */}
       <PopupSystem />
+      {/* Mobile notification prompt */}
+      <NotificationPrompt />
 
       {/* ── Mobile Bottom Nav (< lg) ──────────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-stretch h-16
@@ -115,9 +148,16 @@ export default function Layout() {
                 {isActive && (
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-forest-400" />
                 )}
-                <span className={`text-xl transition-transform duration-150 ${isActive ? 'scale-110' : 'scale-100'}`}>
-                  {icon}
-                </span>
+                <div className="relative">
+                  <span className={`text-xl transition-transform duration-150 block ${isActive ? 'scale-110' : 'scale-100'}`}>
+                    {icon}
+                  </span>
+                  {to === '/letters' && unreadLetters > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {unreadLetters > 9 ? '9+' : unreadLetters}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-medium leading-none">{label}</span>
               </>
             )}

@@ -38,8 +38,10 @@ function EnvelopeLetter({ letter, onOpen, onRecall }) {
 
   const handleClick = async () => {
     if (letter.inTransit) return
+    const wasExpanded = expanded
     setExpanded(e => !e)
-    if (!expanded && letter.isInbox && !letter.openedAt) {
+    // Mark as read when CLOSING (user has seen it) — not when opening
+    if (wasExpanded && letter.isInbox && !letter.openedAt) {
       try { await lettersApi.open(letter.id) } catch {}
       onOpen?.(letter.id)
     }
