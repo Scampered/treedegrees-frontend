@@ -78,7 +78,9 @@ export const nicknamesApi = {
 export const lettersApi = {
   send:      (recipientId, content) => api.post('/api/letters', { recipientId, content }),
   list:      ()                     => api.get('/api/letters'),
+  stats:     ()                     => api.get('/api/letters/stats'),
   inTransit: ()                     => api.get('/api/letters/in-transit'),
   streaks:   ()                     => api.get('/api/letters/streaks'),
   open:      (id)                   => api.patch(`/api/letters/${id}/open`),
+  recall:    (id)                   => api.delete(`/api/letters/${id}`),
 }

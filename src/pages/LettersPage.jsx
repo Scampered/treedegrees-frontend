@@ -46,7 +46,7 @@ function FuelDots({ fuel }) {
 }
 
 // ── Envelope card ─────────────────────────────────────────────────────────────
-function EnvelopeLetter({ letter, onOpen, isMe }) {
+function EnvelopeLetter({ letter, onOpen, onRecall, isMe }) {
   const [expanded, setExpanded] = useState(false)
   const v = VEHICLE_INFO[letter.vehicleTier] || VEHICLE_INFO.car
 
@@ -87,10 +87,21 @@ function EnvelopeLetter({ letter, onOpen, isMe }) {
             )}
           </div>
           {letter.inTransit ? (
-            <p className="text-forest-500 text-xs mt-0.5 flex items-center gap-1">
-              <span>{v.emoji}</span>
-              Letter on the way — arrives {timeUntil(letter.arrivesAt)}
-            </p>
+            <div className="flex items-center justify-between gap-2 mt-0.5">
+              <p className="text-forest-500 text-xs flex items-center gap-1">
+                <span>{v.emoji}</span>
+                {letter.isInbox ? 'On the way' : 'In transit'} — arrives {timeUntil(letter.arrivesAt)}
+              </p>
+              {!letter.isInbox && (
+                <button
+                  onClick={e => { e.stopPropagation(); onRecall?.(letter.id) }}
+                  className="text-xs text-red-500 hover:text-red-300 px-2 py-0.5 rounded-lg hover:bg-red-950/40 transition-colors flex-shrink-0"
+                  title="Recall letter"
+                >
+                  ✕ Recall
+                </button>
+              )}
+            </div>
           ) : (
             <p className="text-forest-600 text-xs mt-0.5">{timeAgo(letter.arrivesAt)} via {v.label}</p>
           )}
@@ -127,7 +138,7 @@ function EnvelopeLetter({ letter, onOpen, isMe }) {
 }
 
 // ── Send letter modal ─────────────────────────────────────────────────────────
-function SendModal({ friends, streaks, onSend, onClose }) {
+function SendModal({ friends, streaks, letters, onSend, onClose }) {
   const [step, setStep] = useState(1) // 1 = pick friend, 2 = write
   const [selected, setSelected] = useState(null)
   const [content, setContent] = useState('')
@@ -270,6 +281,16 @@ export default function LettersPage() {
     return () => clearInterval(interval)
   }, [letters, reload])
 
+  const handleRecall = async (id) => {
+    if (!window.confirm('Recall this letter? It will be destroyed and you can send a new one.')) return
+    try {
+      await lettersApi.recall(id)
+      setLetters(prev => prev.filter(l => l.id !== id))
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not recall letter')
+    }
+  }
+
   const handleOpen = (id) => {
     setLetters(prev => prev.map(l => l.id === id ? { ...l, openedAt: new Date() } : l))
   }
@@ -351,6 +372,7 @@ export default function LettersPage() {
             key={letter.id}
             letter={letter}
             onOpen={handleOpen}
+            onRecall={handleRecall}
             isMe={letter.senderId === user?.id}
           />
         ))}
@@ -360,6 +382,7 @@ export default function LettersPage() {
         <SendModal
           friends={friends}
           streaks={streaks}
+          letters={letters}
           onSend={handleSent}
           onClose={() => setShowSend(false)}
         />
