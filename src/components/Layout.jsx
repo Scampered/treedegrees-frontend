@@ -1,5 +1,6 @@
 // src/components/Layout.jsx
 import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
+import PopupSystem from './PopupSystem'
 import { useAuth } from '../context/AuthContext'
 
 // Desktop sidebar + mobile bottom nav items
@@ -90,6 +91,9 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Admin popups */}
+      <PopupSystem />
 
       {/* ── Mobile Bottom Nav (< lg) ──────────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-stretch h-16

@@ -6,24 +6,23 @@ import { useAuth } from '../context/AuthContext'
 const VEHICLE_INFO = {
   car:       { emoji: '🚗',  label: 'Car'        },
   sportscar: { emoji: '🏎️',  label: 'Sports Car' },
-  airliner:  { emoji: '✈️',  label: 'Airliner'   },
-  jet:       { emoji: '🛩️',  label: 'Jet'        },
+  airliner:  { emoji: '🛩️',  label: 'Airliner'   },
+  jet:       { emoji: '✈️',  label: 'Jet'        },
   spaceship: { emoji: '🚀',  label: 'Spaceship'  },
-  radio:     { emoji: '📡',  label: 'Radio'      },
+  radio:     { emoji: '🗼',  label: 'Radio'      },
 }
 
 function timeAgo(date) {
-  const d = new Date(date)
-  const diff = (Date.now() - d.getTime()) / 1000
+  const diff = (Date.now() - new Date(date).getTime()) / 1000
   if (diff < 60)    return 'Just now'
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return d.toLocaleDateString()
+  if (diff < 3600)  return `${Math.floor(diff/60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`
+  return new Date(date).toLocaleDateString()
 }
 
 function timeUntil(date) {
   const ms = new Date(date) - Date.now()
-  if (ms <= 0) return 'Arrived'
+  if (ms <= 0) return 'Any moment'
   const h = Math.floor(ms / 3600000)
   const m = Math.floor((ms % 3600000) / 60000)
   if (h > 0) return `~${h}h ${m}m`
@@ -31,24 +30,11 @@ function timeUntil(date) {
   return 'Less than a minute'
 }
 
-// ── Fuel bar ──────────────────────────────────────────────────────────────────
-function FuelDots({ fuel }) {
-  return (
-    <div className="flex gap-1">
-      {[0, 1, 2].map(i => (
-        <div key={i} className={`w-2.5 h-2.5 rounded-full border transition-all
-          ${i < fuel
-            ? 'bg-forest-400 border-forest-300 shadow-sm shadow-forest-400/50'
-            : 'bg-forest-900 border-forest-700'}`} />
-      ))}
-    </div>
-  )
-}
-
-// ── Envelope card ─────────────────────────────────────────────────────────────
-function EnvelopeLetter({ letter, onOpen, onRecall, isMe }) {
+// ── Envelope letter card ──────────────────────────────────────────────────────
+function EnvelopeLetter({ letter, onOpen, onRecall }) {
   const [expanded, setExpanded] = useState(false)
   const v = VEHICLE_INFO[letter.vehicleTier] || VEHICLE_INFO.car
+  const isUnread = letter.isInbox && !letter.openedAt && !letter.inTransit
 
   const handleClick = async () => {
     if (letter.inTransit) return
@@ -63,71 +49,64 @@ function EnvelopeLetter({ letter, onOpen, onRecall, isMe }) {
     <div
       onClick={handleClick}
       className={`rounded-2xl border transition-all duration-200 overflow-hidden
-        ${letter.inTransit
-          ? 'bg-forest-900/30 border-forest-800 opacity-80 cursor-default'
-          : 'bg-forest-900/50 border-forest-800 hover:border-forest-600 cursor-pointer'}
+        ${letter.inTransit ? 'bg-forest-900/20 border-forest-900 cursor-default' :
+          'bg-forest-900/50 border-forest-800 hover:border-forest-600 cursor-pointer'}
         ${expanded ? 'border-forest-600' : ''}
-        ${!letter.openedAt && letter.isInbox && !letter.inTransit ? 'border-l-2 border-l-forest-400' : ''}`}
+        ${isUnread ? 'border-l-2 border-l-forest-400' : ''}`}
     >
-      {/* Envelope top */}
       <div className="px-4 py-3 flex items-center gap-3">
-        {/* Envelope icon */}
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 transition-all
-          ${letter.inTransit ? 'bg-forest-800/60' : expanded ? 'bg-forest-700' : 'bg-forest-800'}`}>
+        {/* Icon */}
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0
+          ${letter.inTransit ? 'bg-forest-800/40' : expanded ? 'bg-forest-700' : 'bg-forest-800'}`}>
           {letter.inTransit ? v.emoji : (expanded ? '💌' : '✉️')}
         </div>
 
+        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-forest-200 text-sm font-medium">
               {letter.isInbox ? `From ${letter.senderName}` : `To ${letter.recipientName}`}
             </p>
-            {!letter.openedAt && letter.isInbox && !letter.inTransit && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-forest-700 text-forest-200 font-medium">New</span>
+            {isUnread && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-forest-600 text-white font-medium">New</span>
             )}
           </div>
-          {letter.inTransit ? (
-            <div className="flex items-center justify-between gap-2 mt-0.5">
-              <p className="text-forest-500 text-xs flex items-center gap-1">
-                <span>{v.emoji}</span>
-                {letter.isInbox ? 'On the way' : 'In transit'} — arrives {timeUntil(letter.arrivesAt)}
-              </p>
-              {!letter.isInbox && (
-                <button
-                  onClick={e => { e.stopPropagation(); onRecall?.(letter.id) }}
-                  className="text-xs text-red-500 hover:text-red-300 px-2 py-0.5 rounded-lg hover:bg-red-950/40 transition-colors flex-shrink-0"
-                  title="Recall letter"
-                >
-                  ✕ Recall
-                </button>
-              )}
-            </div>
-          ) : (
-            <p className="text-forest-600 text-xs mt-0.5">{timeAgo(letter.arrivesAt)} via {v.label}</p>
-          )}
+          <p className="text-forest-600 text-xs mt-0.5">
+            {letter.inTransit
+              ? `${v.label} · arrives ${timeUntil(letter.arrivesAt)}`
+              : `${v.label} · ${timeAgo(letter.arrivesAt)}`}
+          </p>
         </div>
 
-        {!letter.inTransit && (
-          <span className="text-forest-700 text-xs flex-shrink-0">{expanded ? '▲' : '▼'}</span>
-        )}
+        {/* Right side */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {letter.inTransit && !letter.isInbox && (
+            <button
+              onClick={e => { e.stopPropagation(); onRecall?.(letter.id) }}
+              className="text-xs text-red-500 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-950/40 transition-colors"
+            >
+              Recall
+            </button>
+          )}
+          {!letter.inTransit && (
+            <span className="text-forest-700 text-xs">{expanded ? '▲' : '▼'}</span>
+          )}
+        </div>
       </div>
 
-      {/* Envelope content — open animation */}
+      {/* Expanded content */}
       {expanded && !letter.inTransit && (
         <div className="px-4 pb-4">
           <div className="rounded-xl bg-forest-950/60 border border-forest-800 p-4">
-            {/* Decorative envelope fold lines */}
-            <div className="flex justify-center mb-3 opacity-30">
+            <div className="flex justify-center mb-3 opacity-20">
               <svg width="60" height="12" viewBox="0 0 60 12">
                 <line x1="0" y1="0" x2="30" y2="12" stroke="#4dba4d" strokeWidth="1"/>
                 <line x1="60" y1="0" x2="30" y2="12" stroke="#4dba4d" strokeWidth="1"/>
               </svg>
             </div>
-            <p className="text-forest-100 text-sm leading-relaxed whitespace-pre-wrap">
-              {letter.content}
-            </p>
+            <p className="text-forest-100 text-sm leading-relaxed whitespace-pre-wrap">{letter.content}</p>
             <p className="text-forest-700 text-xs mt-3 text-right">
-              Sent {new Date(letter.sentAt).toLocaleDateString()} · {v.emoji} {v.label}
+              {new Date(letter.sentAt).toLocaleDateString()} · {v.emoji} {v.label}
               {letter.streakAtSend > 0 && ` · 🔥 Day ${letter.streakAtSend}`}
             </p>
           </div>
@@ -137,26 +116,36 @@ function EnvelopeLetter({ letter, onOpen, onRecall, isMe }) {
   )
 }
 
-// ── Send letter modal ─────────────────────────────────────────────────────────
+// ── Fuel dots ─────────────────────────────────────────────────────────────────
+function FuelDots({ fuel }) {
+  return (
+    <div className="flex gap-1">
+      {[0,1,2].map(i => (
+        <div key={i} className={`w-2.5 h-2.5 rounded-full border transition-all
+          ${i < fuel ? 'bg-forest-400 border-forest-300' : 'bg-forest-900 border-forest-700'}`} />
+      ))}
+    </div>
+  )
+}
+
+// ── Send modal ────────────────────────────────────────────────────────────────
 function SendModal({ friends, streaks, letters, onSend, onClose }) {
-  const [step, setStep] = useState(1) // 1 = pick friend, 2 = write
+  const [step, setStep]       = useState(1)
   const [selected, setSelected] = useState(null)
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState('')
-
-  const selectedStreak = streaks.find(s => s.friendId === selected?.id)
+  const [error, setError]     = useState('')
+  const sel = streaks.find(s => s.friendId === selected?.id)
 
   const handleSend = async () => {
     if (!content.trim()) return
     setSending(true)
-    setError('')
     try {
-      const result = await lettersApi.send(selected.id, content)
-      onSend(result.data)
+      await lettersApi.send(selected.id, content)
+      onSend()
       onClose()
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send letter')
+      setError(err.response?.data?.error || 'Failed to send')
       setSending(false)
     }
   }
@@ -168,19 +157,23 @@ function SendModal({ friends, streaks, letters, onSend, onClose }) {
           <h2 className="font-display text-forest-100 text-xl">
             {step === 1 ? '✉️ Send a Letter' : `Write to ${selected?.displayName}`}
           </h2>
-          <button onClick={onClose} className="text-forest-500 hover:text-forest-300 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-forest-800 transition-colors">✕</button>
+          <button onClick={onClose} className="text-forest-500 hover:text-forest-300 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-forest-800">✕</button>
         </div>
 
         {step === 1 && (
-          <div className="p-5 max-h-80 overflow-y-auto space-y-2">
-            {friends.length === 0 && (
-              <p className="text-forest-500 text-sm text-center py-6">No connections yet</p>
-            )}
+          <div className="p-5 max-h-72 overflow-y-auto space-y-2">
+            {friends.length === 0 && <p className="text-forest-500 text-sm text-center py-6">No connections yet</p>}
             {friends.map(f => {
               const s = streaks.find(st => st.friendId === f.id)
+              const hasInTransit = letters.some(l => !l.isInbox && l.inTransit && l.recipientId === f.id)
               return (
-                <button key={f.id} onClick={() => { setSelected(f); setStep(2) }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-forest-900/50 hover:bg-forest-800 border border-forest-800 hover:border-forest-600 transition-colors text-left">
+                <button key={f.id}
+                  onClick={() => { if (!hasInTransit) { setSelected(f); setStep(2) } }}
+                  disabled={hasInTransit}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left
+                    ${hasInTransit
+                      ? 'bg-forest-900/20 border-forest-900 opacity-50 cursor-not-allowed'
+                      : 'bg-forest-900/50 hover:bg-forest-800 border-forest-800 hover:border-forest-600'}`}>
                   <div className="w-9 h-9 rounded-full bg-forest-700 flex items-center justify-center text-forest-200 flex-shrink-0">
                     {f.displayName?.[0]?.toUpperCase()}
                   </div>
@@ -188,12 +181,13 @@ function SendModal({ friends, streaks, letters, onSend, onClose }) {
                     <p className="text-forest-200 text-sm font-medium">{f.displayName}</p>
                     <p className="text-forest-600 text-xs">{f.city}, {f.country}</p>
                   </div>
-                  {s && (
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-base">{s.tierEmoji}</p>
-                      {s.streakDays > 0 && <p className="text-forest-500 text-xs">🔥{s.streakDays}</p>}
-                    </div>
-                  )}
+                  {hasInTransit
+                    ? <p className="text-xs text-forest-700 italic">in transit…</p>
+                    : <div className="text-right flex-shrink-0">
+                        <p className="text-base">{s?.tierEmoji || '🚗'}</p>
+                        {s?.streakDays > 0 && <p className="text-forest-600 text-xs">🔥{s.streakDays}</p>}
+                      </div>
+                  }
                 </button>
               )
             })}
@@ -202,14 +196,14 @@ function SendModal({ friends, streaks, letters, onSend, onClose }) {
 
         {step === 2 && selected && (
           <div className="p-5 space-y-4">
-            {selectedStreak && (
+            {sel && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-forest-900/50 border border-forest-800">
-                <span className="text-2xl">{selectedStreak.tierEmoji}</span>
+                <span className="text-2xl">{sel.tierEmoji}</span>
                 <div>
-                  <p className="text-forest-300 text-sm">{selectedStreak.tierLabel} delivery</p>
+                  <p className="text-forest-300 text-sm">{sel.tierLabel} delivery</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <FuelDots fuel={selectedStreak.fuel} />
-                    <span className="text-forest-600 text-xs">fuel · 🔥 {selectedStreak.streakDays} day streak</span>
+                    <FuelDots fuel={sel.fuel} />
+                    <span className="text-forest-600 text-xs">🔥 {sel.streakDays} day streak</span>
                   </div>
                 </div>
               </div>
@@ -217,11 +211,9 @@ function SendModal({ friends, streaks, letters, onSend, onClose }) {
             <textarea
               className="w-full bg-forest-900/60 border border-forest-800 focus:border-forest-600 text-forest-100
                          placeholder-forest-700 rounded-xl px-4 py-3 text-sm resize-none outline-none transition-colors h-36"
-              placeholder="Write your letter… (500 characters max)"
-              maxLength={500}
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              autoFocus
+              placeholder="Write your letter… (500 chars max)"
+              maxLength={500} value={content}
+              onChange={e => setContent(e.target.value)} autoFocus
             />
             <div className="flex items-center justify-between">
               <span className={`text-xs ${content.length > 450 ? 'text-bark-400' : 'text-forest-700'}`}>
@@ -246,11 +238,11 @@ function SendModal({ friends, streaks, letters, onSend, onClose }) {
 // ── Main Letters Page ─────────────────────────────────────────────────────────
 export default function LettersPage() {
   const { user } = useAuth()
-  const [letters, setLetters] = useState([])
-  const [streaks, setStreaks] = useState([])
-  const [friends, setFriends] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all') // 'all' | 'inbox' | 'sent'
+  const [letters, setLetters]   = useState([])
+  const [streaks, setStreaks]   = useState([])
+  const [friends, setFriends]   = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [tab, setTab]           = useState('received')
   const [showSend, setShowSend] = useState(false)
 
   const reload = useCallback(async () => {
@@ -263,49 +255,57 @@ export default function LettersPage() {
       setLetters(l.data)
       setStreaks(s.data)
       setFriends(f.data)
-    } catch (err) {
-      console.error(err)
-    } finally {
+    } catch {} finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => { reload() }, [reload])
 
-  // Poll for in-transit letters arriving
+  // Auto-refresh when in-transit letters might have arrived
   useEffect(() => {
-    const interval = setInterval(() => {
-      const hasInTransit = letters.some(l => l.inTransit && new Date(l.arrivesAt) <= Date.now())
-      if (hasInTransit) reload()
-    }, 30000) // check every 30s
-    return () => clearInterval(interval)
+    const iv = setInterval(() => {
+      const hasArriving = letters.some(l => l.inTransit && new Date(l.arrivesAt) <= Date.now())
+      if (hasArriving) reload()
+    }, 30000)
+    return () => clearInterval(iv)
   }, [letters, reload])
-
-  const handleRecall = async (id) => {
-    if (!window.confirm('Recall this letter? It will be destroyed and you can send a new one.')) return
-    try {
-      await lettersApi.recall(id)
-      setLetters(prev => prev.filter(l => l.id !== id))
-    } catch (err) {
-      alert(err.response?.data?.error || 'Could not recall letter')
-    }
-  }
 
   const handleOpen = (id) => {
     setLetters(prev => prev.map(l => l.id === id ? { ...l, openedAt: new Date() } : l))
   }
 
-  const handleSent = (result) => {
-    reload()
+  const handleRecall = async (id) => {
+    if (!window.confirm('Recall this letter? It will be destroyed and you can send again.')) return
+    try {
+      await lettersApi.recall(id)
+      setLetters(prev => prev.filter(l => l.id !== id))
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not recall')
+    }
   }
 
-  const filtered = letters.filter(l => {
-    if (filter === 'inbox') return l.isInbox
-    if (filter === 'sent')  return !l.isInbox
-    return true
-  })
+  // ── Tab definitions ──────────────────────────────────────────────────────────
+  // "Received" — letters inbox that have arrived (read + unread)
+  const received = letters.filter(l => l.isInbox && !l.inTransit)
 
-  const unreadCount = letters.filter(l => l.isInbox && !l.openedAt && !l.inTransit).length
+  // "On it's way" — ALL in-transit letters (both incoming ↓ and outgoing ↑)
+  const onTheWay = letters.filter(l => l.inTransit)
+
+  // "Sent" — outbox letters that have arrived (within 7 days)
+  const sent = letters.filter(l => !l.isInbox && !l.inTransit)
+
+  const unreadCount = received.filter(l => !l.openedAt).length
+
+  const tabs = [
+    { key: 'received', label: 'Received', count: received.length, badge: unreadCount },
+    { key: 'ontheway', label: "On it's way", count: onTheWay.length },
+    { key: 'sent',     label: 'Sent',      count: sent.length },
+  ]
+
+  const currentLetters =
+    tab === 'received' ? received :
+    tab === 'ontheway' ? onTheWay : sent
 
   return (
     <div className="flex flex-col h-full">
@@ -313,19 +313,17 @@ export default function LettersPage() {
       <div className="px-5 py-4 border-b border-forest-800 glass-dark flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="font-display text-2xl text-forest-50">✉️ Letters</h1>
-          {unreadCount > 0 && (
-            <p className="text-forest-400 text-xs mt-0.5">{unreadCount} unread</p>
-          )}
+          {unreadCount > 0 && <p className="text-forest-400 text-xs mt-0.5">{unreadCount} unread</p>}
         </div>
         <button onClick={() => setShowSend(true)}
           className="bg-forest-600 hover:bg-forest-500 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors flex items-center gap-2">
-          <span className="text-base">+</span> Write
+          <span>+</span> Write
         </button>
       </div>
 
-      {/* Streaks summary */}
-      {streaks.length > 0 && (
-        <div className="px-5 py-3 border-b border-forest-800 flex gap-3 overflow-x-auto">
+      {/* Streaks bar */}
+      {streaks.some(s => s.streakDays > 0 || s.fuel > 0) && (
+        <div className="px-5 py-2.5 border-b border-forest-800 flex gap-3 overflow-x-auto flex-shrink-0">
           {streaks.filter(s => s.streakDays > 0 || s.fuel > 0).map(s => (
             <div key={s.friendId} className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-forest-900/50 border border-forest-800">
               <span>{s.tierEmoji}</span>
@@ -341,50 +339,116 @@ export default function LettersPage() {
         </div>
       )}
 
-      {/* Filter tabs */}
-      <div className="px-5 py-2 border-b border-forest-800 flex gap-1">
-        {[['all','All'], ['inbox','Inbox'], ['sent','Sent']].map(([v, label]) => (
-          <button key={v} onClick={() => setFilter(v)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors
-              ${filter === v ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
-            {label}
+      {/* Tabs */}
+      <div className="px-5 py-2 border-b border-forest-800 flex gap-1 flex-shrink-0">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors
+              ${tab === t.key ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
+            {t.label}
+            {t.badge > 0
+              ? <span className="bg-forest-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center leading-none">{t.badge}</span>
+              : t.count > 0
+                ? <span className="text-forest-600">({t.count})</span>
+                : null
+            }
           </button>
         ))}
       </div>
 
       {/* Letters list */}
       <div className="flex-1 overflow-y-auto p-5 space-y-3">
-        {loading && (
-          <div className="text-center py-12 text-forest-600">Loading letters…</div>
-        )}
-        {!loading && filtered.length === 0 && (
+        {loading && <div className="text-center py-12 text-forest-600">Loading letters…</div>}
+
+        {!loading && currentLetters.length === 0 && (
           <div className="text-center py-16">
-            <div className="text-5xl mb-4">✉️</div>
-            <p className="text-forest-400 font-medium">No letters yet</p>
-            <p className="text-forest-600 text-sm mt-1">Write a letter to one of your connections!</p>
-            <button onClick={() => setShowSend(true)} className="btn-primary text-sm mt-4 rounded-full px-6">
-              Write a letter
-            </button>
+            <div className="text-5xl mb-4">
+              {tab === 'received' ? '📬' : tab === 'ontheway' ? '🚀' : '📤'}
+            </div>
+            <p className="text-forest-400 font-medium">
+              {tab === 'received' ? 'No letters received yet'
+               : tab === 'ontheway' ? 'Nothing in transit'
+               : 'No delivered letters'}
+            </p>
+            {tab === 'received' && (
+              <button onClick={() => setShowSend(true)}
+                className="btn-primary text-sm mt-4 rounded-full px-6">
+                Write the first one
+              </button>
+            )}
           </div>
         )}
-        {filtered.map(letter => (
-          <EnvelopeLetter
-            key={letter.id}
-            letter={letter}
-            onOpen={handleOpen}
-            onRecall={handleRecall}
-            isMe={letter.senderId === user?.id}
-          />
+
+        {/* On it's way tab — group into incoming (↓) and outgoing (↑) */}
+        {tab === 'ontheway' && onTheWay.length > 0 && (() => {
+          const incoming = onTheWay.filter(l => l.isInbox)
+          const outgoing = onTheWay.filter(l => !l.isInbox)
+          return (
+            <>
+              {incoming.length > 0 && (
+                <div>
+                  <p className="text-forest-500 text-xs uppercase tracking-wide mb-2 flex items-center gap-1">
+                    <span>↓</span> Coming to you ({incoming.length})
+                  </p>
+                  <div className="space-y-2">
+                    {incoming.map(l => (
+                      <EnvelopeLetter key={l.id} letter={l} onOpen={handleOpen} onRecall={handleRecall} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {outgoing.length > 0 && (
+                <div className={incoming.length > 0 ? 'mt-5' : ''}>
+                  <p className="text-forest-500 text-xs uppercase tracking-wide mb-2 flex items-center gap-1">
+                    <span>↑</span> Sent by you ({outgoing.length})
+                  </p>
+                  <div className="space-y-2">
+                    {outgoing.map(l => (
+                      <EnvelopeLetter key={l.id} letter={l} onOpen={handleOpen} onRecall={handleRecall} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        })()}
+
+        {/* Received tab — unread first, then read */}
+        {tab === 'received' && received.length > 0 && (() => {
+          const unread = received.filter(l => !l.openedAt)
+          const read   = received.filter(l => !!l.openedAt)
+          return (
+            <>
+              {unread.length > 0 && (
+                <div>
+                  <p className="text-forest-500 text-xs uppercase tracking-wide mb-2">Unread ({unread.length})</p>
+                  <div className="space-y-2">
+                    {unread.map(l => <EnvelopeLetter key={l.id} letter={l} onOpen={handleOpen} onRecall={handleRecall} />)}
+                  </div>
+                </div>
+              )}
+              {read.length > 0 && (
+                <div className={unread.length > 0 ? 'mt-5' : ''}>
+                  <p className="text-forest-500 text-xs uppercase tracking-wide mb-2">Read ({read.length})</p>
+                  <div className="space-y-2">
+                    {read.map(l => <EnvelopeLetter key={l.id} letter={l} onOpen={handleOpen} onRecall={handleRecall} />)}
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        })()}
+
+        {/* Sent tab — just a list */}
+        {tab === 'sent' && sent.map(l => (
+          <EnvelopeLetter key={l.id} letter={l} onOpen={handleOpen} onRecall={handleRecall} />
         ))}
       </div>
 
       {showSend && (
         <SendModal
-          friends={friends}
-          streaks={streaks}
-          letters={letters}
-          onSend={handleSent}
-          onClose={() => setShowSend(false)}
+          friends={friends} streaks={streaks} letters={letters}
+          onSend={reload} onClose={() => setShowSend(false)}
         />
       )}
     </div>

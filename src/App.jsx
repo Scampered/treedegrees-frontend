@@ -13,6 +13,7 @@ import FeedPage from './pages/FeedPage'
 import LettersPage from './pages/LettersPage'
 import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/AdminPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
 import Layout from './components/Layout'
@@ -37,6 +38,8 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <FullScreenLoader />
   if (!user) return <Navigate to="/login" replace />
+  // Gate unverified users — send them to verify page
+  if (user.emailVerified === false) return <Navigate to="/verify" replace />
   return children
 }
 
@@ -70,6 +73,9 @@ export default function App() {
           <Route path="/" element={<PublicOnlyRoute><LandingPage /></PublicOnlyRoute>} />
           <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="/signup" element={<PublicOnlyRoute><SignupPage /></PublicOnlyRoute>} />
+
+          {/* Email verification — public route */}
+          <Route path="/verify" element={<VerifyEmailPage />} />
 
           {/* Protected */}
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>

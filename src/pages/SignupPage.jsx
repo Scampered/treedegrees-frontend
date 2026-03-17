@@ -87,7 +87,7 @@ export default function SignupPage() {
         latitude: finalCoords?.lat || null,
         longitude: finalCoords?.lon || null,
       })
-      navigate('/dashboard')
+      navigate(`/verify?email=${encodeURIComponent(form.email)}`)
     } catch (err) {
       setError(err.response?.data?.error || 'Signup failed. Please try again.')
     } finally {

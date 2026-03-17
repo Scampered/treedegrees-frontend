@@ -95,6 +95,9 @@ export const adminApi = {
   maintenance:      ()                     => api.get('/api/admin/maintenance'),
   setMaintenance:   (page, isDown, msg)    => api.patch(`/api/admin/maintenance/${page}`, { isDown, message: msg }),
   log:              ()                     => api.get('/api/admin/log'),
+  popups:           ()                     => api.get('/api/admin/popups'),
+  createPopup:      (data)                 => api.post('/api/admin/popups', data),
+  deletePopup:      (id)                   => api.delete(`/api/admin/popups/${id}`),
 }
 
 export const maintenanceApi = {

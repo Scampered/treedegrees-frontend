@@ -115,6 +115,9 @@ export default function AdminPage() {
   const [maintenance, setMaintenance] = useState([])
   const [log, setLog] = useState([])
   const [editingUser, setEditingUser] = useState(null)
+  const [popups, setPopups] = useState([])
+  const [popupForm, setPopupForm] = useState({ target: 'all', header: '', subheader: '', buttonText: 'Okay', expiresHours: '' })
+  const [sendingPopup, setSendingPopup] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const loadStats = useCallback(async () => {
@@ -154,6 +157,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === 'users') loadUsers()
     if (tab === 'log') loadLog()
+    if (tab === 'popups') adminApi.popups().then(r => setPopups(r.data)).catch(() => {})
   }, [tab, loadUsers, loadLog])
 
   useEffect(() => {
@@ -184,6 +188,7 @@ export default function AdminPage() {
     ['overview', '📊 Overview'],
     ['users', '👤 Users'],
     ['maintenance', '🔧 Maintenance'],
+    ['popups', '📢 Popups'],
     ['log', '📋 Log'],
   ]
 
@@ -298,6 +303,90 @@ export default function AdminPage() {
                 The map, friends, feed, letters, and settings pages can each be toggled independently.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* ── Popups ── */}
+        {tab === 'popups' && (
+          <div className="space-y-5">
+            <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5 space-y-4">
+              <h3 className="text-forest-200 font-medium">Send a popup message</h3>
+              <div>
+                <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1">Target</label>
+                <select className="input text-sm" value={popupForm.target}
+                  onChange={e => setPopupForm(p => ({ ...p, target: e.target.value }))}>
+                  <option value="all">All users</option>
+                  <option value="custom">Specific user ID…</option>
+                </select>
+                {popupForm.target === 'custom' && (
+                  <input type="text" className="input text-sm mt-2 font-mono" placeholder="User UUID"
+                    onChange={e => setPopupForm(p => ({ ...p, target: e.target.value }))} />
+                )}
+              </div>
+              <div>
+                <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1">Header *</label>
+                <input type="text" className="input text-sm" placeholder="e.g. Verify your email"
+                  value={popupForm.header} onChange={e => setPopupForm(p => ({ ...p, header: e.target.value }))} maxLength={120} />
+              </div>
+              <div>
+                <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1">Message</label>
+                <textarea className="input text-sm resize-none h-20" placeholder="More detail shown below the header…"
+                  value={popupForm.subheader} onChange={e => setPopupForm(p => ({ ...p, subheader: e.target.value }))} maxLength={500} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1">Button text</label>
+                  <input type="text" className="input text-sm" value={popupForm.buttonText}
+                    onChange={e => setPopupForm(p => ({ ...p, buttonText: e.target.value }))} maxLength={50} />
+                </div>
+                <div>
+                  <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1">Expires in (hours)</label>
+                  <input type="number" className="input text-sm" placeholder="Leave blank = never"
+                    value={popupForm.expiresHours} onChange={e => setPopupForm(p => ({ ...p, expiresHours: e.target.value }))} />
+                </div>
+              </div>
+              <button disabled={sendingPopup || !popupForm.header.trim()}
+                onClick={async () => {
+                  setSendingPopup(true)
+                  try {
+                    await adminApi.createPopup({
+                      target: popupForm.target,
+                      header: popupForm.header,
+                      subheader: popupForm.subheader,
+                      buttonText: popupForm.buttonText,
+                      expiresHours: popupForm.expiresHours ? parseInt(popupForm.expiresHours) : null,
+                    })
+                    setPopupForm({ target: 'all', header: '', subheader: '', buttonText: 'Okay', expiresHours: '' })
+                    const r = await adminApi.popups()
+                    setPopups(r.data)
+                  } catch {} finally { setSendingPopup(false) }
+                }}
+                className="btn-primary text-sm rounded-full px-6">
+                {sendingPopup ? 'Sending…' : '📢 Send popup'}
+              </button>
+            </div>
+
+            {/* Existing popups */}
+            {popups.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-forest-500 text-xs uppercase tracking-wide">Active popups</p>
+                {popups.map(p => (
+                  <div key={p.id} className="rounded-xl bg-forest-900/40 border border-forest-800 p-4 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-forest-200 text-sm font-medium">{p.header}</p>
+                      {p.subheader && <p className="text-forest-500 text-xs mt-0.5 truncate">{p.subheader}</p>}
+                      <p className="text-forest-700 text-xs mt-1">Target: {p.target} · Button: "{p.button_text}"</p>
+                    </div>
+                    <button onClick={async () => {
+                      await adminApi.deletePopup(p.id)
+                      setPopups(prev => prev.filter(x => x.id !== p.id))
+                    }} className="text-red-500 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-950/40 transition-colors flex-shrink-0">
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
