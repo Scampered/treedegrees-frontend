@@ -389,10 +389,21 @@ export default function SettingsPage() {
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <h2 className="text-forest-200 font-medium mb-1">Your Friend Code</h2>
         <p className="text-forest-600 text-xs mb-3">Generated with SHA-256 — cannot be reverse-engineered.</p>
-        <div className="flex items-center gap-3">
-          <p className="friend-code text-forest-100 text-xl tracking-[0.2em] bg-forest-900 px-4 py-2 rounded-xl">{user?.friendCode}</p>
-          <button onClick={() => navigator.clipboard?.writeText(user?.friendCode)} className="btn-ghost text-xs py-2 px-3 rounded-xl">Copy</button>
+        {/* Code on its own row, always full width */}
+        <div className="bg-forest-900 rounded-xl px-4 py-3 mb-3 overflow-hidden">
+          <p className="friend-code text-forest-100 text-xl tracking-[0.18em] text-center break-all">
+            {user?.friendCode}
+          </p>
         </div>
+        {/* Copy button full width on mobile */}
+        <button
+          onClick={() => {
+            navigator.clipboard?.writeText(user?.friendCode)
+          }}
+          className="btn-ghost text-sm py-2.5 rounded-xl w-full"
+        >
+          📋 Copy friend code
+        </button>
       </div>
 
       {/* Account */}
