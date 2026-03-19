@@ -44,8 +44,13 @@ export default function Layout() {
     }
     if (user) {
       checkUnread()
-      const iv = setInterval(checkUnread, 120000)
-      return () => clearInterval(iv)
+      const iv = setInterval(checkUnread, 30000)
+      // Instant refresh when LettersPage marks a letter as read
+      window.addEventListener('letter-read', checkUnread)
+      return () => {
+        clearInterval(iv)
+        window.removeEventListener('letter-read', checkUnread)
+      }
     }
   }, [user])
 

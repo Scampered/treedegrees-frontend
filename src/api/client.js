@@ -44,9 +44,6 @@ export const authApi = {
   login:         (data)     => api.post('/api/auth/login', data),
   me:            ()         => api.get('/api/auth/me'),
   deleteAccount: (password) => api.delete('/api/auth/account', { data: { password } }),
-  requestEmailChange: (newEmail, password) =>
-    api.post('/api/auth/request-email-change', { newEmail, password }),
-  
 }
 
 export const friendsApi = {
@@ -79,7 +76,7 @@ export const nicknamesApi = {
 
 // ── Letters ───────────────────────────────────────────────────────────────────
 export const lettersApi = {
-  send:      (recipientId, content) => api.post('/api/letters', { recipientId, content }),
+  send:      (recipientId, content) => api.post('/api/letters', { recipientId, content, senderLocalDate: new Date().toLocaleDateString('sv-SE') }),
   list:      ()                     => api.get('/api/letters'),
   stats:     ()                     => api.get('/api/letters/stats'),
   inTransit: ()                     => api.get('/api/letters/in-transit'),

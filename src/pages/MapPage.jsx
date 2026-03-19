@@ -112,7 +112,7 @@ function ZoomTracker({ onZoom }) {
 }
 
 function FuelBar({ streaks }) {
-  const active = streaks.filter(s => s.streakDays > 0 || s.fuel > 0)
+  const active = streaks.filter(s => s.streakDays > 0)
   if (active.length === 0) return null
   return (
     <div style={{

@@ -153,7 +153,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-8 bg-black/70" style={{alignItems:"flex-start",paddingTop:"max(2rem, env(safe-area-inset-top, 2rem))", overflowY:"auto"}}>
       <div className="w-full max-w-md rounded-2xl bg-forest-950 border border-forest-700 shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-forest-800">
           <h2 className="font-display text-forest-100 text-xl">
@@ -275,6 +275,8 @@ export default function LettersPage() {
 
   const handleOpen = (id) => {
     setLetters(prev => prev.map(l => l.id === id ? { ...l, openedAt: new Date() } : l))
+    // Tell Layout to refresh the unread badge immediately
+    window.dispatchEvent(new Event('letter-read'))
   }
 
   const handleRecall = async (id) => {
@@ -288,14 +290,16 @@ export default function LettersPage() {
   }
 
   // ── Tab definitions ──────────────────────────────────────────────────────────
-  // "Received" — letters inbox that have arrived (read + unread)
+  // "Received" — letters inbox that have arrived, most recent first
   const received = letters.filter(l => l.isInbox && !l.inTransit)
+    .sort((a, b) => new Date(b.arrivesAt) - new Date(a.arrivesAt))
 
   // "On it's way" — ALL in-transit letters (both incoming ↓ and outgoing ↑)
   const onTheWay = letters.filter(l => l.inTransit)
 
-  // "Sent" — outbox letters that have arrived (within 7 days)
+  // "Sent" — outbox letters that have arrived, most recent first
   const sent = letters.filter(l => !l.isInbox && !l.inTransit)
+    .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
 
   const unreadCount = received.filter(l => !l.openedAt).length
 
@@ -323,21 +327,31 @@ export default function LettersPage() {
         </button>
       </div>
 
-      {/* Streaks bar */}
-      {streaks.some(s => s.streakDays > 0 || s.fuel > 0) && (
+      {/* Streaks bar — only active streaks, ranked by streak length, scrollable */}
+      {streaks.some(s => s.streakDays > 0) && (
         <div className="px-5 py-2.5 border-b border-forest-800 flex gap-3 overflow-x-auto flex-shrink-0">
-          {streaks.filter(s => s.streakDays > 0 || s.fuel > 0).map(s => (
-            <div key={s.friendId} className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-forest-900/50 border border-forest-800">
-              <span>{s.tierEmoji}</span>
-              <div>
-                <p className="text-forest-200 text-xs font-medium leading-none">{s.displayName}</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <FuelDots fuel={s.fuel} />
-                  {s.streakDays > 0 && <span className="text-forest-600 text-xs">🔥{s.streakDays}</span>}
+          {[...streaks]
+            .filter(s => s.streakDays > 0)
+            .sort((a, b) => b.streakDays - a.streakDays)
+            .map(s => {
+              const nearBreak = s.fuel === 1
+              return (
+                <div key={s.friendId} className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors
+                  ${nearBreak ? 'bg-bark-900/30 border-bark-800' : 'bg-forest-900/50 border-forest-800'}`}>
+                  <span>{s.tierEmoji}</span>
+                  <div>
+                    <p className="text-forest-200 text-xs font-medium leading-none">{s.displayName}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <FuelDots fuel={s.fuel} />
+                      <span className={`text-xs ${nearBreak ? 'text-bark-400' : 'text-forest-600'}`}>
+                        {nearBreak ? '⌛' : '🔥'}{s.streakDays}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              )
+            })
+          }
         </div>
       )}
 
