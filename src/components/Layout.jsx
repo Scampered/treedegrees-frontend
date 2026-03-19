@@ -2,6 +2,7 @@
 import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { registerSW } from '../utils/notifications'
+import { startLetterPolling, notificationsEnabled } from '../utils/pwa'
 import NotificationPrompt from './NotificationPrompt'
 import { lettersApi } from '../api/client'
 import PopupSystem from './PopupSystem'
@@ -40,6 +41,12 @@ export default function Layout() {
       lettersApi.list().then(r => {
         const count = r.data.filter(l => l.isInbox && !l.openedAt && !l.inTransit).length
         setUnreadLetters(count)
+        // Update app icon badge (Android PWA / desktop)
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'SET_BADGE', count })
+        } else if ('setAppBadge' in navigator) {
+          count > 0 ? navigator.setAppBadge(count).catch(() => {}) : navigator.clearAppBadge().catch(() => {})
+        }
       }).catch(() => {})
     }
     if (user) {
@@ -47,6 +54,19 @@ export default function Layout() {
       const iv = setInterval(checkUnread, 30000)
       // Instant refresh when LettersPage marks a letter as read
       window.addEventListener('letter-read', checkUnread)
+
+      // Check streaks for ⌛ warning notifications (once on load)
+      import('../api/client').then(({ lettersApi: la }) => {
+        la.streaks().then(r => {
+          const atRisk = (r.data || []).filter(s => s.streakDays > 0 && s.fuel === 1)
+          for (const s of atRisk) {
+            import('../utils/pwa').then(({ notifyStreakWarning }) => {
+              notifyStreakWarning(s.displayName, 1)
+            })
+          }
+        }).catch(() => {})
+      })
+
       return () => {
         clearInterval(iv)
         window.removeEventListener('letter-read', checkUnread)

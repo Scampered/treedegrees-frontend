@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { friendsApi, usersApi, lettersApi } from '../api/client'
+import InstallAppCard from '../components/InstallAppCard'
 
 function timeOfDay() {
   const h = new Date().getHours()
@@ -233,6 +234,9 @@ export default function DashboardPage() {
           <p className="text-forest-600 text-xs mt-0.5">See what's new</p>
         </Link>
       </div>
+
+      {/* App install + notifications */}
+      <InstallAppCard />
 
       {/* 4. FRIEND CODE — last/bottom */}
       <div className="rounded-2xl bg-forest-800/40 border border-forest-700 p-5 mt-auto">

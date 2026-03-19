@@ -1,5 +1,6 @@
 // src/pages/SettingsPage.jsx
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usersApi, authApi, friendsApi } from '../api/client'
@@ -212,12 +213,6 @@ export default function SettingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // ── Email change state ────────────────────────────────────────────────────
-  const [showEmailChange, setShowEmailChange] = useState(false)
-  const [emailChangeData, setEmailChangeData] = useState({ newEmail: '', password: '' })
-  const [emailChangeStatus, setEmailChangeStatus] = useState('')
-  const [emailChangeLoading, setEmailChangeLoading] = useState(false)
-
   const handleGPS = async () => {
     if (!navigator.geolocation) { setGpsStatus('GPS not supported'); return }
     setGpsLoading(true)
@@ -277,25 +272,20 @@ export default function SettingsPage() {
     }
   }
 
-  const handleEmailChange = async (e) => {
-    e.preventDefault()
-    setEmailChangeLoading(true)
-    setEmailChangeStatus('')
-    try {
-      await authApi.requestEmailChange(emailChangeData.newEmail, emailChangeData.password)
-      setEmailChangeStatus('✓ Confirmation email sent! Check your new inbox and click the link.')
-      setEmailChangeData({ newEmail: '', password: '' })
-      setTimeout(() => setShowEmailChange(false), 3000)
-    } catch (err) {
-      setEmailChangeStatus(err.response?.data?.error || 'Failed. Try again.')
-    } finally {
-      setEmailChangeLoading(false)
-    }
-  }
-
   return (
     <div className="p-5 sm:p-8 max-w-xl mx-auto space-y-5">
       <h1 className="font-display text-3xl text-forest-50">⚙️ Settings</h1>
+
+      {/* Guide link — top of settings for both mobile and PC */}
+      <Link to="/guide"
+        className="flex items-center gap-4 rounded-2xl bg-forest-900/40 border border-forest-800 px-5 py-4 hover:border-forest-600 transition-colors group">
+        <span className="text-3xl">📖</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-forest-200 font-medium group-hover:text-forest-100 transition-colors">How to use TreeDegrees</p>
+          <p className="text-forest-600 text-xs mt-0.5">Tips on connections, letters, streaks, the map, and more</p>
+        </div>
+        <span className="text-forest-600 group-hover:text-forest-400 text-lg transition-colors">→</span>
+      </Link>
 
       {/* Profile */}
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
@@ -411,13 +401,17 @@ export default function SettingsPage() {
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <h2 className="text-forest-200 font-medium mb-1">Your Friend Code</h2>
         <p className="text-forest-600 text-xs mb-3">Generated with SHA-256 — cannot be reverse-engineered.</p>
+        {/* Code on its own row, always full width */}
         <div className="bg-forest-900 rounded-xl px-4 py-3 mb-3 overflow-hidden">
           <p className="friend-code text-forest-100 text-xl tracking-[0.18em] text-center break-all">
             {user?.friendCode}
           </p>
         </div>
+        {/* Copy button full width on mobile */}
         <button
-          onClick={() => { navigator.clipboard?.writeText(user?.friendCode) }}
+          onClick={() => {
+            navigator.clipboard?.writeText(user?.friendCode)
+          }}
           className="btn-ghost text-sm py-2.5 rounded-xl w-full"
         >
           📋 Copy friend code
@@ -427,72 +421,10 @@ export default function SettingsPage() {
       {/* Account */}
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <h2 className="text-forest-200 font-medium mb-3">Account</h2>
-        <div className="space-y-2 text-sm mb-4">
-          <div className="flex justify-between items-center">
-            <span className="text-forest-500">Email</span>
-            <div className="flex items-center gap-3">
-              <span className="text-forest-300">{user?.email}</span>
-              <button
-                onClick={() => { setShowEmailChange(v => !v); setEmailChangeStatus('') }}
-                className="text-forest-500 hover:text-forest-300 text-xs underline transition-colors flex-shrink-0">
-                Change
-              </button>
-            </div>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-forest-500">Member since</span>
-            <span className="text-forest-300">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}</span>
-          </div>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between"><span className="text-forest-500">Email</span><span className="text-forest-300">{user?.email}</span></div>
+          <div className="flex justify-between"><span className="text-forest-500">Member since</span><span className="text-forest-300">{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}</span></div>
         </div>
-
-        {showEmailChange && (
-          <form onSubmit={handleEmailChange} className="border-t border-forest-800 pt-4 space-y-3">
-            <p className="text-forest-500 text-xs">
-              A confirmation link will be sent to your new email. Your email won't change until you click it.
-            </p>
-            <div>
-              <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1.5">New Email</label>
-              <input
-                type="email"
-                className="input text-sm"
-                placeholder="newemail@example.com"
-                value={emailChangeData.newEmail}
-                onChange={e => setEmailChangeData(p => ({ ...p, newEmail: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1.5">Current Password</label>
-              <input
-                type="password"
-                className="input text-sm"
-                placeholder="Confirm it's you"
-                value={emailChangeData.password}
-                onChange={e => setEmailChangeData(p => ({ ...p, password: e.target.value }))}
-                required
-              />
-            </div>
-            {emailChangeStatus && (
-              <p className={`text-sm ${emailChangeStatus.startsWith('✓') ? 'text-forest-400' : 'text-red-400'}`}>
-                {emailChangeStatus}
-              </p>
-            )}
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={() => { setShowEmailChange(false); setEmailChangeStatus(''); setEmailChangeData({ newEmail: '', password: '' }) }}
-                className="btn-ghost text-sm py-2 px-4">
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={emailChangeLoading || !emailChangeData.newEmail || !emailChangeData.password}
-                className="btn-primary text-sm py-2 px-5 rounded-full">
-                {emailChangeLoading ? 'Sending…' : 'Send confirmation'}
-              </button>
-            </div>
-          </form>
-        )}
       </div>
 
       {/* Danger zone */}

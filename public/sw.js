@@ -1,16 +1,10 @@
-// public/sw.js — Service Worker for TreeDegrees PWA
-const CACHE_NAME = 'treedegrees-v1'
+// public/sw.js — TreeDegrees Service Worker
+const CACHE_NAME = 'treedegrees-v2'
 
-// Install: cache core assets
-self.addEventListener('install', e => {
-  self.skipWaiting()
-})
+self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', e => e.waitUntil(clients.claim()))
 
-self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim())
-})
-
-// Push notification handler
+// ── Push notification handler ─────────────────────────────────────────────────
 self.addEventListener('push', e => {
   if (!e.data) return
   const data = e.data.json()
@@ -26,7 +20,7 @@ self.addEventListener('push', e => {
   )
 })
 
-// Notification click — open/focus the app
+// ── Notification click → open/focus app ──────────────────────────────────────
 self.addEventListener('notificationclick', e => {
   e.notification.close()
   const url = e.notification.data?.url || '/dashboard'
@@ -42,4 +36,17 @@ self.addEventListener('notificationclick', e => {
       return clients.openWindow(url)
     })
   )
+})
+
+// ── Message from page: update badge count ────────────────────────────────────
+// Pages send { type: 'SET_BADGE', count: N } to update the app icon badge
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SET_BADGE') {
+    const count = e.data.count || 0
+    // Navigator Badge API (supported on Android PWA, some desktop)
+    if ('setAppBadge' in navigator) {
+      if (count > 0) navigator.setAppBadge(count).catch(() => {})
+      else navigator.clearAppBadge().catch(() => {})
+    }
+  }
 })
