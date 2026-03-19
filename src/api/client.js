@@ -44,6 +44,9 @@ export const authApi = {
   login:         (data)     => api.post('/api/auth/login', data),
   me:            ()         => api.get('/api/auth/me'),
   deleteAccount: (password) => api.delete('/api/auth/account', { data: { password } }),
+  requestEmailChange: (newEmail, password) =>
+    api.post('/api/auth/request-email-change', { newEmail, password }),
+  
 }
 
 export const friendsApi = {
