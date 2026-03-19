@@ -424,7 +424,7 @@ export default function MapPage() {
           {/* User nodes */}
           {filteredNodes.map(node => {
             const me = isMe(node.id)
-            const hasNote = !me && !!node.dailyNote
+            const hasNote = !me && (node.hasNote || false)
             const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink)
 
             return (
