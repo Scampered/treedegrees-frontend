@@ -593,11 +593,11 @@ function SectionGroups() {
       </Card>
       <div className="space-y-3">
         {[
-          { q: 'How do I create a group?', a: 'Go to ☘️ Groups → tap "+ New group". Give it a name, optional description, and pick a colour. You're automatically the admin.' },
-          { q: 'How do I add members?', a: 'Open the group → Members tab → tap Invite next to any direct connection. They'll see your invite on their Groups page and can Accept or Decline.' },
+          { q: 'How do I create a group?', a: 'Go to ☘️ Groups → tap "+ New group". Give it a name, optional description, and pick a colour. You are automatically the admin.' },
+          { q: 'How do I add members?', a: 'Open the group → Members tab → tap Invite next to any direct connection. They will see your invite on their Groups page and can Accept or Decline.' },
           { q: 'Can I cancel an invite?', a: 'Yes — in the Members tab, pending invites show under "Awaiting response" with a Recall button.' },
-          { q: 'Can I mute a group?', a: 'Tap the ··· button on any group card to mute it. You won't receive notifications for that group while muted.' },
-          { q: 'Can I send letters to a group?', a: 'Yes! From the map's ✉️ button, groups appear at the top of the send list. Messages deliver simultaneously to all members at their individual travel speeds.' },
+          { q: 'Can I mute a group?', a: 'Tap the ··· button on any group card to mute it. You will not receive notifications for that group while muted.' },
+          { q: 'Can I send letters to a group?', a: 'Yes! From the map\'s ✉️ button, groups appear at the top of the send list. Messages deliver simultaneously to all members at their individual travel speeds.' },
           { q: 'Who can play games?', a: 'Any group member. Games are created within a group, and any accepted member can join and play.' },
         ].map(({ q, a }) => (
           <Card key={q}>
@@ -644,8 +644,8 @@ function SectionGames() {
               { title: 'Tactical Units (teal)', desc: 'Artillery and Interceptor — high DEF, good for defending against attacks.' },
               { title: 'Divert Attack (amber)', desc: 'Redirect an incoming attack to another player of your choice. Very powerful when timed right.' },
               { title: 'Call Reinforcements (amber)', desc: 'Skip your attack and draw 2 cards instantly. Great when your hand is thin.' },
-              { title: 'Spy Operation (purple)', desc: 'Send a face-down card to an opponent. If they deploy it, there's a chance it sabotages them instead. Higher value = bigger reward OR bigger risk.' },
-              { title: 'Block Communications (purple)', desc: 'The next player's card values are hidden from everyone. Combat still resolves normally but no one can read the numbers!' },
+              { title: 'Spy Operation (purple)', desc: 'Send a face-down card to an opponent. If they deploy it, there\'s a chance it sabotages them instead. Higher value = bigger reward OR bigger risk.' },
+              { title: 'Block Communications (purple)', desc: 'The next player\'s card values are hidden from everyone. Combat still resolves normally but no one can read the numbers!' },
             ].map(({ title, desc }) => (
               <Card key={title}>
                 <p className="text-forest-200 text-sm font-medium mb-1">{title}</p>
