@@ -14,13 +14,11 @@ import LettersPage from './pages/LettersPage'
 import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/AdminPage'
 import GuidePage from './pages/GuidePage'
+import GroupsPage from './pages/GroupsPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
 import Layout from './components/Layout'
-import VerifyEmailChangePage from './pages/VerifyEmailChangePage'
-// inside your routes:
-
 
 function AdminRoute({ children }) {
   const { user, loading } = useAuth()
@@ -77,7 +75,6 @@ export default function App() {
           <Route path="/" element={<PublicOnlyRoute><LandingPage /></PublicOnlyRoute>} />
           <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="/signup" element={<PublicOnlyRoute><SignupPage /></PublicOnlyRoute>} />
-          
 
           {/* Email verification — public route */}
           <Route path="/verify" element={<VerifyEmailPage />} />
@@ -92,7 +89,7 @@ export default function App() {
             <Route path="/settings" element={<MaintenanceGuard pageKey="settings"><SettingsPage /></MaintenanceGuard>} />
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
             <Route path="/guide" element={<GuidePage />} />
-            <Route path="/verify-email-change" element={<VerifyEmailChangePage />} />
+            <Route path="/groups" element={<GroupsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

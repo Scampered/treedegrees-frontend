@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
-import { graphApi, lettersApi, friendsApi } from '../api/client'
+import { graphApi, lettersApi, friendsApi, groupsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -276,21 +276,27 @@ export default function MapPage() {
   const [streaks, setStreaks]           = useState([])
   const [friends, setFriends]           = useState([])
   const [showSend, setShowSend]         = useState(false)
+  const [groupMapData, setGroupMapData]   = useState([])
+  const [groupTransit, setGroupTransit]   = useState([])
 
   const loadMap = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const [mRes, tRes, sRes, fRes] = await Promise.all([
+      const [mRes, tRes, sRes, fRes, gRes, gtRes] = await Promise.all([
         graphApi.mapData(),
         lettersApi.inTransit().catch(() => ({ data: [] })),
         lettersApi.streaks().catch(() => ({ data: [] })),
         friendsApi.list().catch(() => ({ data: [] })),
+        groupsApi.mapData().catch(() => ({ data: [] })),
+        groupsApi.inTransit().catch(() => ({ data: [] })),
       ])
       setMapData(mRes.data)
       setInTransit(Array.isArray(tRes.data) ? tRes.data : [])
       setStreaks(Array.isArray(sRes.data) ? sRes.data : [])
       setFriends(Array.isArray(fRes.data) ? fRes.data : [])
+      setGroupMapData(Array.isArray(gRes.data) ? gRes.data : [])
+      setGroupTransit(Array.isArray(gtRes.data) ? gtRes.data : [])
     } catch (e) {
       console.error('Map load error:', e)
       setError('Failed to load map data.')
@@ -300,6 +306,32 @@ export default function MapPage() {
   }, [])
 
   useEffect(() => { loadMap() }, [loadMap])
+
+  // Animate GROUP letter transit (electricity effect — fast!)
+  const [groupTransitPos, setGroupTransitPos] = useState([])
+  useEffect(() => {
+    function tick() {
+      const now = Date.now()
+      const pos = groupTransit
+        .filter(l => l.senderLat && l.recipientLat)
+        .map(l => {
+          const sent    = new Date(l.sentAt).getTime()
+          const arrives = new Date(l.arrivesAt).getTime()
+          const t = Math.min(1, Math.max(0, (now - sent) / (arrives - sent)))
+          return {
+            ...l,
+            currentLat: lerp(parseFloat(l.senderLat), parseFloat(l.recipientLat), t),
+            currentLon: lerp(parseFloat(l.senderLon), parseFloat(l.recipientLon), t),
+            progress: t,
+          }
+        })
+        .filter(l => l.progress < 1)
+      setGroupTransitPos(pos)
+    }
+    tick()
+    const iv = setInterval(tick, 1000) // faster for group letters
+    return () => clearInterval(iv)
+  }, [groupTransit])
 
   // Animate vehicles every 4 seconds
   useEffect(() => {
@@ -504,6 +536,47 @@ export default function MapPage() {
               </Marker>
             )
           })}
+
+          {/* Group overlay — zigzag coloured lines between members */}
+          {groupMapData.map(group => {
+            const members = group.members.filter(m => m.lat && m.lon)
+            if (members.length < 2) return null
+            // Draw lines connecting all members in a ring
+            const lines = []
+            for (let i = 0; i < members.length; i++) {
+              const a = members[i]
+              const b = members[(i + 1) % members.length]
+              // Create zigzag points
+              const midLat = (a.lat + b.lat) / 2 + (Math.random() * 0.4 - 0.2)
+              const midLon = (a.lon + b.lon) / 2 + (Math.random() * 0.4 - 0.2)
+              lines.push(
+                <Polyline key={`${group.id}-${i}`}
+                  positions={[[a.lat, a.lon], [midLat, midLon], [b.lat, b.lon]]}
+                  pathOptions={{
+                    color: group.color,
+                    weight: 2,
+                    opacity: 0.6,
+                    dashArray: '6 4',
+                  }} />
+              )
+            }
+            return lines
+          })}
+
+          {/* Group letter transit — envelope emoji following group lines */}
+          {groupTransitPos.map(v => (
+            <Marker key={v.id}
+              position={[v.currentLat, v.currentLon]}
+              icon={L.divIcon({
+                className: '',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+                html: `<div style="font-size:18px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.8));">✉️</div>`
+              })}
+              interactive={false}
+              zIndexOffset={600}
+            />
+          ))}
 
           {/* Vehicle markers — pure emoji, no node inside */}
           {vehiclePos.filter(v => !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (

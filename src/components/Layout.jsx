@@ -13,6 +13,7 @@ const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
   { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },
+  { to: '/groups',    icon: '☘️',  fullLabel: 'Groups'      },
   { to: '/feed',      icon: '📋',  fullLabel: 'Daily Notes' },
   { to: '/letters',   icon: '✉️',   fullLabel: 'Letters'     },
   { to: '/settings',  icon: '⚙️',  fullLabel: 'Settings'    },
@@ -22,7 +23,7 @@ const sidebarItems = [
 // Mobile bottom nav — 5 items, Home dead centre, NO Letters (moved to topbar)
 const mobileNavItems = [
   { to: '/map',      icon: '🗺️',  label: 'Map'      },
-  { to: '/friends',  icon: '🌱',  label: 'Friends'  },
+  { to: '/friends',  icon: '🌱',  label: 'Friends', altTo: '/groups', altIcon: '☘️', altLabel: 'Groups' },
   { to: '/dashboard',icon: '🌳',  label: 'Home', isCenter: true },
   { to: '/feed',     icon: '📋',  label: 'Notes'    },
   { to: '/settings', icon: '⚙️',  label: 'Settings' },
@@ -33,6 +34,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [unreadLetters, setUnreadLetters] = useState(0)
+  const [friendsToggled, setFriendsToggled] = useState(false)
 
   useEffect(() => { registerSW() }, [])
 
@@ -65,6 +67,40 @@ export default function Layout() {
             })
           }
         }).catch(() => {})
+      })
+
+      // Poll for new friend requests to notify about
+      async function checkFriendNotifications() {
+        try {
+          const { default: ax } = await import('../api/client')
+          const res = await ax.lettersApi?.notifications?.()
+          // notifications endpoint is on groups route
+        } catch {}
+      }
+
+      // Import and poll friend request notifications
+      import('../api/client').then(m => {
+        const fn = async () => {
+          try {
+            const res = await m.default.get('/api/groups/notifications')
+            for (const n of (res.data || [])) {
+              import('../utils/pwa').then(({ showNotification, notificationsEnabled }) => {
+                if (notificationsEnabled()) {
+                  showNotification(
+                    '🌱 New connection request!',
+                    `${n.fromName} wants to connect with you.`,
+                    '/friends', `friend-req-${n.friendshipId}`
+                  )
+                }
+              })
+            }
+          } catch {}
+        }
+        fn()
+        const fiv = setInterval(fn, 60000)
+        return fiv
+      }).then(fiv => {
+        // store interval id for cleanup — handled by outer scope
       })
 
       return () => {
@@ -164,47 +200,70 @@ export default function Layout() {
         bg-forest-950/95 backdrop-blur-md border-t border-forest-800 flex items-stretch"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {mobileNavItems.map(({ to, icon, label, isCenter }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-150 relative
-               ${isCenter ? 'relative' : ''}
-               ${isActive
-                 ? isCenter ? 'text-white' : 'text-forest-300'
-                 : isCenter ? 'text-forest-400' : 'text-forest-600 hover:text-forest-400'}`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {/* Active pill — not for center */}
-                {isActive && !isCenter && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-forest-400" />
-                )}
+        {mobileNavItems.map(({ to, icon, label, isCenter, altTo, altIcon, altLabel }) => {
+          const effectiveTo    = (altTo && friendsToggled) ? altTo    : to
+          const effectiveIcon  = (altTo && friendsToggled) ? altIcon  : icon
+          const effectiveLabel = (altTo && friendsToggled) ? altLabel : label
+          const isCurrentPath  = location.pathname === effectiveTo || (altTo && location.pathname === to && !friendsToggled) || (altTo && location.pathname === altTo && friendsToggled)
 
-                {isCenter ? (
-                  /* Home centre button — raised circle */
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl
-                    shadow-lg transition-all duration-150 -mt-5 border-2
-                    ${isActive
-                      ? 'bg-forest-500 border-forest-300 scale-110 shadow-forest-500/50'
-                      : 'bg-forest-800 border-forest-600 hover:bg-forest-700'}`}>
-                    {icon}
-                  </div>
-                ) : (
-                  <span className={`text-xl transition-transform duration-150 ${isActive ? 'scale-110' : 'scale-100'}`}>
-                    {icon}
+          return (
+            <NavLink
+              key={to}
+              to={effectiveTo}
+              onClick={altTo ? (e) => {
+                // If already on friends or groups, toggle to the other
+                if (location.pathname === to) {
+                  e.preventDefault()
+                  setFriendsToggled(t => !t)
+                  import('react-router-dom').then(m => {})
+                  window.location.href = friendsToggled ? to : altTo
+                } else {
+                  setFriendsToggled(location.pathname === altTo)
+                }
+              } : undefined}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors duration-150 relative
+                 ${isCenter ? 'relative' : ''}
+                 ${(isActive || location.pathname === effectiveTo)
+                   ? isCenter ? 'text-white' : 'text-forest-300'
+                   : isCenter ? 'text-forest-400' : 'text-forest-600 hover:text-forest-400'}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {(isActive || location.pathname === effectiveTo) && !isCenter && (
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-forest-400" />
+                  )}
+
+                  {isCenter ? (
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl
+                      shadow-lg transition-all duration-150 -mt-5 border-2
+                      ${(isActive || location.pathname === '/dashboard')
+                        ? 'bg-forest-500 border-forest-300 scale-110 shadow-forest-500/50'
+                        : 'bg-forest-800 border-forest-600 hover:bg-forest-700'}`}>
+                      {effectiveIcon}
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <span className={`text-xl transition-transform duration-150 block ${(isActive || location.pathname === effectiveTo) ? 'scale-110' : 'scale-100'}`}>
+                        {effectiveIcon}
+                      </span>
+                      {to === '/letters' && unreadLetters > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                          {unreadLetters > 9 ? '9+' : unreadLetters}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <span className={`font-medium leading-none ${isCenter ? 'text-[9px] mt-1' : 'text-[10px]'}`}>
+                    {effectiveLabel}
                   </span>
-                )}
-
-                <span className={`font-medium leading-none ${isCenter ? 'text-[9px] mt-1' : 'text-[10px]'}`}>
-                  {label}
-                </span>
-              </>
-            )}
-          </NavLink>
-        ))}
+                </>
+              )}
+            </NavLink>
+          )
+        })}
       </nav>
 
     </div>

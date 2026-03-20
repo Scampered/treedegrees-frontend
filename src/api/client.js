@@ -82,7 +82,9 @@ export const lettersApi = {
   inTransit: ()                     => api.get('/api/letters/in-transit'),
   streaks:   ()                     => api.get('/api/letters/streaks'),
   open:      (id)                   => api.patch(`/api/letters/${id}/open`),
+  arrived:   (id)                   => api.patch(`/api/letters/${id}/arrived`),
   recall:    (id)                   => api.delete(`/api/letters/${id}`),
+  notifications: ()                => api.get('/api/groups/notifications'),
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
@@ -102,4 +104,20 @@ export const adminApi = {
 
 export const maintenanceApi = {
   check: () => fetch(`${import.meta.env.VITE_API_URL || ''}/api/maintenance`).then(r => r.json()).catch(() => ({})),
+}
+
+// ── Groups ────────────────────────────────────────────────────────────────────
+export const groupsApi = {
+  list:          ()                          => api.get('/api/groups'),
+  create:        (data)                      => api.post('/api/groups', data),
+  update:        (id, data)                  => api.patch(`/api/groups/${id}`, data),
+  delete:        (id)                        => api.delete(`/api/groups/${id}`),
+  members:       (id)                        => api.get(`/api/groups/${id}/members`),
+  addMember:     (id, userId)                => api.post(`/api/groups/${id}/members`, { userId }),
+  removeMember:  (id, userId)                => api.delete(`/api/groups/${id}/members/${userId}`),
+  sendLetter:    (id, content)               => api.post(`/api/groups/${id}/letters`, { content }),
+  letters:       (id)                        => api.get(`/api/groups/${id}/letters`),
+  inTransit:     ()                          => api.get('/api/groups/in-transit'),
+  mapData:       ()                          => api.get('/api/groups/map-data'),
+  openLetter:    (letterId)                  => api.patch(`/api/groups/letters/${letterId}/open`),
 }
