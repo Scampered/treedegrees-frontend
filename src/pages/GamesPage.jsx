@@ -15,11 +15,13 @@ export default function GamesPage() {
   const [selectedGroup, setSelectedGroup] = useState('')
   const [activeGame, setActiveGame] = useState(null)
   const [error, setError]       = useState('')
+  const [gamePoints, setGamePoints] = useState(0)
 
   const reload = useCallback(async () => {
     try {
       const [g, grps] = await Promise.all([gamesApi.list(), groupsApi.list()])
-      setGames(g.data || [])
+      setGames(g.data?.games || g.data || [])
+      setGamePoints(g.data?.gamePoints || 0)
       setGroups(grps.data || [])
     } catch {} finally { setLoading(false) }
   }, [])
@@ -63,9 +65,15 @@ export default function GamesPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 py-4 border-b border-forest-800 glass-dark flex-shrink-0">
-        <h1 className="font-display text-2xl text-forest-50">🎮 Games</h1>
-        <p className="text-forest-600 text-xs mt-0.5">Play with your groups</p>
+      <div className="px-5 py-4 border-b border-forest-800 glass-dark flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl text-forest-50">🎮 Games</h1>
+          <p className="text-forest-600 text-xs mt-0.5">Play with your groups</p>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest-900/60 border border-forest-800">
+          <span className="text-base">🪙</span>
+          <span className="text-forest-100 font-medium text-sm">{gamePoints}</span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
