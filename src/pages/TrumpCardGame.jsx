@@ -270,6 +270,7 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
   const [showQuit, setShowQuit] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [showLog, setShowLog]   = useState(false)
+  const [divertPick, setDivertPick] = useState(false)
   const pollRef = useRef(null)
 
   const fetchState = useCallback(async () => {
