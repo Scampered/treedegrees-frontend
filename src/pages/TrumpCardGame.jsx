@@ -157,12 +157,38 @@ function getSeatPositions(n, myIdx) {
   return positions
 }
 
+
+// ── Lobby expiry countdown ────────────────────────────────────────────────────
+function ExpiryCountdown({ createdAt }) {
+  const [secs, setSecs] = useState(null)
+  useEffect(() => {
+    if (!createdAt) return
+    const tick = () => {
+      const elapsed = Date.now() - new Date(createdAt).getTime()
+      const remaining = Math.max(0, 120 - Math.floor(elapsed / 1000))
+      setSecs(remaining)
+    }
+    tick()
+    const iv = setInterval(tick, 1000)
+    return () => clearInterval(iv)
+  }, [createdAt])
+  if (secs === null) return null
+  const urgent = secs <= 30
+  return (
+    <span className={`text-xs px-2 py-1 rounded-full border ${urgent ? 'text-red-400 border-red-800 bg-red-950/40' : 'text-gray-500 border-gray-800'}`}>
+      {urgent ? '⚠️ ' : '⏱ '}{secs}s
+    </span>
+  )
+}
+
 // ── Main game component ───────────────────────────────────────────────────────
-export default function TrumpCardGame({ gameId: propGameId }) {
+export default function TrumpCardGame({ gameId: propGameId, onBack: propOnBack }) {
   const { id: paramId } = useParams()
   const gameId = propGameId || paramId
   const { user } = useAuth()
   const navigate = useNavigate()
+  // onBack: if provided by parent use it, otherwise navigate to /games
+  const onBack = propOnBack || (() => navigate('/games'))
 
   const [state, setState]           = useState(null)
   const [loading, setLoading]       = useState(true)
@@ -208,6 +234,12 @@ export default function TrumpCardGame({ gameId: propGameId }) {
   const action = async (type, payload = {}) => {
     setActionError('')
     try {
+      // start is its own dedicated endpoint, not a game action
+      if (type === 'start') {
+        await gamesApi.start(gameId)
+        await fetchState()
+        return
+      }
       const { data } = await gamesApi.action(gameId, type, payload)
       if (data.state) setState(data.state)
       setSelected([])
@@ -215,6 +247,15 @@ export default function TrumpCardGame({ gameId: propGameId }) {
       await fetchState()
     } catch (err) {
       setActionError(err.response?.data?.error || 'Action failed')
+    }
+  }
+
+  const leaveLobby = async () => {
+    try {
+      await gamesApi.leaveLobby(gameId)
+      onBack()
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Failed to leave')
     }
   }
 
@@ -253,7 +294,7 @@ export default function TrumpCardGame({ gameId: propGameId }) {
           <div className="text-7xl mb-4">{iWon ? '🏆' : '💀'}</div>
           <h1 className="text-3xl font-bold text-white mb-2">{iWon ? 'Victory!' : 'Defeated'}</h1>
           <p className="text-gray-400 text-lg mb-6">{winner?.name || 'Someone'} wins the battle!</p>
-          <button onClick={() => navigate('/games')} className="px-6 py-3 bg-green-700 hover:bg-green-600 text-white rounded-xl font-medium transition-colors">
+          <button onClick={onBack} className="px-6 py-3 bg-green-700 hover:bg-green-600 text-white rounded-xl font-medium transition-colors">
             Back to Games
           </button>
         </div>
@@ -263,31 +304,63 @@ export default function TrumpCardGame({ gameId: propGameId }) {
 
   // ── Waiting screen ──
   if (state.status === 'waiting') {
+    const isCreator = state.createdBy === user?.id || state.players[0]?.userId === user?.id
+    const groupName = state.groupName || 'Group'
     return (
       <div className="flex flex-col h-full bg-gray-950 text-white">
-        <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-3">
-          <button onClick={() => navigate('/games')} className="text-gray-500 hover:text-gray-300">←</button>
-          <h1 className="font-bold text-lg">🃏 Trump Card — Lobby</h1>
+        {/* Single header for both mobile and PC */}
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-3 flex-shrink-0">
+          <button onClick={onBack}
+            className="text-gray-500 hover:text-gray-300 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-800 transition-colors">
+            ←
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-base leading-none">🃏 Trump Card</h1>
+            <p className="text-gray-500 text-xs mt-0.5 truncate">{groupName}</p>
+          </div>
+          {/* Expire countdown */}
+          <ExpiryCountdown createdAt={state.createdAt} />
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 overflow-y-auto py-6">
           <div className="w-full max-w-sm space-y-3">
-            <p className="text-gray-400 text-sm text-center">Players in lobby ({state.players.length}/9)</p>
+            <p className="text-gray-400 text-sm text-center font-medium">
+              Waiting for players ({state.players.length}/9)
+            </p>
+            <p className="text-gray-600 text-xs text-center">Lobby closes automatically in 2 minutes if not started</p>
+
             {state.players.map((p, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-3 bg-gray-900 rounded-xl border border-gray-800">
-                <div className="w-8 h-8 rounded-full bg-green-800 flex items-center justify-center font-bold text-sm">{p.name[0]}</div>
+                <div className="w-8 h-8 rounded-full bg-green-900 border border-green-700 flex items-center justify-center font-bold text-sm text-green-300">
+                  {p.name[0]}
+                </div>
                 <span className="text-gray-200">{p.name}</span>
-                {i === 0 && <span className="ml-auto text-xs text-yellow-500">Creator</span>}
+                {i === 0 && <span className="ml-auto text-xs text-yellow-500 bg-yellow-950 px-2 py-0.5 rounded-full border border-yellow-800">Host</span>}
               </div>
             ))}
           </div>
-          {state.players[0]?.userId === user?.id ? (
-            <button onClick={() => action('start')} disabled={state.players.length < 2}
-              className="px-8 py-3 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white rounded-xl font-medium transition-colors">
-              {state.players.length < 2 ? 'Waiting for players…' : 'Start Game'}
+
+          {/* Buttons */}
+          <div className="w-full max-w-sm space-y-3">
+            {isCreator ? (
+              <button
+                onClick={() => action('start')}
+                disabled={state.players.length < 2}
+                className="w-full px-8 py-3 bg-green-700 hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors">
+                {state.players.length < 2 ? 'Need at least 2 players…' : '⚔️ Start Game'}
+              </button>
+            ) : (
+              <div className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-center text-gray-500 text-sm">
+                Waiting for host to start…
+              </div>
+            )}
+
+            <button
+              onClick={leaveLobby}
+              className="w-full px-8 py-3 bg-transparent hover:bg-gray-900 border border-gray-800 hover:border-gray-600 text-gray-500 hover:text-gray-300 rounded-xl font-medium transition-colors text-sm">
+              {isCreator ? '🗑️ Close Lobby' : '← Leave Lobby'}
             </button>
-          ) : (
-            <p className="text-gray-500 text-sm">Waiting for the host to start…</p>
-          )}
+          </div>
         </div>
       </div>
     )

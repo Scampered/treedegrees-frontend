@@ -53,13 +53,10 @@ export default function GamesPage() {
   if (activeGame) {
     return (
       <div className="flex flex-col h-full">
-        <div className="lg:hidden flex items-center gap-2 px-4 py-2 border-b border-gray-800 bg-gray-900/80 flex-shrink-0">
-          <button onClick={() => { setActiveGame(null); reload() }} className="text-gray-500 hover:text-gray-300 text-sm">← Back</button>
-          <span className="text-gray-300 text-sm font-medium">🃏 Trump Card</span>
-        </div>
-        <div className="flex-1 min-h-0">
-          <TrumpCardGame gameId={activeGame} />
-        </div>
+        <TrumpCardGame
+          gameId={activeGame}
+          onBack={() => { setActiveGame(null); reload() }}
+        />
       </div>
     )
   }

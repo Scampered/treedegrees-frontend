@@ -129,10 +129,11 @@ export const groupsApi = {
 
 // ── Games ─────────────────────────────────────────────────────────────────────
 export const gamesApi = {
-  list:    ()                       => api.get('/api/games'),
-  create:  (groupId)                => api.post('/api/games', { groupId }),
-  join:    (id)                     => api.post(`/api/games/${id}/join`),
-  start:   (id)                     => api.post(`/api/games/${id}/start`),
-  state:   (id)                     => api.get(`/api/games/${id}`),
-  action:  (id, type, payload)      => api.post(`/api/games/${id}/action`, { type, payload }),
+  list:       ()                    => api.get('/api/games'),
+  create:     (groupId)             => api.post('/api/games', { groupId }),
+  join:       (id)                  => api.post(`/api/games/${id}/join`),
+  start:      (id)                  => api.post(`/api/games/${id}/start`),
+  leaveLobby: (id)                  => api.delete(`/api/games/${id}/lobby`),
+  state:      (id)                  => api.get(`/api/games/${id}`),
+  action:     (id, type, payload)   => api.post(`/api/games/${id}/action`, { type, payload }),
 }
