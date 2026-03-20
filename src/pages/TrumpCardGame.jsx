@@ -288,7 +288,13 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
   }, [fetchState])
 
   useEffect(() => { setSlots([null,null,null]) }, [state?.turnPhase, state?.turnPlayerIndex, state?.targetPlayerIndex])
-  useEffect(() => { if (state?.pendingDivertForMe) setDivertPick(true) }, [state?.pendingDivertForMe])
+  useEffect(() => {
+    if (state?.pendingDivertForMe) {
+      setDivertPick(true)
+    } else {
+      setDivertPick(false) // clear when server confirms it's resolved
+    }
+  }, [state?.pendingDivertForMe])
 
   const doAction = async (type, payload={}) => {
     setActionErr('')
@@ -532,22 +538,33 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
         })}
 
         {/* Divert target picker overlay */}
-        {divertPick && state.pendingDivertForMe && (
+        {(divertPick || state.turnPhase === 'diverting') && state.pendingDivertForMe && (
           <div style={{ position:'absolute', inset:0, zIndex:30, background:'rgba(0,0,0,0.7)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10 }}>
             <p style={{ color:'#fbbf24', fontSize:13, fontWeight:600 }}>↩️ Choose who to redirect the attack to:</p>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center' }}>
-              {state.players.map((p, i) => {
-                if (p.eliminated || i === state.myPlayerIndex || i === state.turnPlayerIndex) return null
-                return (
-                  <button key={p.userId}
-                    onClick={() => { doAction('choose_divert', { newTargetIdx: i }); setDivertPick(false) }}
-                    style={{ padding:'8px 16px', background:'#7f1d1d', border:'1px solid #ef4444', borderRadius:10, color:'#fca5a5', cursor:'pointer', fontSize:13, fontWeight:600 }}>
-                    {p.name}
-                  </button>
+              {(() => {
+                const targets = state.players.filter((p, i) =>
+                  !p.eliminated && i !== state.myPlayerIndex && i !== state.turnPlayerIndex
                 )
-              })}
+                if (targets.length === 0) return (
+                  <p style={{ color:'#9ca3af', fontSize:12 }}>No valid targets — cancel to take damage.</p>
+                )
+                return targets.map((p) => {
+                  const i = state.players.indexOf(p)
+                  return (
+                    <button key={p.userId}
+                      onClick={() => { doAction('choose_divert', { newTargetIdx: i }); setDivertPick(false) }}
+                      style={{ padding:'10px 20px', background:'#7f1d1d', border:'2px solid #ef4444', borderRadius:12, color:'#fff', cursor:'pointer', fontSize:14, fontWeight:700, letterSpacing:0.3 }}>
+                      ↩️ {p.name}
+                    </button>
+                  )
+                })
+              })()}
             </div>
-            <button onClick={()=>setDivertPick(false)} style={{ color:'#4b5563', background:'none', border:'none', cursor:'pointer', fontSize:11 }}>Cancel</button>
+            <button onClick={()=>{ doAction('cancel_divert'); setDivertPick(false) }}
+              style={{ color:'#9ca3af', background:'rgba(0,0,0,0.4)', border:'1px solid #374151', borderRadius:8, cursor:'pointer', fontSize:12, padding:'6px 14px' }}>
+              Cancel (take damage instead)
+            </button>
           </div>
         )}
 
