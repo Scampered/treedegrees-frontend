@@ -11,6 +11,8 @@ const sections = [
   { id: 'notes',       emoji: '📝',  label: 'Daily Notes'          },
   { id: 'letters',     emoji: '✉️',  label: 'Letters & Streaks'    },
   { id: 'vehicles',    emoji: '🚗',  label: 'Delivery Vehicles'    },
+  { id: 'groups',     emoji: '☘️',  label: 'Groups'               },
+  { id: 'games',      emoji: '🎮',  label: 'Games & Activities'   },
 ]
 
 function SectionTab({ id, emoji, label, active, onClick }) {
@@ -576,6 +578,116 @@ function SectionVehicles() {
   )
 }
 
+
+function SectionGroups() {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-display text-2xl text-forest-50 mb-1">Groups ☘️</h2>
+        <p className="text-forest-400 text-sm">Shared spaces for your connections to send letters and play games together.</p>
+      </div>
+      <Card>
+        <p className="text-forest-200 leading-relaxed">
+          Groups let you bring multiple connections into a shared space. Only the <span className="text-forest-100 font-medium">group admin</span> can invite members — and invitees must accept before they join.
+        </p>
+      </Card>
+      <div className="space-y-3">
+        {[
+          { q: 'How do I create a group?', a: 'Go to ☘️ Groups → tap "+ New group". Give it a name, optional description, and pick a colour. You're automatically the admin.' },
+          { q: 'How do I add members?', a: 'Open the group → Members tab → tap Invite next to any direct connection. They'll see your invite on their Groups page and can Accept or Decline.' },
+          { q: 'Can I cancel an invite?', a: 'Yes — in the Members tab, pending invites show under "Awaiting response" with a Recall button.' },
+          { q: 'Can I mute a group?', a: 'Tap the ··· button on any group card to mute it. You won't receive notifications for that group while muted.' },
+          { q: 'Can I send letters to a group?', a: 'Yes! From the map's ✉️ button, groups appear at the top of the send list. Messages deliver simultaneously to all members at their individual travel speeds.' },
+          { q: 'Who can play games?', a: 'Any group member. Games are created within a group, and any accepted member can join and play.' },
+        ].map(({ q, a }) => (
+          <Card key={q}>
+            <p className="text-forest-200 text-sm font-medium mb-1">{q}</p>
+            <p className="text-forest-500 text-sm leading-relaxed">{a}</p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SectionGames() {
+  const [selectedGame, setSelectedGame] = useState('trump')
+  const games = [
+    { id: 'trump', label: '🃏 Trump Card' },
+  ]
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-display text-2xl text-forest-50 mb-1">Games & Activities 🎮</h2>
+        <p className="text-forest-400 text-sm">Play with your groups. More games are added over time.</p>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {games.map(g => (
+          <button key={g.id} onClick={() => setSelectedGame(g.id)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors
+              ${selectedGame === g.id ? 'bg-forest-700 text-forest-100 border-forest-600' : 'bg-forest-900/40 text-forest-400 border-forest-800 hover:border-forest-600'}`}>
+            {g.label}
+          </button>
+        ))}
+      </div>
+      {selectedGame === 'trump' && (
+        <div className="space-y-4">
+          <Card>
+            <p className="text-forest-300 text-sm font-medium mb-2">🃏 Trump Card — What is it?</p>
+            <p className="text-forest-400 text-sm leading-relaxed">
+              Trump Card is a turn-based military card game for 2–9 players. Each player starts with 7 cards. On your turn, deploy 1–3 cards to attack an opponent. The last player with cards remaining wins.
+            </p>
+          </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { title: 'Basic Units (grey)', desc: 'Soldier, Armored Soldier, Drone, Tank, Jet, Missile. Each has ATK and DEF values.' },
+              { title: 'Tactical Units (teal)', desc: 'Artillery and Interceptor — high DEF, good for defending against attacks.' },
+              { title: 'Divert Attack (amber)', desc: 'Redirect an incoming attack to another player of your choice. Very powerful when timed right.' },
+              { title: 'Call Reinforcements (amber)', desc: 'Skip your attack and draw 2 cards instantly. Great when your hand is thin.' },
+              { title: 'Spy Operation (purple)', desc: 'Send a face-down card to an opponent. If they deploy it, there's a chance it sabotages them instead. Higher value = bigger reward OR bigger risk.' },
+              { title: 'Block Communications (purple)', desc: 'The next player's card values are hidden from everyone. Combat still resolves normally but no one can read the numbers!' },
+            ].map(({ title, desc }) => (
+              <Card key={title}>
+                <p className="text-forest-200 text-sm font-medium mb-1">{title}</p>
+                <p className="text-forest-500 text-sm leading-relaxed">{desc}</p>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">Key rules</p>
+            <div className="space-y-2 text-sm">
+              {[
+                ['Max hand size', '8 cards'],
+                ['Cards drawn per turn', '1 (after attacking)'],
+                ['Overextension penalty', 'Total ATK above 9 → discard 1 card'],
+                ['Damage formula', 'ATK total − DEF total = cards discarded by defender'],
+                ['Defense timer', '30 seconds to respond'],
+                ['Spy value range', '2–5 (15%–55% spy chance)'],
+              ].map(([r, v]) => (
+                <div key={r} className="flex gap-3">
+                  <span className="text-forest-300 font-medium w-36 flex-shrink-0">{r}</span>
+                  <span className="text-forest-500">{v}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="border-forest-700 bg-forest-800/30">
+            <p className="text-forest-300 text-sm font-medium mb-2">💡 How to start a game</p>
+            <div className="space-y-2">
+              {['Go to 🎮 Games', 'Select a group and tap "Create Game"', 'Share the game link — group members join from the Games page', 'Once 2+ players have joined, the creator taps Start', 'Game updates in real-time — no refresh needed!'].map((s,i) => (
+                <div key={i} className="flex gap-2 text-sm">
+                  <span className="text-forest-600 flex-shrink-0">{i+1}.</span>
+                  <span className="text-forest-400">{s}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const sectionComponents = {
   what:        SectionWhat,
   connections: SectionConnections,
@@ -585,6 +697,8 @@ const sectionComponents = {
   notes:       SectionNotes,
   letters:     SectionLetters,
   vehicles:    SectionVehicles,
+  groups:      SectionGroups,
+  games:       SectionGames,
 }
 
 // ── Main Guide Page ───────────────────────────────────────────────────────────

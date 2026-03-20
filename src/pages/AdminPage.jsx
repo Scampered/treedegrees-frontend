@@ -115,6 +115,8 @@ export default function AdminPage() {
   const [maintenance, setMaintenance] = useState([])
   const [log, setLog] = useState([])
   const [editingUser, setEditingUser] = useState(null)
+  const [adminGroups, setAdminGroups] = useState([])
+  const [adminGames, setAdminGames] = useState([])
   const [popups, setPopups] = useState([])
   const [popupForm, setPopupForm] = useState({ target: 'all', header: '', subheader: '', buttonText: 'Okay', expiresHours: '' })
   const [sendingPopup, setSendingPopup] = useState(false)
@@ -157,6 +159,8 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === 'users') loadUsers()
     if (tab === 'log') loadLog()
+    if (tab === 'groups') adminApi.stats().then(() => {}).catch(() => {})
+    if (tab === 'games') adminApi.stats().then(() => {}).catch(() => {})
     if (tab === 'popups') adminApi.popups().then(r => setPopups(r.data)).catch(() => {})
   }, [tab, loadUsers, loadLog])
 
@@ -187,6 +191,8 @@ export default function AdminPage() {
   const tabs = [
     ['overview', '📊 Overview'],
     ['users', '👤 Users'],
+    ['groups', '☘️ Groups'],
+    ['games', '🎮 Games'],
     ['maintenance', '🔧 Maintenance'],
     ['popups', '📢 Popups'],
     ['log', '📋 Log'],
@@ -306,7 +312,49 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── Popups ── */}
+        {/* ── Groups ── */}
+        {tab === 'groups' && (
+          <div className="space-y-4">
+            <p className="text-forest-500 text-sm">Groups are managed by their admins. As a site admin you can view all groups and their stats here.</p>
+            <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-4 space-y-2">
+              <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">Group stats (from overview)</p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-forest-400">Total connections</span>
+                <span className="text-forest-100">{stats?.totalConnections ?? '—'}</span>
+              </div>
+              <p className="text-forest-600 text-xs mt-2">Group data is managed per-group by admins. Use the Users tab to find and manage specific group admins.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Games ── */}
+        {tab === 'games' && (
+          <div className="space-y-4">
+            <p className="text-forest-500 text-sm">Active Trump Card game sessions across all groups.</p>
+            <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-4 space-y-2">
+              <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">Game stats</p>
+              <div className="space-y-2">
+                {[
+                  ['Letters today', stats?.lettersToday],
+                  ['Letters in transit', stats?.lettersInTransit],
+                  ['Notes today', stats?.notesToday],
+                ].map(([l,v]) => (
+                  <div key={l} className="flex items-center justify-between text-sm">
+                    <span className="text-forest-400">{l}</span>
+                    <span className="text-forest-100">{v ?? '—'}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-forest-600 text-xs mt-3">Game session management coming soon. Players can end games from the game screen.</p>
+            </div>
+            <div className="rounded-2xl bg-forest-900/30 border border-forest-800 p-4">
+              <p className="text-forest-300 text-sm font-medium mb-2">🃏 Trump Card</p>
+              <p className="text-forest-500 text-sm">Turn-based military card game. 2–9 players. 63-card deck. Special cards: Divert Attack, Call Reinforcements, Spy Operation, Block Communications.</p>
+            </div>
+          </div>
+        )}
+
+                {/* ── Popups ── */}
         {tab === 'popups' && (
           <div className="space-y-5">
             <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5 space-y-4">

@@ -126,3 +126,13 @@ export const groupsApi = {
   openLetter:     (letterId)                  => api.patch(`/api/groups/letters/${letterId}/open`),
   toggleMute:     (id, muted)                => api.patch(`/api/groups/${id}/mute`, { muted }),
 }
+
+// ── Games ─────────────────────────────────────────────────────────────────────
+export const gamesApi = {
+  list:    ()                       => api.get('/api/games'),
+  create:  (groupId)                => api.post('/api/games', { groupId }),
+  join:    (id)                     => api.post(`/api/games/${id}/join`),
+  start:   (id)                     => api.post(`/api/games/${id}/start`),
+  state:   (id)                     => api.get(`/api/games/${id}`),
+  action:  (id, type, payload)      => api.post(`/api/games/${id}/action`, { type, payload }),
+}
