@@ -83,17 +83,18 @@ export default function Layout() {
         const fn = async () => {
           try {
             const res = await m.default.get('/api/groups/notifications')
-            for (const n of (res.data || [])) {
-              import('../utils/pwa').then(({ showNotification, notificationsEnabled }) => {
-                if (notificationsEnabled()) {
-                  showNotification(
-                    '🌱 New connection request!',
-                    `${n.fromName} wants to connect with you.`,
-                    '/friends', `friend-req-${n.friendshipId}`
-                  )
-                }
-              })
-            }
+            const data = res.data || {}
+            const friendReqs = data.friendRequests || []
+            const groupInvs  = data.groupInvites  || []
+            import('../utils/pwa').then(({ showNotification, notificationsEnabled }) => {
+              if (!notificationsEnabled()) return
+              for (const n of friendReqs) {
+                showNotification('🌱 New connection request!', `${n.fromName} wants to connect with you.`, '/friends', `freq-${n.friendshipId}`)
+              }
+              for (const n of groupInvs) {
+                showNotification('☘️ Group invite!', `${n.inviterName} invited you to "${n.groupName}"`, '/groups', `ginv-${n.groupId}`)
+              }
+            })
           } catch {}
         }
         fn()
@@ -242,6 +243,24 @@ export default function Layout() {
                         ? 'bg-forest-500 border-forest-300 scale-110 shadow-forest-500/50'
                         : 'bg-forest-800 border-forest-600 hover:bg-forest-700'}`}>
                       {effectiveIcon}
+                    </div>
+                  ) : altTo ? (
+                    /* Friends/Groups dual tab — shows peek of the other option */
+                    <div className="relative flex flex-col items-center">
+                      {/* Main icon */}
+                      <span className={`text-xl transition-transform duration-150 block ${(isActive || location.pathname === effectiveTo) ? 'scale-110' : 'scale-100'}`}>
+                        {effectiveIcon}
+                      </span>
+                      {/* Peek — shows the OTHER icon faintly above, nudged */}
+                      <span className="absolute -top-2.5 text-[11px] opacity-30"
+                        title={effectiveLabel === label ? altLabel : label}>
+                        {effectiveIcon === icon ? altIcon : icon}
+                      </span>
+                      {/* Tiny swap indicator dot */}
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                        <span className={`w-1 h-1 rounded-full transition-all ${!friendsToggled ? 'bg-forest-400' : 'bg-forest-700'}`} />
+                        <span className={`w-1 h-1 rounded-full transition-all ${friendsToggled ? 'bg-forest-400' : 'bg-forest-700'}`} />
+                      </span>
                     </div>
                   ) : (
                     <div className="relative">
