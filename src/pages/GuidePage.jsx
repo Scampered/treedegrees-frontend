@@ -657,16 +657,21 @@ function SectionGames() {
             <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">Key rules</p>
             <div className="space-y-2 text-sm">
               {[
-                ['Max hand size', '8 cards'],
-                ['Cards drawn per turn', '1 (after attacking)'],
-                ['Overextension penalty', 'Total ATK above 9 → discard 1 card'],
-                ['Damage formula', 'ATK total − DEF total = cards discarded by defender'],
-                ['Defense timer', '30 seconds to respond'],
+                ['Starting hand', '6 cards each (78-card deck)'],
+                ['Max hand size', '9 cards'],
+                ['Cards drawn per turn', '1 card (after your attack resolves)'],
+                ['Target order', 'Always circular — attacks the next player in seat order'],
+                ['Overextension', 'Total ATK above 9 → discard 1 random card as penalty'],
+                ['Damage formula', 'ATK − DEF = cards defender must discard'],
+                ['Defense slots', 'Slot 1+2 = defense (DEF values). Slot 3 = counter-attack (ATK value hits next player after you)'],
+                ['Defense timer', '30 seconds. If time expires the attack resolves automatically with 0 defense'],
+                ['Elimination', 'Lose all cards = eliminated. Last player standing wins'],
                 ['Spy value range', '2–5 (15%–55% spy chance)'],
+                ['Win points', '100 + (opponents × 30)'],
               ].map(([r, v]) => (
                 <div key={r} className="flex gap-3">
-                  <span className="text-forest-300 font-medium w-36 flex-shrink-0">{r}</span>
-                  <span className="text-forest-500">{v}</span>
+                  <span className="text-forest-300 font-medium w-36 flex-shrink-0 text-xs">{r}</span>
+                  <span className="text-forest-500 text-xs">{v}</span>
                 </div>
               ))}
             </div>
