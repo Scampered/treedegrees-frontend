@@ -327,6 +327,41 @@ function GroupDetail({ group, friends, onUpdated, onBack }) {
   )
 }
 
+
+// ── Mute menu ─────────────────────────────────────────────────────────────────
+function MuteMenu({ group, onToggle }) {
+  const [open, setOpen] = useState(false)
+
+  const handleMute = async (muted) => {
+    setOpen(false)
+    try {
+      await groupsApi.toggleMute(group.id, muted)
+      onToggle()
+    } catch (err) { alert(err.response?.data?.error || 'Failed') }
+  }
+
+  return (
+    <div className="relative flex-shrink-0">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-8 h-8 flex items-center justify-center rounded-lg text-forest-600 hover:text-forest-300 hover:bg-forest-800 transition-colors text-sm">
+        ···
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-9 z-20 w-40 rounded-xl bg-forest-900 border border-forest-700 shadow-xl overflow-hidden">
+            <button onClick={() => handleMute(!group.muted)}
+              className="w-full flex items-center gap-2 px-4 py-3 text-sm text-forest-200 hover:bg-forest-800 transition-colors text-left">
+              <span>{group.muted ? '🔔' : '🔕'}</span>
+              <span>{group.muted ? 'Unmute group' : 'Mute group'}</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Main GroupsPage ───────────────────────────────────────────────────────────
 export default function GroupsPage() {
   const [groups, setGroups]     = useState([])
@@ -421,23 +456,26 @@ export default function GroupsPage() {
         )}
 
         {groups.map(g => (
-          <button key={g.id} onClick={() => setSelected(g.id)}
-            className="w-full rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-600 p-4 text-left transition-all group">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                style={{ background: g.color + '22', border: `1px solid ${g.color}44` }}>
-                ☘️
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium" style={{ color: g.color }}>{g.name}</p>
-                {g.description && <p className="text-forest-500 text-xs mt-0.5 truncate">{g.description}</p>}
-                <p className="text-forest-700 text-xs mt-1">
-                  {g.memberCount} member{g.memberCount !== 1 ? 's' : ''}{g.isAdmin ? ' · Admin' : ''}
-                </p>
-              </div>
-              <span className="text-forest-700 group-hover:text-forest-400 text-lg transition-colors">→</span>
+          <div key={g.id} className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-600 transition-all">
+            <div className="flex items-center gap-3 p-4">
+              <button onClick={() => setSelected(g.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                <span className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  style={{ background: g.color + '22', border: `1px solid ${g.color}44` }}>
+                  ☘️
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium" style={{ color: g.color }}>{g.name}</p>
+                  {g.description && <p className="text-forest-500 text-xs mt-0.5 truncate">{g.description}</p>}
+                  <p className="text-forest-700 text-xs mt-1">
+                    {g.memberCount} member{g.memberCount !== 1 ? 's' : ''}{g.isAdmin ? ' · Admin' : ''}
+                    {g.muted ? ' · 🔕 Muted' : ''}
+                  </p>
+                </div>
+              </button>
+              {/* 3-dot mute menu */}
+              <MuteMenu group={g} onToggle={reload} />
             </div>
-          </button>
+          </div>
         ))}
       </div>
 

@@ -154,7 +154,7 @@ function FuelBar({ streaks }) {
   )
 }
 
-function MapSendModal({ friends, streaks, onSend, onClose }) {
+function MapSendModal({ friends, streaks, groups, onSend, onClose }) {
   const [step, setStep] = useState(1)
   const [selected, setSelected] = useState(null)
   const [content, setContent] = useState('')
@@ -166,7 +166,11 @@ function MapSendModal({ friends, streaks, onSend, onClose }) {
     if (!content.trim()) return
     setSending(true)
     try {
-      await lettersApi.send(selected.id, content)
+      if (selected.isGroup) {
+        await groupsApi.sendLetter(selected.id, content)
+      } else {
+        await lettersApi.send(selected.id, content)
+      }
       onSend()
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send')
@@ -188,6 +192,30 @@ function MapSendModal({ friends, streaks, onSend, onClose }) {
       {step === 1 ? (
         <div className="p-3 max-h-60 overflow-y-auto space-y-1.5">
           {friends.length === 0 && <p className="text-forest-600 text-sm text-center py-6">No connections yet</p>}
+          {/* Groups first */}
+          {(groups || []).map(g => (
+            <button key={g.id} onClick={() => { setSelected({ id: g.id, displayName: g.name, isGroup: true, color: g.color }); setStep(2) }}
+              className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-forest-900/50 hover:bg-forest-800
+                         border border-forest-800 hover:border-forest-600 transition-colors text-left">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                style={{ background: g.color + '22', border: `1px solid ${g.color}44` }}>
+                ☘️
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium" style={{ color: g.color }}>{g.name}</p>
+                <p className="text-forest-600 text-xs">{g.memberCount} members</p>
+              </div>
+              <span className="text-forest-600 text-xs">Group</span>
+            </button>
+          ))}
+          {/* Divider if both */}
+          {(groups || []).length > 0 && friends.length > 0 && (
+            <div className="flex items-center gap-2 py-1">
+              <div className="flex-1 h-px bg-forest-800" />
+              <span className="text-forest-700 text-xs">Connections</span>
+              <div className="flex-1 h-px bg-forest-800" />
+            </div>
+          )}
           {friends.map(f => {
             const s = streaks.find(st => st.friendId === f.id)
             return (
@@ -276,6 +304,7 @@ export default function MapPage() {
   const [streaks, setStreaks]           = useState([])
   const [friends, setFriends]           = useState([])
   const [showSend, setShowSend]         = useState(false)
+  const [mapGroups, setMapGroups]         = useState([])
   const [groupMapData, setGroupMapData]   = useState([])
   const [groupTransit, setGroupTransit]   = useState([])
 
@@ -283,11 +312,12 @@ export default function MapPage() {
     setLoading(true)
     setError('')
     try {
-      const [mRes, tRes, sRes, fRes, gRes, gtRes] = await Promise.all([
+      const [mRes, tRes, sRes, fRes, fgRes, gRes, gtRes] = await Promise.all([
         graphApi.mapData(),
         lettersApi.inTransit().catch(() => ({ data: [] })),
         lettersApi.streaks().catch(() => ({ data: [] })),
         friendsApi.list().catch(() => ({ data: [] })),
+        groupsApi.list().catch(() => ({ data: [] })),
         groupsApi.mapData().catch(() => ({ data: [] })),
         groupsApi.inTransit().catch(() => ({ data: [] })),
       ])
@@ -295,6 +325,7 @@ export default function MapPage() {
       setInTransit(Array.isArray(tRes.data) ? tRes.data : [])
       setStreaks(Array.isArray(sRes.data) ? sRes.data : [])
       setFriends(Array.isArray(fRes.data) ? fRes.data : [])
+      setMapGroups(Array.isArray(fgRes.data) ? fgRes.data : [])
       setGroupMapData(Array.isArray(gRes.data) ? gRes.data : [])
       setGroupTransit(Array.isArray(gtRes.data) ? gtRes.data : [])
     } catch (e) {
@@ -610,6 +641,7 @@ export default function MapPage() {
             <MapSendModal
               friends={friends}
               streaks={streaks}
+              groups={mapGroups}
               onSend={() => { loadMap(); setShowSend(false) }}
               onClose={() => setShowSend(false)}
             />

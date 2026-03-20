@@ -124,4 +124,5 @@ export const groupsApi = {
   inTransit:      ()                          => api.get('/api/groups/in-transit'),
   mapData:        ()                          => api.get('/api/groups/map-data'),
   openLetter:     (letterId)                  => api.patch(`/api/groups/letters/${letterId}/open`),
+  toggleMute:     (id, muted)                => api.patch(`/api/groups/${id}/mute`, { muted }),
 }
