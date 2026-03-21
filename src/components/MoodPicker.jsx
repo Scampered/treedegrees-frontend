@@ -16,19 +16,25 @@ export default function MoodPicker({ compact = false }) {
   const [loading, setLoading] = useState(false)
   const containerRef = useRef(null)
 
-  // Load from user context OR localStorage fallback
+  // Load from user context, localStorage as fallback while context loads
   useEffect(() => {
-    const ctxMood = user?.mood
-    const ls = (() => {
+    if (user?.mood !== undefined) {
+      setMyMood(user.mood || null)
+      if (user.mood) {
+        localStorage.setItem('td_mood', JSON.stringify({ mood: user.mood, setAt: Date.now() }))
+      } else {
+        localStorage.removeItem('td_mood')
+      }
+    } else {
+      // Context not loaded yet — try localStorage
       try {
         const raw = localStorage.getItem('td_mood')
-        if (!raw) return null
-        const { mood, setAt } = JSON.parse(raw)
-        const ageH = (Date.now() - setAt) / 3600000
-        return ageH < MOOD_DURATION_H ? mood : null
-      } catch { return null }
-    })()
-    setMyMood(ctxMood || ls || null)
+        if (raw) {
+          const { mood } = JSON.parse(raw)
+          setMyMood(mood || null)
+        }
+      } catch {}
+    }
   }, [user?.mood])
 
   const handleMood = async (emoji) => {

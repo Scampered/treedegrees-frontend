@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { friendsApi, usersApi, lettersApi } from '../api/client'
 import InstallAppCard from '../components/InstallAppCard'
+import MoodPicker from '../components/MoodPicker'
 
 function timeOfDay() {
   const h = new Date().getHours()
@@ -97,37 +98,9 @@ export default function DashboardPage() {
           <p className="text-forest-200 font-medium">Today's note 📝</p>
           {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}h</span>}
         </div>
-        {/* Mood row */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-forest-600 text-xs uppercase tracking-wide flex-shrink-0">Mood</span>
-          <div className="flex gap-1.5">
-            {MOODS.map(emoji => (
-              <button
-                key={emoji}
-                type="button"
-                onPointerDown={e => { e.preventDefault(); e.stopPropagation(); if (!moodLoading) handleMood(emoji) }}
-                title={MOOD_LABELS[emoji]}
-                className="flex items-center justify-center rounded-xl transition-all select-none"
-                style={{
-                  fontSize: 22,
-                  width: 40, height: 40,
-                  background: myMood === emoji ? 'rgba(74,186,74,0.25)' : 'rgba(255,255,255,0.04)',
-                  border: `2px solid ${myMood === emoji ? '#4dba4d' : 'rgba(255,255,255,0.1)'}`,
-                  transform: myMood === emoji ? 'scale(1.15)' : 'scale(1)',
-                  opacity: moodLoading ? 0.5 : 1,
-                  cursor: 'pointer',
-                }}>
-                {emoji}
-              </button>
-            ))}
-          </div>
-          {myMood && (
-            <button type="button"
-              onPointerDown={e => { e.preventDefault(); handleMood(myMood) }}
-              className="text-xs text-forest-600 hover:text-forest-400 transition-colors ml-1">
-              Clear
-            </button>
-          )}
+        {/* Mood picker */}
+        <div className="mb-3">
+          <MoodPicker compact />
         </div>
         {user?.dailyNote && (
           <div className="mb-3 py-2 px-3 rounded-xl bg-forest-800/60 border-l-2 border-forest-600">

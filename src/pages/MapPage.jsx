@@ -42,7 +42,7 @@ const CUSTOM_LABELS = [
 
 // ── Leaflet icon builders ─────────────────────────────────────────────────────
 
-function buildNodeIcon(degree, hasNote, isHidden, mood) {
+function buildNodeIcon(degree, hasNote, isHidden, mood, seeds) {
   if (isHidden) {
     return L.divIcon({
       className: '',
@@ -68,18 +68,28 @@ function buildNodeIcon(degree, hasNote, isHidden, mood) {
         filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8));
         pointer-events:none;z-index:20;">${mood}</div>`
     : ''
-  const totalH = mood ? size + Math.round(size * 0.85) : size
-  const anchor = mood ? [half, totalH - half + 2] : [half, half]
+  // Seeds pill below node — only for degree 0 or 1
+  const seedsPill = (seeds !== null && seeds !== undefined && (degree === 0 || degree === 1))
+    ? `<div style="position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);
+        white-space:nowrap;font-size:9px;font-weight:700;font-family:monospace;
+        background:rgba(0,0,0,0.75);color:#4ade80;padding:1px 5px;border-radius:8px;
+        border:1px solid rgba(74,186,74,0.4);pointer-events:none;z-index:20;">🌱${seeds}</div>`
+    : ''
+  const extraBottom = (seeds !== null && seeds !== undefined && (degree === 0 || degree === 1)) ? 16 : 0
+  const totalH = size + Math.round(mood ? size * 0.85 : 0) + extraBottom
+  const anchorY = Math.round(mood ? size * 0.85 : 0) + half
   return L.divIcon({
     className: '',
-    iconSize: [size, totalH], iconAnchor: anchor,
-    popupAnchor: [0, -totalH + half - 4], tooltipAnchor: [0, -totalH + half - 4],
+    iconSize: [size, totalH], iconAnchor: [half, anchorY],
+    popupAnchor: [0, -anchorY - 4], tooltipAnchor: [0, -anchorY - 4],
     html: `<div style="position:relative;width:${size}px;height:${totalH}px;">
       ${moodBubble}
-      <div style="position:absolute;bottom:0;left:0;width:${size}px;height:${size}px;border-radius:50%;
+      <div style="position:absolute;top:${Math.round(mood ? size * 0.85 : 0)}px;left:0;
+        width:${size}px;height:${size}px;border-radius:50%;
         background:${bg};border:${degree === 0 ? 3 : 2}px solid ${border};
         box-shadow:0 0 ${degree === 0 ? 10 : 5}px ${bg}88;"></div>
       ${badge}
+      ${seedsPill}
     </div>`,
   })
 }
@@ -499,7 +509,8 @@ export default function MapPage() {
             const me = isMe(node.id)
             const hasNote = !me && (node.hasNote || false)
             const nodeMood = (node.degree === 0 || node.degree === 1) ? (node.mood || null) : null
-            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood)
+            const nodeSeeds = (node.degree === 0 || node.degree === 1) ? node.seeds : null
+            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds)
 
             return (
               <Marker key={node.id} position={[node.latitude, node.longitude]}

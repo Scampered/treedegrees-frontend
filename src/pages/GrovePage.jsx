@@ -139,49 +139,66 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
 }
 
 // ── Stock card for a connection ───────────────────────────────────────────────
-function StockCard({ person, mySeeds, onInvest }) {
-  const rising = person.history.length >= 2 &&
-    person.history[person.history.length-1]?.seeds >= person.history[0]?.seeds
+function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
+  const h = person.history || []
+  const rising = h.length >= 2 && h[h.length-1]?.seeds >= h[0]?.seeds
+  const trendCol = rising ? '#4ade80' : '#f87171'
+  const fee = Math.floor((person.myInvestment || 0) * 0.10)
+  const payout = (person.myInvestment || 0) - fee
 
   return (
     <div className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-700 transition-colors overflow-hidden">
-      <div className="flex items-center gap-3 px-4 pt-4 pb-2">
-        {/* Avatar */}
+      {/* Header row */}
+      <div className="flex items-center gap-3 px-4 pt-4 pb-1">
         <div className="w-9 h-9 rounded-full bg-forest-700 flex items-center justify-center text-forest-100 font-bold text-sm flex-shrink-0">
           {person.name[0]?.toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-forest-100 text-sm font-medium leading-none truncate">{person.name}</p>
+          <p className="text-forest-100 text-sm font-semibold leading-none truncate">{person.name}</p>
           <p className="text-forest-600 text-xs mt-0.5">{person.city || person.country}</p>
         </div>
-        {/* Score */}
         <div className="text-right flex-shrink-0">
-          <p className={`text-base font-bold font-mono ${rising ? 'text-green-400' : 'text-red-400'}`}>
+          <p className="font-mono font-bold text-lg leading-none" style={{color: trendCol}}>
             🌱 {person.seeds}
           </p>
-          <p className="text-forest-700 text-xs">{person.investorCount} investor{person.investorCount!==1?'s':''}</p>
+          <p className="text-forest-700 text-xs mt-0.5">{person.investorCount} investor{person.investorCount!==1?'s':''}</p>
         </div>
       </div>
 
-      {/* Sparkline */}
-      <div className="px-4 pb-2">
-        <Sparkline data={person.history} w={280} h={44}/>
+      {/* Large chart */}
+      <div className="px-3 py-2">
+        <Sparkline data={h} w={320} h={64}/>
+        {/* X-axis labels */}
+        {h.length >= 2 && (
+          <div className="flex justify-between mt-0.5 px-1">
+            <span className="text-forest-800 text-xs font-mono">{new Date(h[0].ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+            <span className="text-forest-800 text-xs font-mono">{new Date(h[h.length-1].ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+          </div>
+        )}
       </div>
 
-      {/* Bottom row */}
-      <div className="flex items-center justify-between px-4 pb-4 gap-2">
-        <div className="text-xs text-forest-600">
-          {person.myInvestment > 0
-            ? <span className="text-forest-400">Your stake: <span className="text-forest-200 font-medium">🌱 {person.myInvestment}</span></span>
-            : <span>Total invested: <span className="text-forest-500">🌱 {person.totalInvested}</span></span>}
+      {/* Your stake info */}
+      {person.myInvestment > 0 && (
+        <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-forest-800/50 border border-forest-700 flex items-center justify-between">
+          <span className="text-forest-400 text-xs">Your stake</span>
+          <span className="text-forest-100 font-mono font-medium text-sm">🌱 {person.myInvestment}</span>
         </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex gap-2 px-4 pb-4">
         <button onClick={() => onInvest(person)}
-          className={`text-xs px-4 py-1.5 rounded-full border font-medium transition-colors
-            ${person.myInvestment > 0
-              ? 'border-forest-600 text-forest-300 hover:border-forest-400'
-              : 'border-forest-700 text-forest-400 hover:border-forest-500 hover:text-forest-200'}`}>
-          {person.myInvestment > 0 ? 'Manage' : 'Invest'}
+          className="flex-1 py-2 rounded-xl text-sm font-medium border border-forest-700
+                     text-forest-300 hover:border-forest-500 hover:text-forest-100 hover:bg-forest-800/40 transition-colors">
+          {person.myInvestment > 0 ? '＋ Add seeds' : '🌱 Invest'}
         </button>
+        {person.myInvestment > 0 && (
+          <button onClick={() => onWithdraw(person)}
+            className="flex-1 py-2 rounded-xl text-sm font-medium border border-red-900/60
+                       text-red-400/80 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 transition-colors">
+            Withdraw (+{payout})
+          </button>
+        )}
       </div>
     </div>
   )
@@ -306,6 +323,7 @@ export default function GrovePage() {
                 person={person}
                 mySeeds={me?.seeds || 0}
                 onInvest={p => setInvesting(p)}
+                onWithdraw={async p => { try { await groveApi.withdraw(p.id); reload() } catch(e) { alert(e.response?.data?.error || 'Failed') } }}
               />
             ))}
           </>
