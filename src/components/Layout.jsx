@@ -13,7 +13,7 @@ const sidebarItems = [
   { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/groups',    icon: '☘️',  fullLabel: 'Groups'      },
   { to: '/letters',   icon: '✉️',   fullLabel: 'Letters'     },
-  { to: '/settings',  icon: '⚙️',  fullLabel: 'Settings'    },
+  { to: '/feed',      icon: '📝',  fullLabel: 'Notes'       },
   { to: '/guide',     icon: '📖',  fullLabel: 'Guide'       },
 ]
 
@@ -151,8 +151,16 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-forest-800">
-          <button onClick={handleLogout} className="btn-ghost w-full text-sm">Sign out</button>
+        <div className="p-4 border-t border-forest-800 flex items-center gap-2">
+          <NavLink to="/settings"
+            className={({ isActive }) =>
+              `w-9 h-9 flex items-center justify-center rounded-lg text-lg transition-colors
+               ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-200 hover:bg-forest-900'}`
+            }
+            title="Settings">
+            ⚙️
+          </NavLink>
+          <button onClick={handleLogout} className="btn-ghost flex-1 text-sm">Sign out</button>
         </div>
       </aside>
 

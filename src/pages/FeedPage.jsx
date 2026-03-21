@@ -46,9 +46,11 @@ export default function FeedPage() {
       if (myMood === emoji) {
         await usersApi.clearMood()
         setMyMood(null)
+        updateUser({ mood: null })
       } else {
         await usersApi.setMood(emoji)
         setMyMood(emoji)
+        updateUser({ mood: emoji })
       }
     } catch {} finally { setMoodLoading(false) }
   }
@@ -95,24 +97,32 @@ export default function FeedPage() {
             <p className="text-forest-600 text-xs mb-2 uppercase tracking-wide">Today's mood</p>
             <div className="flex gap-2 flex-wrap">
               {MOODS.map(emoji => (
-                <button key={emoji} onClick={() => handleMood(emoji)}
-                  disabled={moodLoading}
+                <button
+                  key={emoji}
+                  type="button"
+                  onPointerDown={e => { e.preventDefault(); e.stopPropagation(); if (!moodLoading) handleMood(emoji) }}
                   title={MOOD_LABELS[emoji]}
-                  className={`text-xl p-2 rounded-xl border transition-all
-                    ${myMood === emoji
-                      ? 'border-forest-500 bg-forest-800/80 scale-110'
-                      : 'border-forest-800 bg-forest-900/40 hover:border-forest-600 opacity-60 hover:opacity-100'}`}>
+                  className="flex items-center justify-center rounded-xl transition-all select-none"
+                  style={{
+                    fontSize: 22, width: 44, height: 44,
+                    background: myMood === emoji ? 'rgba(74,186,74,0.25)' : 'rgba(255,255,255,0.04)',
+                    border: `2px solid ${myMood === emoji ? '#4dba4d' : 'rgba(255,255,255,0.1)'}`,
+                    transform: myMood === emoji ? 'scale(1.15)' : 'scale(1)',
+                    opacity: moodLoading ? 0.5 : 1,
+                    cursor: 'pointer',
+                  }}>
                   {emoji}
                 </button>
               ))}
               {myMood && (
-                <button onClick={() => handleMood(myMood)}
+                <button type="button"
+                  onPointerDown={e => { e.preventDefault(); handleMood(myMood) }}
                   className="text-xs text-forest-600 hover:text-forest-400 px-2 self-center transition-colors">
                   Clear
                 </button>
               )}
             </div>
-            {myMood && <p className="text-forest-500 text-xs mt-1">Showing as {myMood} on the map for 24h</p>}
+            {myMood && <p className="text-forest-500 text-xs mt-1">{myMood} showing on map · 24h</p>}
           </div>
 
           {/* Show current note if fresh */}

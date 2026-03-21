@@ -22,18 +22,25 @@ export default function DashboardPage() {
   const [noteLoading, setNoteLoading] = useState(false)
   const [hoursLeft, setHoursLeft]     = useState(null)
   const [loading, setLoading]         = useState(true)
+  const [myMood, setMyMood]             = useState(null)
+  const [moodLoading, setMoodLoading]   = useState(false)
+  const [friendNotes, setFriendNotes]   = useState([])
 
   useEffect(() => {
     Promise.all([
       friendsApi.list(),
       friendsApi.requests(),
       lettersApi.stats().catch(() => ({ data: null })),
-    ]).then(([f, r, s]) => {
+      usersApi.feed().catch(() => ({ data: [] })),
+    ]).then(([f, r, s, feed]) => {
       setFriends(f.data)
       setRequests(r.data)
       setLetterStats(s.data)
+      setFriendNotes(feed.data || [])
     }).finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => { setMyMood(user?.mood || null) }, [user?.mood])
 
   useEffect(() => {
     if (user?.dailyNoteUpdatedAt) {
@@ -60,6 +67,24 @@ export default function DashboardPage() {
     } finally {
       setNoteLoading(false)
     }
+  }
+
+  const MOODS = ['😄','😢','😡','😴','🤔','🥹']
+  const MOOD_LABELS = { '😄':'Happy','😢':'Sad','😡':'Angry','😴':'Tired','🤔':'Thinking','🥹':'Emotional' }
+
+  const handleMood = async (emoji) => {
+    setMoodLoading(true)
+    try {
+      if (myMood === emoji) {
+        await usersApi.clearMood()
+        setMyMood(null)
+        updateUser({ mood: null })
+      } else {
+        await usersApi.setMood(emoji)
+        setMyMood(emoji)
+        updateUser({ mood: emoji })
+      }
+    } catch {} finally { setMoodLoading(false) }
   }
 
   return (
@@ -90,9 +115,41 @@ export default function DashboardPage() {
 
       {/* 1. TODAY'S NOTE — first */}
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-3">
           <p className="text-forest-200 font-medium">Today's note 📝</p>
           {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}h</span>}
+        </div>
+        {/* Mood row */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-forest-600 text-xs uppercase tracking-wide flex-shrink-0">Mood</span>
+          <div className="flex gap-1.5">
+            {MOODS.map(emoji => (
+              <button
+                key={emoji}
+                type="button"
+                onPointerDown={e => { e.preventDefault(); e.stopPropagation(); if (!moodLoading) handleMood(emoji) }}
+                title={MOOD_LABELS[emoji]}
+                className="flex items-center justify-center rounded-xl transition-all select-none"
+                style={{
+                  fontSize: 22,
+                  width: 40, height: 40,
+                  background: myMood === emoji ? 'rgba(74,186,74,0.25)' : 'rgba(255,255,255,0.04)',
+                  border: `2px solid ${myMood === emoji ? '#4dba4d' : 'rgba(255,255,255,0.1)'}`,
+                  transform: myMood === emoji ? 'scale(1.15)' : 'scale(1)',
+                  opacity: moodLoading ? 0.5 : 1,
+                  cursor: 'pointer',
+                }}>
+                {emoji}
+              </button>
+            ))}
+          </div>
+          {myMood && (
+            <button type="button"
+              onPointerDown={e => { e.preventDefault(); handleMood(myMood) }}
+              className="text-xs text-forest-600 hover:text-forest-400 transition-colors ml-1">
+              Clear
+            </button>
+          )}
         </div>
         {user?.dailyNote && (
           <div className="mb-3 py-2 px-3 rounded-xl bg-forest-800/60 border-l-2 border-forest-600">
@@ -182,41 +239,42 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 3. YOUR CONNECTIONS — third */}
+      {/* 3. TODAY'S FRIEND NOTES */}
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-forest-200 font-medium">
-            {loading ? '…' : friends.length === 0
-              ? 'Your tree is just a seed 🌱'
-              : `Your ${friends.length} connection${friends.length !== 1 ? 's' : ''} 🌿`}
-          </p>
-          <Link to="/friends" className="text-forest-500 text-xs hover:text-forest-300">Manage →</Link>
+          <p className="text-forest-200 font-medium">📝 Today's notes</p>
+          <span className="text-forest-600 text-xs">Last 24h</span>
         </div>
-        {!loading && friends.length === 0 && (
+        {loading && <p className="text-forest-600 text-sm">Loading…</p>}
+        {!loading && friendNotes.length === 0 && (
           <div className="text-center py-4">
-            <p className="text-forest-600 text-sm">Share your code below to add your first friend!</p>
-            <Link to="/friends" className="inline-block mt-3 bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm px-5 py-2 rounded-full transition-colors">
-              Add someone
-            </Link>
+            <p className="text-forest-600 text-sm">None of your connections have posted today yet.</p>
+            {friends.length === 0 && (
+              <Link to="/friends" className="inline-block mt-3 bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm px-5 py-2 rounded-full transition-colors">
+                Add connections
+              </Link>
+            )}
           </div>
         )}
-        {friends.length > 0 && (
-          <div className="space-y-2">
-            {friends.slice(0, 4).map(f => (
-              <div key={f.id} className="flex items-center gap-3 py-1.5">
-                <div className="w-8 h-8 rounded-full bg-forest-700 flex items-center justify-center text-sm flex-shrink-0">
-                  {f.displayName?.[0] || '?'}
+        {friendNotes.length > 0 && (
+          <div className="space-y-3">
+            {friendNotes.slice(0, 5).map(n => (
+              <div key={n.id} className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-forest-700 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
+                  {n.displayName?.[0] || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-forest-200 text-sm font-medium truncate">{f.displayName}</p>
-                  <p className="text-forest-600 text-xs">{f.city}, {f.country}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-forest-300 text-sm font-medium">{n.displayName}</p>
+                    <p className="text-forest-700 text-xs">{n.city ? `${n.city}` : n.country}</p>
+                  </div>
+                  <p className="text-forest-400 text-sm italic mt-0.5 leading-relaxed">"{n.note}"</p>
                 </div>
-                {f.dailyNote && (
-                  <p className="text-forest-500 text-xs italic truncate max-w-[120px] hidden sm:block">"{f.dailyNote}"</p>
-                )}
               </div>
             ))}
-            {friends.length > 4 && <p className="text-forest-600 text-xs pt-1">+{friends.length - 4} more</p>}
+            {friendNotes.length > 5 && (
+              <p className="text-forest-600 text-xs text-center pt-1">+{friendNotes.length - 5} more notes today</p>
+            )}
           </div>
         )}
       </div>
