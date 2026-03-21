@@ -344,7 +344,7 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
   const attacker = state.players?.[state.turnPlayerIndex]
   const defender = state.targetPlayerIndex!=null ? state.players?.[state.targetPlayerIndex] : null
   const nextP    = state.players ? state.players[((myIdx+1) % state.players.length)] : null
-  const canInteract = (isMyTurn && state.turnPhase==='select') || (isDefender && state.turnPhase==='defending') || !!state.pendingSpyForMe
+  const canInteract = (isMyTurn && state.turnPhase==='select') || (isDefender && (state.turnPhase==='defending'||state.turnPhase==='diverting')) || !!state.pendingSpyForMe
 
   const slotCfg = isDefender ? [
     {label:'DEF 1', color:'#60a5fa', border:'#3b82f6'},
@@ -431,10 +431,17 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
   // ── Active game ────────────────────────────────────────────────────────────
 
   const statusText = () => {
-    if (state.pendingSpyForMe) return '🕵️ Spy card received!'
+    if (state.pendingSpyForMe) return '🕵️ Spy card received! Deploy or discard?'
     if (isMyTurn && state.turnPhase==='select') return 'Your turn — place cards into slots'
-    if (isDefender && state.turnPhase==='defending') return `⚔️ Incoming ATK ${state.attackTotal} — deploy defense`
-    if (state.turnPhase==='defending') return `${defender?.name} is defending…`
+    if (isDefender && state.turnPhase==='defending')
+      return state.blockCommsActive
+        ? '📡 Block Comms! You cannot see the ATK value — defend blind!'
+        : `⚔️ Incoming ATK ${state.attackTotal} — deploy defense`
+    if (state.turnPhase==='defending')
+      return state.blockCommsActive
+        ? `📡 ${defender?.name} is defending blind (Block Comms active)…`
+        : `${defender?.name} is defending…`
+    if (state.turnPhase==='spy_pending') return `🕵️ Waiting for ${state.players[state.targetPlayerIndex]?.name || 'opponent'} to respond to spy card…`
     return `${attacker?.name}'s turn`
   }
 
@@ -585,8 +592,16 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
           {/* ATK vs DEF indicator */}
           {state.attackTotal>0 && (
             <div style={{ display:'flex', gap:10, fontSize:11, fontWeight:700, background:'rgba(0,0,0,.7)', padding:'3px 10px', borderRadius:20 }}>
-              <span style={{ color:'#ef4444' }}>ATK {state.attackTotal}</span>
+              <span style={{ color: state.blockCommsActive && !isMyTurn ? '#a78bfa' : '#ef4444' }}>
+                {state.blockCommsActive && !isMyTurn ? 'ATK ???' : `ATK ${state.attackTotal}`}
+              </span>
               {state.defenseTotal>0 && <span style={{ color:'#60a5fa' }}>DEF {state.defenseTotal}</span>}
+            </div>
+          )}
+          {/* Block Comms banner */}
+          {state.blockCommsActive && state.turnPhase==='defending' && (
+            <div style={{ fontSize:10, color:'#a78bfa', background:'rgba(76,29,149,.3)', border:'1px solid #5b21b6', borderRadius:20, padding:'2px 10px' }}>
+              📡 Block Comms
             </div>
           )}
 
@@ -624,9 +639,13 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
 
               {/* Preview info */}
               {isDefender && filledSlots.length>0 && (
-                <div style={{ fontSize:10, padding:'3px 12px', borderRadius:20, background:defPreviewTotal>=state.attackTotal?'rgba(20,83,45,.4)':'rgba(127,29,29,.4)', color:defPreviewTotal>=state.attackTotal?'#4ade80':'#f87171', border:`1px solid ${defPreviewTotal>=state.attackTotal?'#14532d':'#7f1d1d'}` }}>
-                  {defPreviewTotal>=state.attackTotal?`✅ DEF ${defPreviewTotal} holds ATK ${state.attackTotal}`:`⚠️ DEF ${defPreviewTotal} < ATK ${state.attackTotal} — will take ${state.attackTotal-defPreviewTotal} dmg`}
-                  {slots[2] && ` · Counter ATK ${slots[2].atk}`}
+                <div style={{ fontSize:10, padding:'3px 12px', borderRadius:20, background:state.blockCommsActive?'rgba(76,29,149,.4)':defPreviewTotal>=state.attackTotal?'rgba(20,83,45,.4)':'rgba(127,29,29,.4)', color:state.blockCommsActive?'#a78bfa':defPreviewTotal>=state.attackTotal?'#4ade80':'#f87171', border:`1px solid ${state.blockCommsActive?'#5b21b6':defPreviewTotal>=state.attackTotal?'#14532d':'#7f1d1d'}` }}>
+                  {state.blockCommsActive
+                    ? '📡 Block Comms active — ATK value hidden. Defending blind!'
+                    : defPreviewTotal>=state.attackTotal
+                      ? `✅ DEF ${defPreviewTotal} holds ATK ${state.attackTotal}`
+                      : `⚠️ DEF ${defPreviewTotal} < ATK ${state.attackTotal} — will take ${state.attackTotal-defPreviewTotal} dmg`}
+                  {!state.blockCommsActive && slots[2] && ` · Counter ATK ${slots[2].atk}`}
                 </div>
               )}
               {isMyTurn && atkTotal>0 && (
@@ -695,7 +714,8 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
                 style={{ flexShrink:0, opacity:inSlot?.35:1, transition:'all .12s',
                   transform: !inSlot&&canInteract?'translateY(-3px)':'none',
                   filter: (!canInteract||inSlot)?'brightness(.55)':'none' }}>
-                <CardSvg card={card} selected={!inSlot&&canInteract} w={cw} h={ch}/>
+                <CardSvg card={card} selected={!inSlot&&canInteract} w={cw} h={ch}
+                  hidden={state.blockCommsActive && isDefender}/>
               </div>
             )
           })}
