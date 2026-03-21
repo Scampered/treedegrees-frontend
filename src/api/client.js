@@ -150,4 +150,5 @@ export const groveApi = {
   leaderboard: ()                    => api.get('/api/grove/leaderboard'),
   invest:      (targetId, amount)    => api.post('/api/grove/invest', { targetId, amount }),
   withdraw:    (targetId)            => api.post('/api/grove/withdraw', { targetId }),
+  history:     (userId, window)      => api.get(`/api/grove/history/${userId}?window=${window}`),
 }

@@ -1,47 +1,164 @@
 // src/pages/GrovePage.jsx — The Grove: Seeds & Stocks
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { groveApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
-// ── Sparkline chart ───────────────────────────────────────────────────────────
-function Sparkline({ data, w = 120, h = 44 }) {
+// ── Time window config ────────────────────────────────────────────────────────
+const WINDOWS = [
+  { key: '12h', label: '12h', xStepH: 2,  xFormat: h => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` },
+  { key: '1d',  label: '1d',  xStepH: 4,  xFormat: h => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` },
+  { key: '1w',  label: '1w',  xStepH: 24, xFormat: h => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][Math.floor(h/24) % 7] },
+]
+
+// ── Full chart with axes ──────────────────────────────────────────────────────
+function StockChart({ data, win, w = 320, h = 90 }) {
   if (!data || data.length < 2) {
     return (
-      <div style={{ width: w, height: h, display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <p style={{ fontSize: 9, color: '#374151', fontFamily: 'monospace' }}>No data yet</p>
+      <div style={{ width: w, height: h, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ fontSize: 10, color: '#374151' }}>No data yet — activity will appear here</p>
       </div>
     )
   }
-  const vals  = data.map(d => d.seeds)
-  const min   = Math.min(...vals)
-  const max   = Math.max(...vals)
-  const range = max - min || 1
-  const pad   = 5
-  const first = vals[0], last = vals[vals.length - 1]
-  const rising = last >= first
-  const col   = rising ? '#4ade80' : '#f87171'
 
-  const pts = vals.map((v, i) => ({
-    x: pad + (i / (vals.length - 1)) * (w - pad * 2),
-    y: h - pad - ((v - min) / range) * (h - pad * 2),
-  }))
-  const polyline  = pts.map(p => `${p.x},${p.y}`).join(' ')
-  const areaD     = `M${pts[0].x},${h} ` + pts.map(p=>`L${p.x},${p.y}`).join(' ') + ` L${pts[pts.length-1].x},${h} Z`
-  const last3     = vals.slice(-3)
-  const diff      = last - first
-  const diffStr   = (diff >= 0 ? '+' : '') + diff
+  const PAD = { top: 8, right: 12, bottom: 22, left: 36 }
+  const cw  = w - PAD.left - PAD.right
+  const ch  = h - PAD.top  - PAD.bottom
+
+  const vals = data.map(d => d.seeds)
+  const minV = Math.min(...vals)
+  const maxV = Math.max(...vals)
+  const rangeV = maxV - minV || 1
+
+  // Time range from data
+  const times = data.map(d => new Date(d.ts).getTime())
+  const minT  = times[0]
+  const maxT  = times[times.length - 1]
+  const rangeT = maxT - minT || 1
+
+  const toX = t  => PAD.left + ((new Date(t).getTime() - minT) / rangeT) * cw
+  const toY = v  => PAD.top  + (1 - (v - minV) / rangeV) * ch
+
+  // Build SVG path
+  const pts = data.map(d => ({ x: toX(d.ts), y: toY(d.seeds) }))
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  const area = `${line} L${pts[pts.length-1].x},${PAD.top+ch} L${pts[0].x},${PAD.top+ch} Z`
+
+  const first = vals[0], last = vals[vals.length-1]
+  const rising = last >= first
+  const col    = rising ? '#4ade80' : '#f87171'
+  const diff   = last - first
+  const diffStr = (diff >= 0 ? '+' : '') + diff
+
+  // X axis ticks
+  const winCfg  = WINDOWS.find(ww => ww.key === win) || WINDOWS[1]
+  const stepMs  = winCfg.xStepH * 3600000
+  const windowMs = win === '12h' ? 12*3600000 : win === '1w' ? 7*24*3600000 : 24*3600000
+  const xTicks  = []
+  const tickStart = Math.ceil(minT / stepMs) * stepMs
+  for (let t = tickStart; t <= maxT; t += stepMs) {
+    const x = PAD.left + ((t - minT) / rangeT) * cw
+    const hOfDay = new Date(t).getHours()
+    const dayIdx = Math.floor((t - minT) / 86400000)
+    xTicks.push({ x, label: winCfg.xFormat(win === '1w' ? dayIdx * 24 : hOfDay) })
+  }
+
+  // Y axis ticks (3 levels)
+  const yTicks = [minV, Math.round((minV + maxV) / 2), maxV]
 
   return (
-    <div style={{ position:'relative' }}>
-      <svg width={w} height={h}>
-        <path d={areaD} fill={col} opacity="0.10"/>
-        <polyline points={polyline} fill="none" stroke={col} strokeWidth="2"
-          strokeLinejoin="round" strokeLinecap="round"/>
-        <circle cx={pts[pts.length-1].x} cy={pts[pts.length-1].y} r="3" fill={col}/>
-      </svg>
-      <div style={{ position:'absolute', top:2, right:4, fontSize:9, color:col, fontWeight:700, fontFamily:'monospace' }}>
-        {diffStr}
+    <svg width={w} height={h} style={{ display: 'block' }}>
+      {/* Y axis */}
+      {yTicks.map((v, i) => {
+        const y = toY(v)
+        return (
+          <g key={i}>
+            <line x1={PAD.left - 4} y1={y} x2={PAD.left + cw} y2={y}
+              stroke="#0d1f0d" strokeWidth="1"/>
+            <text x={PAD.left - 6} y={y + 3.5} textAnchor="end"
+              fill="#374151" fontSize="8" fontFamily="monospace">{v}</text>
+          </g>
+        )
+      })}
+
+      {/* Area fill */}
+      <path d={area} fill={col} opacity="0.08"/>
+      {/* Line */}
+      <path d={line} fill="none" stroke={col} strokeWidth="2"
+        strokeLinejoin="round" strokeLinecap="round"/>
+      {/* Current value dot */}
+      <circle cx={pts[pts.length-1].x} cy={pts[pts.length-1].y} r="3" fill={col}/>
+
+      {/* X axis ticks */}
+      {xTicks.map((t, i) => (
+        <g key={i}>
+          <line x1={t.x} y1={PAD.top+ch} x2={t.x} y2={PAD.top+ch+3} stroke="#1f2f1f" strokeWidth="1"/>
+          <text x={t.x} y={h - 4} textAnchor="middle"
+            fill="#374151" fontSize="8" fontFamily="monospace">{t.label}</text>
+        </g>
+      ))}
+
+      {/* X axis baseline */}
+      <line x1={PAD.left} y1={PAD.top+ch} x2={PAD.left+cw} y2={PAD.top+ch} stroke="#1f2f1f" strokeWidth="1"/>
+
+      {/* Diff badge top-right */}
+      <text x={PAD.left+cw} y={PAD.top+6} textAnchor="end"
+        fill={col} fontSize="9" fontWeight="700" fontFamily="monospace">{diffStr}</text>
+    </svg>
+  )
+}
+
+// ── Chart card with window tabs and live data ─────────────────────────────────
+function ChartCard({ userId, name, isMe, seedsNow }) {
+  const [win, setWin]     = useState('1d')
+  const [data, setData]   = useState(null)
+  const [loading, setLoad] = useState(true)
+  const timer = useRef(null)
+
+  const load = useCallback(async () => {
+    if (!userId) return
+    try {
+      const { data: res } = await groveApi.history(userId, win)
+      setData(res.data || [])
+    } catch {}
+    finally { setLoad(false) }
+  }, [userId, win])
+
+  useEffect(() => {
+    setLoad(true)
+    load()
+    // Polling: 12h → 1min, 1d → 2min, 1w → 5min
+    const interval = win === '12h' ? 60000 : win === '1d' ? 120000 : 300000
+    timer.current = setInterval(load, interval)
+    return () => clearInterval(timer.current)
+  }, [load, win])
+
+  // Re-load when seedsNow changes (they just earned/lost seeds)
+  const prevSeeds = useRef(seedsNow)
+  useEffect(() => {
+    if (seedsNow !== prevSeeds.current) {
+      prevSeeds.current = seedsNow
+      load()
+    }
+  }, [seedsNow, load])
+
+  return (
+    <div style={{ marginBottom: 6 }}>
+      {/* Window selector */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+        {WINDOWS.map(ww => (
+          <button key={ww.key} onClick={() => setWin(ww.key)}
+            style={{
+              padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              background: win === ww.key ? '#14532d' : 'transparent',
+              border: `1px solid ${win === ww.key ? '#2d6a35' : '#1f2f1f'}`,
+              color: win === ww.key ? '#4ade80' : '#4b5563',
+            }}>
+            {ww.label}
+          </button>
+        ))}
+        {loading && <span style={{ fontSize: 9, color: '#374151', alignSelf: 'center' }}>updating…</span>}
       </div>
+      <StockChart data={data} win={win} w={320} h={90}/>
     </div>
   )
 }
@@ -50,8 +167,11 @@ function Sparkline({ data, w = 120, h = 44 }) {
 function InvestModal({ target, mySeeds, onDone, onClose }) {
   const [amount, setAmount] = useState(20)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError]   = useState('')
   const quickAmounts = [10, 20, 50, 100].filter(a => a <= mySeeds)
+  const fee    = Math.floor((target.myInvestment || 0) * 0.10)
+  const payout = (target.myInvestment || 0) - fee
+  const boost  = Math.max(1, Math.floor(amount * 0.05))
 
   const invest = async () => {
     if (amount < 10 || amount > mySeeds) return
@@ -59,16 +179,11 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
     try { await groveApi.invest(target.id, amount); onDone() }
     catch (e) { setError(e.response?.data?.error || 'Failed'); setLoading(false) }
   }
-
   const withdraw = async () => {
     setLoading(true); setError('')
     try { await groveApi.withdraw(target.id); onDone() }
     catch (e) { setError(e.response?.data?.error || 'Failed'); setLoading(false) }
   }
-
-  const fee     = Math.floor((target.myInvestment || 0) * 0.10)
-  const payout  = (target.myInvestment || 0) - fee
-  const boost   = Math.max(1, Math.floor(amount * 0.05))
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
@@ -76,13 +191,11 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-forest-800">
           <div>
             <h2 className="font-display text-forest-100 text-lg leading-none">{target.name}</h2>
-            <p className="text-forest-500 text-xs mt-0.5">🪴 {target.seeds} seeds · {target.investorCount} investor{target.investorCount!==1?'s':''}</p>
+            <p className="text-forest-500 text-xs mt-0.5">🌱 {target.seeds} seeds · {target.investorCount} investor{target.investorCount!==1?'s':''}</p>
           </div>
           <button onClick={onClose} className="text-forest-600 hover:text-forest-300 text-xl">✕</button>
         </div>
-
         <div className="p-5 space-y-4">
-          {/* Current investment → withdraw */}
           {target.myInvestment > 0 && (
             <div className="rounded-xl border border-forest-700 bg-forest-900/40 p-4">
               <p className="text-forest-400 text-xs mb-1">Your investment</p>
@@ -94,8 +207,6 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
               </button>
             </div>
           )}
-
-          {/* Invest */}
           {mySeeds >= 10 && (
             <>
               <div>
@@ -117,20 +228,17 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
                     className="input text-sm flex-1"/>
                   <span className="text-forest-700 text-xs flex-shrink-0">/ {mySeeds}</span>
                 </div>
-                <p className="text-forest-700 text-xs mt-1">
-                  {target.name} immediately gains +{boost} seeds as a boost
-                </p>
+                <p className="text-forest-700 text-xs mt-1">{target.name} gains +{boost} immediately</p>
               </div>
               {error && <p className="text-red-400 text-sm">{error}</p>}
               <button onClick={invest} disabled={loading || amount < 10 || amount > mySeeds}
-                className="w-full py-2.5 bg-forest-600 hover:bg-forest-500 disabled:opacity-40
-                           text-white rounded-xl font-medium transition-colors">
+                className="w-full py-2.5 bg-forest-600 hover:bg-forest-500 disabled:opacity-40 text-white rounded-xl font-medium transition-colors">
                 {loading ? 'Investing…' : `Invest 🌱 ${amount}`}
               </button>
             </>
           )}
           {mySeeds < 10 && !target.myInvestment && (
-            <p className="text-forest-600 text-sm text-center py-2">You need at least 🌱 10 seeds to invest.<br/>Earn seeds by sending letters and posting notes.</p>
+            <p className="text-forest-600 text-sm text-center py-2">You need at least 🌱 10 seeds to invest.</p>
           )}
         </div>
       </div>
@@ -138,17 +246,16 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
   )
 }
 
-// ── Stock card for a connection ───────────────────────────────────────────────
+// ── Stock card ────────────────────────────────────────────────────────────────
 function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
-  const h = person.history || []
-  const rising = h.length >= 2 && h[h.length-1]?.seeds >= h[0]?.seeds
+  const rising = person.history?.length >= 2 &&
+    person.history[person.history.length-1]?.seeds >= person.history[0]?.seeds
   const trendCol = rising ? '#4ade80' : '#f87171'
-  const fee = Math.floor((person.myInvestment || 0) * 0.10)
-  const payout = (person.myInvestment || 0) - fee
+  const fee      = Math.floor((person.myInvestment || 0) * 0.10)
+  const payout   = (person.myInvestment || 0) - fee
 
   return (
     <div className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-700 transition-colors overflow-hidden">
-      {/* Header row */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-1">
         <div className="w-9 h-9 rounded-full bg-forest-700 flex items-center justify-center text-forest-100 font-bold text-sm flex-shrink-0">
           {person.name[0]?.toUpperCase()}
@@ -165,19 +272,12 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
         </div>
       </div>
 
-      {/* Large chart */}
-      <div className="px-3 py-2">
-        <Sparkline data={h} w={320} h={64}/>
-        {/* X-axis labels */}
-        {h.length >= 2 && (
-          <div className="flex justify-between mt-0.5 px-1">
-            <span className="text-forest-800 text-xs font-mono">{new Date(h[0].ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-            <span className="text-forest-800 text-xs font-mono">{new Date(h[h.length-1].ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-          </div>
-        )}
+      {/* Live chart with window selector */}
+      <div className="px-3 pt-1 pb-0">
+        <ChartCard userId={person.id} name={person.name} seedsNow={person.seeds}/>
       </div>
 
-      {/* Your stake info */}
+      {/* Stake info */}
       {person.myInvestment > 0 && (
         <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-forest-800/50 border border-forest-700 flex items-center justify-between">
           <span className="text-forest-400 text-xs">Your stake</span>
@@ -206,14 +306,14 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
 
 // ── Main GrovePage ────────────────────────────────────────────────────────────
 export default function GrovePage() {
-  const { user } = useAuth()
+  const { user }  = useAuth()
   const [me, setMe]                   = useState(null)
   const [connections, setConnections] = useState([])
   const [leaderboard, setLeaderboard] = useState([])
   const [loading, setLoading]         = useState(true)
   const [tab, setTab]                 = useState('stocks')
-  const [investing, setInvesting]     = useState(null) // person being invested in
-  const [sort, setSort]               = useState('seeds') // seeds | rising | invested
+  const [investing, setInvesting]     = useState(null)
+  const [sort, setSort]               = useState('seeds')
 
   const reload = useCallback(async () => {
     try {
@@ -232,7 +332,7 @@ export default function GrovePage() {
 
   const sorted = [...connections].sort((a, b) => {
     if (sort === 'seeds')    return b.seeds - a.seeds
-    if (sort === 'rising')   return (b.history.slice(-1)[0]?.seeds - b.history[0]?.seeds) - (a.history.slice(-1)[0]?.seeds - a.history[0]?.seeds)
+    if (sort === 'rising')   return (b.history?.slice(-1)[0]?.seeds - b.history?.[0]?.seeds) - (a.history?.slice(-1)[0]?.seeds - a.history?.[0]?.seeds)
     if (sort === 'invested') return b.myInvestment - a.myInvestment
     return 0
   })
@@ -246,9 +346,8 @@ export default function GrovePage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-2xl text-forest-50">🪴 The Grove</h1>
-            <p className="text-forest-600 text-xs mt-0.5">Seeds, stocks & connection value</p>
+            <p className="text-forest-600 text-xs mt-0.5">Seeds, stocks &amp; connection value</p>
           </div>
-          {/* My seeds balance — prominent */}
           <div className="flex flex-col items-end gap-1">
             <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-900/80 border border-forest-700">
               <span className="text-xl">🌱</span>
@@ -262,18 +361,15 @@ export default function GrovePage() {
           </div>
         </div>
 
-        {/* My own sparkline */}
-        {me?.history?.length >= 2 && (
+        {/* My own chart */}
+        {me && user?.id && (
           <div className="mt-3 rounded-xl bg-forest-900/40 border border-forest-800 px-4 py-2">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-forest-500 text-xs">Your score — last {me.history.length * 3}h</span>
-              <span className="text-forest-600 text-xs">{me.investorCount} investor{me.investorCount!==1?'s':''} · 🌱 {me.totalInvested} staked</span>
+              <span className="text-forest-500 text-xs">Your score</span>
+              <span className="text-forest-600 text-xs">{me.investorCount} investor{me.investorCount!==1?'s':''} · 🌱{me.totalInvested} staked</span>
             </div>
-            <Sparkline data={me.history} w={320} h={48}/>
+            <ChartCard userId={user.id} name="you" isMe seedsNow={me.seeds} />
           </div>
-        )}
-        {me && (!me.history || me.history.length < 2) && (
-          <p className="text-forest-700 text-xs mt-2">Your chart will appear after your first activity. Send a letter or post a note to start earning seeds!</p>
         )}
       </div>
 
@@ -286,7 +382,6 @@ export default function GrovePage() {
             {l}
           </button>
         ))}
-
         {tab === 'stocks' && (
           <div className="ml-auto flex gap-1">
             {[['seeds','Value'],['rising','Rising'],['invested','Invested']].map(([k,l]) => (
@@ -304,7 +399,6 @@ export default function GrovePage() {
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading && <p className="text-forest-600 text-sm text-center py-12">Loading Grove…</p>}
 
-        {/* ── Stocks tab ── */}
         {!loading && tab === 'stocks' && (
           <>
             {sorted.length === 0 && (
@@ -312,9 +406,9 @@ export default function GrovePage() {
                 <div className="text-5xl mb-4">🪴</div>
                 <p className="text-forest-300 font-medium text-lg">No connections yet</p>
                 <p className="text-forest-600 text-sm mt-2 max-w-xs mx-auto">
-                  Add connections to see their stock cards and invest seeds in their growth.
+                  Add connections to see their stock cards and invest seeds.
                 </p>
-                <p className="text-forest-700 text-xs mt-4">Check the Guide page to learn how Seeds work →</p>
+                <p className="text-forest-700 text-xs mt-4">Check the Guide → The Grove to learn how Seeds work</p>
               </div>
             )}
             {sorted.map(person => (
@@ -323,13 +417,15 @@ export default function GrovePage() {
                 person={person}
                 mySeeds={me?.seeds || 0}
                 onInvest={p => setInvesting(p)}
-                onWithdraw={async p => { try { await groveApi.withdraw(p.id); reload() } catch(e) { alert(e.response?.data?.error || 'Failed') } }}
+                onWithdraw={async p => {
+                  try { await groveApi.withdraw(p.id); reload() }
+                  catch(e) { alert(e.response?.data?.error || 'Failed') }
+                }}
               />
             ))}
           </>
         )}
 
-        {/* ── Leaderboard tab ── */}
         {!loading && tab === 'leaders' && (
           <div className="rounded-2xl bg-forest-900/40 border border-forest-800 overflow-hidden">
             <div className="px-5 py-3 border-b border-forest-800">
@@ -340,11 +436,11 @@ export default function GrovePage() {
                 className={`flex items-center gap-3 px-5 py-3 border-b border-forest-900 last:border-0
                   ${l.isMe ? 'bg-forest-800/30' : ''}`}>
                 <span className="text-forest-600 font-mono text-sm w-6 text-center">
-                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`}
+                  {i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${l.isMe ? 'text-forest-200' : 'text-forest-300'} truncate`}>
-                    {l.name}{l.isMe ? ' (you)' : ''}
+                  <p className={`text-sm font-medium ${l.isMe?'text-forest-200':'text-forest-300'} truncate`}>
+                    {l.name}{l.isMe?' (you)':''}
                   </p>
                   <p className="text-forest-700 text-xs">{l.country}</p>
                 </div>
@@ -355,7 +451,6 @@ export default function GrovePage() {
         )}
       </div>
 
-      {/* Invest modal */}
       {investing && (
         <InvestModal
           target={investing}
