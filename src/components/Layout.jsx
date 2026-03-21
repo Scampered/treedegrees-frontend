@@ -9,26 +9,25 @@ import { useAuth } from '../context/AuthContext'
 
 const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
-  { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },
+  { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/groups',    icon: '☘️',  fullLabel: 'Groups'      },
-  { to: '/games',     icon: '🎮',  fullLabel: 'Games'       },
   { to: '/letters',   icon: '✉️',   fullLabel: 'Letters'     },
   { to: '/settings',  icon: '⚙️',  fullLabel: 'Settings'    },
   { to: '/guide',     icon: '📖',  fullLabel: 'Guide'       },
 ]
 
 const mobileNavItems = [
+  { to: '/friends',   icon: '🌱', label: 'People'  },
   { to: '/map',       icon: '🗺️', label: 'Map'     },
-  { to: '/games',     icon: '🎮', label: 'Games'   },
   { to: '/dashboard', icon: '🌳', label: 'Home',   isCenter: true },
   { to: '/letters',   icon: '✉️',  label: 'Letters' },
   { key: 'more',      icon: '☰',  label: 'More',   isMore: true },
 ]
 
 const moreItems = [
-  { to: '/friends',  icon: '🌱', label: 'Connections' },
   { to: '/groups',   icon: '☘️', label: 'Groups'      },
+  { to: '/games',    icon: '🎮', label: 'Games'       },
   { to: '/guide',    icon: '📖', label: 'Guide'       },
   { to: '/settings', icon: '⚙️', label: 'Settings'    },
 ]
