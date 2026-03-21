@@ -27,15 +27,18 @@ function StockChart({ data, win, w = 320, h = 90 }) {
   const vals = data.map(d => d.seeds)
   const minV = Math.min(...vals)
   const maxV = Math.max(...vals)
-  const rangeV = maxV - minV || 1
+  const rangeV = Math.max(maxV - minV, 1)
 
-  // Time range from data
-  const times = data.map(d => new Date(d.ts).getTime())
-  const minT  = times[0]
-  const maxT  = times[times.length - 1]
-  const rangeT = maxT - minT || 1
+  // X axis: fixed window bounds (windowStart → now), NOT data bounds
+  // This ensures the line always stretches all the way to the right edge
+  const nowMs = Date.now()
+  const windowMs = win === '12h' ? 12*3600000 : win === '1w' ? 7*24*3600000 : 24*3600000
+  const minT  = nowMs - windowMs   // left edge = window start
+  const maxT  = nowMs              // right edge = right now
+  const rangeT = maxT - minT
 
-  const toX = t  => PAD.left + ((new Date(t).getTime() - minT) / rangeT) * cw
+  const clamp = (t) => Math.max(minT, Math.min(maxT, new Date(t).getTime()))
+  const toX = t  => PAD.left + ((clamp(t) - minT) / rangeT) * cw
   const toY = v  => PAD.top  + (1 - (v - minV) / rangeV) * ch
 
   // Build SVG path
@@ -58,7 +61,7 @@ function StockChart({ data, win, w = 320, h = 90 }) {
   for (let t = tickStart; t <= maxT; t += stepMs) {
     const x = PAD.left + ((t - minT) / rangeT) * cw
     const hOfDay = new Date(t).getHours()
-    const dayIdx = Math.floor((t - minT) / 86400000)
+    const dayIdx = Math.floor((t - (nowMs - windowMs)) / 86400000)
     xTicks.push({ x, label: winCfg.xFormat(win === '1w' ? dayIdx * 24 : hOfDay) })
   }
 
@@ -112,7 +115,19 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
   const [win, setWin]     = useState('1d')
   const [data, setData]   = useState(null)
   const [loading, setLoad] = useState(true)
-  const timer = useRef(null)
+  const [chartW, setChartW] = useState(320)
+  const timer    = useRef(null)
+  const wrapRef  = useRef(null)
+
+  // Measure container width so chart fills its card
+  useEffect(() => {
+    if (!wrapRef.current) return
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) setChartW(Math.floor(e.contentRect.width) || 320)
+    })
+    ro.observe(wrapRef.current)
+    return () => ro.disconnect()
+  }, [])
 
   const load = useCallback(async () => {
     if (!userId) return
@@ -142,11 +157,11 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
   }, [seedsNow, load])
 
   return (
-    <div style={{ marginBottom: 6 }}>
+    <div ref={wrapRef} style={{ marginBottom: 6, width: '100%' }}>
       {/* Window selector */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
         {WINDOWS.map(ww => (
-          <button key={ww.key} onClick={() => setWin(ww.key)}
+          <button key={ww.key} onClick={() => { setData(null); setLoad(true); setWin(ww.key) }}
             style={{
               padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer',
               background: win === ww.key ? '#14532d' : 'transparent',
@@ -158,7 +173,7 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
         ))}
         {loading && <span style={{ fontSize: 9, color: '#374151', alignSelf: 'center' }}>updating…</span>}
       </div>
-      <StockChart data={data} win={win} w={320} h={90}/>
+      <StockChart data={data} win={win} w={chartW} h={90}/>
     </div>
   )
 }
@@ -274,7 +289,7 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
 
       {/* Live chart with window selector */}
       <div className="px-3 pt-1 pb-0">
-        <ChartCard userId={person.id} name={person.name} seedsNow={person.seeds}/>
+        <ChartCard userId={person.id} name={person.name} seedsNow={person.seeds} />
       </div>
 
       {/* Stake info */}
