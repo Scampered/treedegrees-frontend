@@ -10,6 +10,19 @@ const WINDOWS = [
   { key: '1w',  label: '1w',  xStepH: 24, xFormat: h => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][Math.floor(h/24) % 7] },
 ]
 
+
+// ── Compute withdraw payout preview (mirrors backend logic) ──────────────────
+function computePayout(principal, seedsAtInvest, currentSeeds) {
+  if (!principal) return 0
+  const baseline   = Math.max(10, seedsAtInvest || currentSeeds || 10)
+  const multiplier = Math.min(10, Math.max(0, currentSeeds / baseline))
+  const activeHalf = principal / 2
+  const safeHalf   = principal - activeHalf
+  const totalValue = Math.floor(safeHalf + activeHalf * multiplier)
+  const fee        = Math.floor(totalValue * 0.20)
+  return totalValue - fee
+}
+
 // ── Full chart with axes ──────────────────────────────────────────────────────
 function StockChart({ data, win, w = 320, h = 90 }) {
   if (!data || data.length < 2) {
@@ -104,8 +117,10 @@ function StockChart({ data, win, w = 320, h = 90 }) {
       <line x1={PAD.left} y1={PAD.top+ch} x2={PAD.left+cw} y2={PAD.top+ch} stroke="#1f2f1f" strokeWidth="1"/>
 
       {/* Diff badge top-right */}
-      <text x={PAD.left+cw} y={PAD.top+6} textAnchor="end"
-        fill={col} fontSize="9" fontWeight="700" fontFamily="monospace">{diffStr}</text>
+      <text x={PAD.left+cw} y={PAD.top+8} textAnchor="end"
+        fill={col} fontSize="10" fontWeight="700" fontFamily="monospace">{diffStr}</text>
+      <text x={PAD.left+cw} y={PAD.top+18} textAnchor="end"
+        fill={col} fontSize="7" fontFamily="monospace" opacity="0.6">since {win === '12h' ? '12h ago' : win === '1d' ? '24h ago' : '7d ago'}</text>
     </svg>
   )
 }
@@ -295,12 +310,25 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
       </div>
 
       {/* Stake info */}
-      {person.myInvestment > 0 && (
-        <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-forest-800/50 border border-forest-700 flex items-center justify-between">
-          <span className="text-forest-400 text-xs">Your stake</span>
-          <span className="text-forest-100 font-mono font-medium text-sm">🌱 {person.myInvestment}</span>
-        </div>
-      )}
+      {person.myInvestment > 0 && (() => {
+        const preview = computePayout(person.myInvestment, person.mySeedsAtInvest, person.seeds)
+        const profit  = preview - person.myInvestment
+        const sign    = profit >= 0 ? '+' : ''
+        return (
+          <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-forest-800/50 border border-forest-700">
+            <div className="flex items-center justify-between">
+              <span className="text-forest-400 text-xs">Your stake</span>
+              <span className="text-forest-100 font-mono font-medium text-sm">🌱 {person.myInvestment}</span>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-forest-600 text-xs">Withdraw payout</span>
+              <span className={`text-xs font-mono font-medium ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                🌱 {preview} ({sign}{profit})
+              </span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Action buttons */}
       <div className="flex gap-2 px-4 pb-4">
@@ -309,13 +337,16 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
                      text-forest-300 hover:border-forest-500 hover:text-forest-100 hover:bg-forest-800/40 transition-colors">
           {person.myInvestment > 0 ? '＋ Add seeds' : '🌱 Invest'}
         </button>
-        {person.myInvestment > 0 && (
-          <button onClick={() => onWithdraw(person)}
-            className="flex-1 py-2 rounded-xl text-sm font-medium border border-red-900/60
-                       text-red-400/80 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 transition-colors">
-            Withdraw (+{payout})
-          </button>
-        )}
+        {person.myInvestment > 0 && (() => {
+          const preview = computePayout(person.myInvestment, person.mySeedsAtInvest, person.seeds)
+          return (
+            <button onClick={() => onWithdraw(person)}
+              className="flex-1 py-2 rounded-xl text-sm font-medium border border-red-900/60
+                         text-red-400/80 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 transition-colors">
+              Withdraw 🌱{preview}
+            </button>
+          )
+        })()}
       </div>
     </div>
   )
