@@ -1,176 +1,200 @@
-// src/components/MoodPicker.jsx — shared mood picker, works on mobile + PC
-import { useState, useEffect, useRef } from 'react'
+// src/components/MoodPicker.jsx
+// Two-step: click emoji to stage it, then click "Update" to submit.
+// 4-hour cooldown between updates.
+import { useState, useEffect } from 'react'
 import { usersApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 export const MOODS = ['😄','😢','😡','😴','🤔','🥹']
 export const MOOD_LABELS = {
-  '😄':'Happy', '😢':'Sad', '😡':'Angry',
-  '😴':'Tired', '🤔':'Thinking', '🥹':'Emotional',
+  '😄': 'Happy', '😢': 'Sad', '😡': 'Angry',
+  '😴': 'Tired', '🤔': 'Thinking', '🥹': 'Emotional',
 }
-const MOOD_DURATION_H = 24 // hours
+const COOLDOWN_H = 4  // hours between mood updates
 
 export default function MoodPicker({ compact = false }) {
   const { user, updateUser } = useAuth()
-  const [myMood, setMyMood]   = useState(null)
-  const [loading, setLoading] = useState(false)
-  const containerRef = useRef(null)
 
-  // Load from user context, localStorage as fallback while context loads
+  // active = what's currently set on the server
+  // staged = what the user has clicked but not yet confirmed
+  const [active, setActive]   = useState(null)
+  const [staged, setStaged]   = useState(null)
+  const [saving, setSaving]   = useState(false)
+  const [status, setStatus]   = useState('')   // feedback message
+  const [hoursLeft, setHours] = useState(0)    // cooldown hours remaining
+
+  // Sync active mood from user context + localStorage cooldown
   useEffect(() => {
-    if (user?.mood !== undefined) {
-      setMyMood(user.mood || null)
-      if (user.mood) {
-        localStorage.setItem('td_mood', JSON.stringify({ mood: user.mood, setAt: Date.now() }))
-      } else {
-        localStorage.removeItem('td_mood')
+    const serverMood = user?.mood || null
+    setActive(serverMood)
+    setStaged(serverMood)  // staged matches active until user picks something else
+
+    // Calculate remaining cooldown from localStorage timestamp
+    try {
+      const raw = localStorage.getItem('td_mood_ts')
+      if (raw) {
+        const { setAt } = JSON.parse(raw)
+        const elapsed = (Date.now() - setAt) / 3600000
+        const remaining = Math.max(0, COOLDOWN_H - elapsed)
+        setHours(remaining)
       }
-    } else {
-      // Context not loaded yet — try localStorage
-      try {
-        const raw = localStorage.getItem('td_mood')
-        if (raw) {
-          const { mood } = JSON.parse(raw)
-          setMyMood(mood || null)
-        }
-      } catch {}
-    }
+    } catch {}
   }, [user?.mood])
 
-  const handleMood = async (emoji) => {
-    if (loading) return
-    const next = myMood === emoji ? null : emoji
-    // Optimistic update
-    setMyMood(next)
-    if (next) {
-      localStorage.setItem('td_mood', JSON.stringify({ mood: next, setAt: Date.now() }))
+  const canUpdate = hoursLeft <= 0 || !active  // can always set first mood
+
+  const handleStage = (emoji) => {
+    if (saving) return
+    // Toggle: clicking the same emoji unstages it (revert to active)
+    if (staged === emoji && emoji !== active) {
+      setStaged(active)
     } else {
-      localStorage.removeItem('td_mood')
+      setStaged(emoji)
     }
-    updateUser({ mood: next })
-    setLoading(true)
+    setStatus('')
+  }
+
+  const handleUpdate = async () => {
+    if (saving || staged === active) return
+    setSaving(true)
+    setStatus('')
     try {
-      if (next) {
-        await usersApi.setMood(next)
+      if (staged) {
+        await usersApi.setMood(staged)
       } else {
         await usersApi.clearMood()
       }
-    } catch {
-      // revert on error
-      setMyMood(myMood)
-      updateUser({ mood: myMood })
-    } finally { setLoading(false) }
+      setActive(staged)
+      updateUser({ mood: staged })
+      localStorage.setItem('td_mood_ts', JSON.stringify({ setAt: Date.now() }))
+      setHours(COOLDOWN_H)
+      setStatus('✓ Mood updated — visible on map!')
+    } catch (err) {
+      setStatus(err?.response?.data?.error || 'Could not update mood')
+      setStaged(active)  // revert stage on error
+    } finally {
+      setSaving(false)
+    }
   }
 
-  // Use native pointer events attached to the container — most reliable on mobile
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const onPointer = (e) => {
-      const btn = e.target.closest('[data-mood]')
-      if (!btn) return
-      e.preventDefault()
-      e.stopPropagation()
-      const emoji = btn.dataset.mood
-      if (emoji) handleMood(emoji)
-    }
-
-    container.addEventListener('pointerdown', onPointer, { passive: false })
-    return () => container.removeEventListener('pointerdown', onPointer)
-  }) // run every render so handleMood closure is fresh
+  const hasChange = staged !== active
 
   if (compact) {
-    // Compact row for dashboard — inline in the note card
     return (
-      <div ref={containerRef} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        {MOODS.map(emoji => {
-          const selected = myMood === emoji
-          return (
-            <div
-              key={emoji}
-              data-mood={emoji}
-              title={MOOD_LABELS[emoji]}
+      <div>
+        <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+          <span style={{ fontSize:11, color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.06em', flexShrink:0 }}>Mood</span>
+          {MOODS.map(emoji => {
+            const isActive  = active === emoji
+            const isStaged  = staged === emoji
+            const highlight = isStaged
+            return (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleStage(emoji)}
+                title={MOOD_LABELS[emoji]}
+                disabled={saving}
+                style={{
+                  width: 38, height: 38, fontSize: 20,
+                  borderRadius: 10, border: `2px solid ${highlight ? '#4dba4d' : isActive ? '#2d6a35' : 'rgba(255,255,255,0.08)'}`,
+                  background: highlight ? 'rgba(74,186,74,0.2)' : isActive ? 'rgba(74,186,74,0.08)' : 'transparent',
+                  transform: highlight ? 'scale(1.15)' : 'scale(1)',
+                  cursor: saving ? 'wait' : 'pointer',
+                  transition: 'all 0.15s', outline: 'none',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                {emoji}
+              </button>
+            )
+          })}
+          {hasChange && (
+            <button
+              type="button"
+              onClick={handleUpdate}
+              disabled={saving}
               style={{
-                width: 40, height: 40,
-                borderRadius: 10,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22,
-                cursor: loading ? 'wait' : 'pointer',
-                userSelect: 'none',
-                WebkitUserSelect: 'none',
-                touchAction: 'manipulation',
-                transition: 'transform 0.15s, background 0.15s, border-color 0.15s',
-                transform: selected ? 'scale(1.18)' : 'scale(1)',
-                background: selected ? 'rgba(74,186,74,0.22)' : 'rgba(255,255,255,0.04)',
-                border: `2px solid ${selected ? '#4dba4d' : 'rgba(255,255,255,0.09)'}`,
-                boxShadow: selected ? '0 0 10px rgba(74,186,74,0.25)' : 'none',
-                opacity: loading ? 0.6 : 1,
+                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                background: '#14532d', border: '1px solid #2d6a35',
+                color: '#4ade80', cursor: saving ? 'wait' : 'pointer',
+                transition: 'all 0.15s', outline: 'none',
               }}>
-              {emoji}
-            </div>
-          )
-        })}
-        {myMood && !loading && (
-          <div data-mood={myMood}
-            style={{ fontSize: 11, color: '#4b5563', cursor: 'pointer', padding: '0 4px', touchAction:'manipulation' }}>
-            Clear
-          </div>
+              {saving ? '…' : 'Update'}
+            </button>
+          )}
+        </div>
+        {status && (
+          <p style={{ fontSize: 11, color: status.startsWith('✓') ? '#4ade80' : '#f87171', marginTop: 4 }}>
+            {status}
+          </p>
         )}
-        {myMood && (
-          <span style={{ fontSize: 10, color: '#374151' }}>·</span>
-        )}
-        {myMood && (
-          <span style={{ fontSize: 10, color: '#4dba4d' }}>showing on map 24h</span>
+        {active && !hasChange && (
+          <p style={{ fontSize: 10, color: '#374151', marginTop: 3 }}>
+            {active} {MOOD_LABELS[active]} · on map{hoursLeft > 0 ? ` · next update in ${hoursLeft.toFixed(1)}h` : ''}
+          </p>
         )}
       </div>
     )
   }
 
-  // Full picker for Notes page
+  // Full picker (Notes page)
   return (
     <div>
       <p className="text-forest-600 text-xs mb-2 uppercase tracking-wide">Today's mood</p>
-      <div ref={containerRef} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
         {MOODS.map(emoji => {
-          const selected = myMood === emoji
+          const isActive  = active === emoji
+          const isStaged  = staged === emoji
+          const highlight = isStaged
           return (
-            <div
+            <button
               key={emoji}
-              data-mood={emoji}
+              type="button"
+              onClick={() => handleStage(emoji)}
               title={MOOD_LABELS[emoji]}
+              disabled={saving}
               style={{
-                width: 46, height: 46,
-                borderRadius: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 24,
-                cursor: loading ? 'wait' : 'pointer',
-                userSelect: 'none',
-                WebkitUserSelect: 'none',
-                touchAction: 'manipulation',
-                transition: 'transform 0.15s, background 0.15s, border-color 0.15s',
-                transform: selected ? 'scale(1.2)' : 'scale(1)',
-                background: selected ? 'rgba(74,186,74,0.2)' : 'rgba(255,255,255,0.04)',
-                border: `2px solid ${selected ? '#4dba4d' : 'rgba(255,255,255,0.09)'}`,
-                boxShadow: selected ? '0 0 12px rgba(74,186,74,0.3)' : 'none',
-                opacity: loading ? 0.55 : 1,
+                width: 46, height: 46, fontSize: 24,
+                borderRadius: 12, border: `2px solid ${highlight ? '#4dba4d' : isActive ? '#2d6a35' : 'rgba(255,255,255,0.08)'}`,
+                background: highlight ? 'rgba(74,186,74,0.22)' : isActive ? 'rgba(74,186,74,0.08)' : 'transparent',
+                transform: highlight ? 'scale(1.18)' : 'scale(1)',
+                cursor: saving ? 'wait' : 'pointer',
+                transition: 'all 0.15s', outline: 'none',
+                display:'flex', alignItems:'center', justifyContent:'center',
               }}>
               {emoji}
-            </div>
+            </button>
           )
         })}
-        {myMood && !loading && (
-          <div data-mood={myMood}
-            style={{ fontSize: 12, color: '#6b7280', cursor: 'pointer', padding: '0 4px', touchAction:'manipulation' }}>
-            Clear
-          </div>
+      </div>
+
+      {/* Confirm row */}
+      <div style={{ marginTop: 8, display:'flex', alignItems:'center', gap:10 }}>
+        {hasChange ? (
+          <button
+            type="button"
+            onClick={handleUpdate}
+            disabled={saving}
+            style={{
+              padding: '6px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+              background: '#14532d', border: '1px solid #2d6a35',
+              color: '#4ade80', cursor: saving ? 'wait' : 'pointer',
+              transition: 'all 0.15s',
+            }}>
+            {saving ? 'Updating…' : `Update mood → ${staged || 'Clear'}`}
+          </button>
+        ) : active ? (
+          <p style={{ fontSize: 11, color: '#4ade80' }}>
+            {active} {MOOD_LABELS[active]} — showing on map
+            {hoursLeft > 0 ? ` · next update in ${hoursLeft.toFixed(1)}h` : ''}
+          </p>
+        ) : (
+          <p style={{ fontSize: 11, color: '#4b5563' }}>Pick an emoji and click Update to show it on the map</p>
+        )}
+        {status && (
+          <p style={{ fontSize: 11, color: status.startsWith('✓') ? '#4ade80' : '#f87171' }}>{status}</p>
         )}
       </div>
-      {myMood && (
-        <p style={{ marginTop: 6, fontSize: 11, color: '#4ade80' }}>
-          {myMood} {MOOD_LABELS[myMood]} — showing on map for 24h
-        </p>
-      )}
     </div>
   )
 }

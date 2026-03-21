@@ -47,6 +47,9 @@ export const authApi = {
 }
 
 export const friendsApi = {
+  togglePrivacy: (friendshipId, isPrivate) =>
+                   api.patch(`/api/friends/${friendshipId}/privacy`, { isPrivate }),
+  remove:        (userId)                 => api.delete(`/api/friends/${userId}`),
   list:          ()                       => api.get('/api/friends'),
   requests:      ()                       => api.get('/api/friends/requests'),
   add:           (friendCode, isPrivate = false) => api.post('/api/friends/add', { friendCode, isPrivate }),
@@ -63,9 +66,11 @@ export const graphApi = {
 }
 
 export const usersApi = {
-  updateProfile: (data) => api.patch('/api/users/profile', data),
-  postDailyNote: (note) => api.post('/api/users/daily-note', { note }),
-  feed:          ()     => api.get('/api/users/feed'),
+  updateProfile: (data)   => api.patch('/api/users/profile', data),
+  postDailyNote: (note)   => api.post('/api/users/daily-note', { note }),
+  feed:          ()       => api.get('/api/users/feed'),
+  setMood:       (mood)   => api.post('/api/users/daily-mood', { mood }),
+  clearMood:     ()       => api.delete('/api/users/daily-mood'),
 }
 
 export const nicknamesApi = {

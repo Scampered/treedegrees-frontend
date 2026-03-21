@@ -61,31 +61,43 @@ function buildNodeIcon(degree, hasNote, isHidden, mood, seeds) {
         border-radius:50%;background:white;border:2px solid #0d2b0d;
         box-shadow:0 0 4px rgba(0,0,0,0.6);z-index:10;"></div>`
     : ''
-  // Mood emoji floats above the node
-  const moodBubble = mood
-    ? `<div style="position:absolute;top:${-size*0.85}px;left:50%;transform:translateX(-50%);
-        font-size:${size * 0.75}px;line-height:1;
-        filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8));
-        pointer-events:none;z-index:20;">${mood}</div>`
-    : ''
-  // Seeds pill below node — only for degree 0 or 1
-  const seedsPill = (seeds !== null && seeds !== undefined && (degree === 0 || degree === 1))
-    ? `<div style="position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);
+  // Seeds pill below node
+  const seedsPill = (seeds !== null && seeds !== undefined)
+    ? `<div style="position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);
         white-space:nowrap;font-size:9px;font-weight:700;font-family:monospace;
-        background:rgba(0,0,0,0.75);color:#4ade80;padding:1px 5px;border-radius:8px;
-        border:1px solid rgba(74,186,74,0.4);pointer-events:none;z-index:20;">🌱${seeds}</div>`
+        background:rgba(0,0,0,0.8);color:#4ade80;padding:1px 5px;border-radius:8px;
+        border:1px solid rgba(74,186,74,0.35);pointer-events:none;z-index:20;">🌱${seeds}</div>`
     : ''
-  const extraBottom = (seeds !== null && seeds !== undefined && (degree === 0 || degree === 1)) ? 16 : 0
-  const totalH = size + Math.round(mood ? size * 0.85 : 0) + extraBottom
-  const anchorY = Math.round(mood ? size * 0.85 : 0) + half
+  const extraBottom = seeds !== null && seeds !== undefined ? 17 : 0
+  const totalH = size + extraBottom
+
+  if (mood) {
+    // Mood replaces the circle: show emoji as the node itself
+    return L.divIcon({
+      className: '',
+      iconSize: [size, totalH], iconAnchor: [half, half],
+      popupAnchor: [0, -half - 4], tooltipAnchor: [0, -half - 4],
+      html: `<div style="position:relative;width:${size}px;height:${totalH}px;">
+        <div style="width:${size}px;height:${size}px;border-radius:50%;
+          background:${bg};border:${degree === 0 ? 3 : 2}px solid ${border};
+          box-shadow:0 0 ${degree === 0 ? 10 : 5}px ${bg}88;
+          display:flex;align-items:center;justify-content:center;
+          font-size:${Math.round(size * 0.52)}px;line-height:1;">
+          ${mood}
+        </div>
+        ${badge}
+        ${seedsPill}
+      </div>`,
+    })
+  }
+
+  // No mood — regular coloured circle
   return L.divIcon({
     className: '',
-    iconSize: [size, totalH], iconAnchor: [half, anchorY],
-    popupAnchor: [0, -anchorY - 4], tooltipAnchor: [0, -anchorY - 4],
+    iconSize: [size, totalH], iconAnchor: [half, half],
+    popupAnchor: [0, -half - 4], tooltipAnchor: [0, -half - 4],
     html: `<div style="position:relative;width:${size}px;height:${totalH}px;">
-      ${moodBubble}
-      <div style="position:absolute;top:${Math.round(mood ? size * 0.85 : 0)}px;left:0;
-        width:${size}px;height:${size}px;border-radius:50%;
+      <div style="width:${size}px;height:${size}px;border-radius:50%;
         background:${bg};border:${degree === 0 ? 3 : 2}px solid ${border};
         box-shadow:0 0 ${degree === 0 ? 10 : 5}px ${bg}88;"></div>
       ${badge}
