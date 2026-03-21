@@ -55,7 +55,7 @@ function StockChart({ data, win, w = 320, h = 90 }) {
   // X axis ticks
   const winCfg  = WINDOWS.find(ww => ww.key === win) || WINDOWS[1]
   const stepMs  = winCfg.xStepH * 3600000
-  const windowMs = win === '12h' ? 12*3600000 : win === '1w' ? 7*24*3600000 : 24*3600000
+  // windowMs already declared above
   const xTicks  = []
   const tickStart = Math.ceil(minT / stepMs) * stepMs
   for (let t = tickStart; t <= maxT; t += stepMs) {
