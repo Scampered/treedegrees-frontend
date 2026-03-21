@@ -12,6 +12,7 @@ const sections = [
   { id: 'letters',     emoji: '✉️',  label: 'Letters & Streaks'    },
   { id: 'vehicles',    emoji: '🚗',  label: 'Delivery Vehicles'    },
   { id: 'groups',     emoji: '☘️',  label: 'Groups'               },
+  { id: 'grove',      emoji: '🪴',  label: 'The Grove'            },
   { id: 'games',      emoji: '🎮',  label: 'Games & Activities'   },
 ]
 
@@ -610,6 +611,98 @@ function SectionGroups() {
   )
 }
 
+
+function SectionGrove() {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-display text-2xl text-forest-50 mb-1">🪴 The Grove</h2>
+        <p className="text-forest-400 text-sm">Seeds, stocks &amp; investing in your connections.</p>
+      </div>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">What are Seeds? 🌱</p>
+        <p className="text-forest-400 text-sm leading-relaxed mb-3">
+          Seeds are the currency of TreeDegrees. Every account starts at 0 and earns seeds through real activity —
+          sending letters, posting notes, keeping streaks alive. You spend seeds by investing in your connections,
+          backing their growth with real stakes.
+        </p>
+        <p className="text-forest-400 text-sm leading-relaxed">
+          Your seeds balance and your stock chart are visible to your direct connections on the Grove page and
+          as a small badge below your map node.
+        </p>
+      </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">How to earn 🌱 Seeds</p>
+        <div className="space-y-1">
+          {[
+            ['+20',  'Send a letter'],
+            ['+30',  'Receive a letter'],
+            ['+20',  'Post a daily note'],
+            ['+10',  'Set your mood (once per 4 hours)'],
+            ['+15',  'Streak milestone — both you and your connection sent that day'],
+            ['+25',  'Win a game (2 players)'],
+            ['+5 per extra player', 'Win with more players'],
+            ['+5%',  'Someone invests in you — instant boost of 5% of their amount'],
+          ].map(([val, action]) => (
+            <div key={action} className="flex justify-between items-center py-1.5 border-b border-forest-900 last:border-0 text-sm">
+              <span className="text-forest-400">{action}</span>
+              <span className="text-green-400 font-mono font-medium">{val}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">What costs Seeds</p>
+        <div className="space-y-1">
+          {[
+            ['−50',  'Streak breaks'],
+            ['−10',  'No activity for a full day (passive decay)'],
+            ['−10%', 'Withdrawal fee when pulling your investment out'],
+            ['−3%',  'Your score dips when someone withdraws their investment from you'],
+          ].map(([val, action]) => (
+            <div key={action} className="flex justify-between items-center py-1.5 border-b border-forest-900 last:border-0 text-sm">
+              <span className="text-forest-400">{action}</span>
+              <span className="text-red-400 font-mono font-medium">{val}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">Investing in a connection</p>
+        <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
+          <p>Go to The Grove and open a connection&apos;s stock card. Tap <span className="text-forest-200 font-medium">Invest</span> to spend seeds on them. Minimum: <span className="text-forest-200 font-mono">10 seeds</span>.</p>
+          <p>They receive <span className="text-green-400 font-mono">+5%</span> of your investment as an instant score boost.</p>
+          <p>Withdraw any time — you get your seeds back minus a <span className="text-red-400 font-mono">10% fee</span>. The person you invested in keeps that fee.</p>
+          <p>Their score dips by <span className="text-red-400 font-mono">3%</span> of the withdrawn amount when you pull out.</p>
+          <p className="text-forest-600 italic">You can only invest in direct connections (degree 1). You cannot invest in yourself.</p>
+        </div>
+      </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">Reading the chart</p>
+        <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
+          <p>Each stock card shows a sparkline chart of that person&apos;s Seeds score over time. <span className="text-green-400">Green</span> = rising (active). <span className="text-red-400">Red</span> = falling (quiet).</p>
+          <p>The number in the top-right of the chart shows the total change (+/−) over the period shown. Charts update in real time whenever activity earns or costs seeds.</p>
+          <p>The Leaderboard tab shows the top 10 accounts in your network ranked by current Seeds balance.</p>
+        </div>
+      </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">😄 Mood &amp; Notes</p>
+        <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
+          <p><span className="text-forest-200 font-medium">Daily Note:</span> One note per day, up to 280 characters. Visible to direct connections for 24h. Earns <span className="text-green-400 font-mono">+20 seeds</span>.</p>
+          <p><span className="text-forest-200 font-medium">Mood:</span> Set one of 😄 😢 😡 😴 🤔 🥹 once every <span className="text-forest-200 font-medium">4 hours</span>. The emoji replaces your map node so your connections can see how you&apos;re feeling. Earns <span className="text-green-400 font-mono">+10 seeds</span> per set. Expires after 24h.</p>
+          <p>To set a mood: click an emoji to stage it (it highlights), then click <span className="text-forest-200 font-medium">Set</span>. The button stays locked for 4 hours after each update.</p>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
 function SectionGames() {
   const [selectedGame, setSelectedGame] = useState('trump')
   const games = [
@@ -703,6 +796,7 @@ const sectionComponents = {
   letters:     SectionLetters,
   vehicles:    SectionVehicles,
   groups:      SectionGroups,
+  grove:       SectionGrove,
   games:       SectionGames,
 }
 

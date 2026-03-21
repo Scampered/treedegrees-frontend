@@ -346,7 +346,7 @@ export default function GrovePage() {
                   <p className={`text-sm font-medium ${l.isMe ? 'text-forest-200' : 'text-forest-300'} truncate`}>
                     {l.name}{l.isMe ? ' (you)' : ''}
                   </p>
-                  <p className="text-forest-700 text-xs">{l.city || l.country}</p>
+                  <p className="text-forest-700 text-xs">{l.country}</p>
                 </div>
                 <span className="text-forest-100 font-bold font-mono text-sm">🌱 {l.seeds}</span>
               </div>
