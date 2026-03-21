@@ -291,10 +291,13 @@ export default function GrovePage() {
         {!loading && tab === 'stocks' && (
           <>
             {sorted.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-4xl mb-3">🪴</div>
-                <p className="text-forest-400 font-medium">No connections yet</p>
-                <p className="text-forest-600 text-sm mt-1">Add connections to see their stock cards and invest in their growth.</p>
+              <div className="text-center py-16">
+                <div className="text-5xl mb-4">🪴</div>
+                <p className="text-forest-300 font-medium text-lg">No connections yet</p>
+                <p className="text-forest-600 text-sm mt-2 max-w-xs mx-auto">
+                  Add connections to see their stock cards and invest seeds in their growth.
+                </p>
+                <p className="text-forest-700 text-xs mt-4">Check the Guide page to learn how Seeds work →</p>
               </div>
             )}
             {sorted.map(person => (
@@ -333,30 +336,6 @@ export default function GrovePage() {
           </div>
         )}
       </div>
-
-      {/* How seeds work — only on stocks tab if no connections */}
-      {!loading && tab === 'stocks' && sorted.length === 0 && (
-        <div className="px-5 pb-5">
-          <div className="rounded-2xl border border-forest-800 p-4 space-y-2">
-            <p className="text-forest-400 text-xs uppercase tracking-wide">How to earn 🌱 Seeds</p>
-            {[
-              ['Send a letter', '+20'],
-              ['Receive a letter', '+30'],
-              ['Post a daily note', '+20'],
-              ['Set your mood', '+10'],
-              ['Win a game (2 players)', '+25'],
-              ['Streak milestone', '+15'],
-              ['Streak breaks', '−50'],
-              ['No activity for a day', '−10'],
-            ].map(([a, v]) => (
-              <div key={a} className="flex justify-between text-sm">
-                <span className="text-forest-500">{a}</span>
-                <span className={v.startsWith('+') ? 'text-green-400 font-mono' : 'text-red-400 font-mono'}>{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Invest modal */}
       {investing && (
