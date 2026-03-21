@@ -184,8 +184,10 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
   const quickAmounts = [10, 20, 50, 100].filter(a => a <= mySeeds)
-  const fee    = Math.floor((target.myInvestment || 0) * 0.10)
-  const payout = (target.myInvestment || 0) - fee
+  // Payout computed server-side based on multiplier; show estimate on button
+  // 20% fee on total value (total = safe half + active half × multiplier)
+  const fee    = null  // computed server-side
+  const payout = null  // computed server-side
   const boost  = Math.max(1, Math.floor(amount * 0.05))
 
   const invest = async () => {
@@ -218,7 +220,7 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
               <button onClick={withdraw} disabled={loading}
                 className="mt-2 w-full py-2 text-sm rounded-xl border border-forest-700 text-forest-400
                            hover:text-forest-200 hover:border-forest-500 transition-colors disabled:opacity-40">
-                Withdraw — get back 🌱 {payout} (−{fee} fee)
+                Withdraw investment (20% fee → goes to them)
               </button>
             </div>
           )}

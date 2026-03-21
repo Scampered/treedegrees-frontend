@@ -1,5 +1,6 @@
 // src/pages/FriendsPage.jsx
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { friendsApi, nicknamesApi } from '../api/client'
 
 // ── 3-dot dropdown menu ───────────────────────────────────────────────────────
@@ -163,6 +164,17 @@ export default function FriendsPage() {
     setFriends(f.data)
     setRequests(r.data)
   }
+
+  const location = useLocation()
+  useEffect(() => {
+    // Pre-fill friend code from QR scan URL param
+    const params = new URLSearchParams(location.search)
+    const code = params.get('code')
+    if (code) {
+      setAddCode(code.trim().toUpperCase())
+      setTab('add')
+    }
+  }, [location.search])
 
   useEffect(() => {
     reload().finally(() => setLoading(false))

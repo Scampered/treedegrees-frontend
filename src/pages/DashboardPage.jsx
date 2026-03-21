@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { friendsApi, usersApi, lettersApi } from '../api/client'
 import InstallAppCard from '../components/InstallAppCard'
+import QRCodeCard from '../components/QRCodeCard'
 import MoodPicker from '../components/MoodPicker'
 
 function timeOfDay() {
@@ -246,6 +247,10 @@ export default function DashboardPage() {
 
       {/* App install + notifications */}
       <InstallAppCard />
+
+
+      {/* QR Code — below friend code */}
+      <QRCodeCard friendCode={user?.friendCode} />
 
       {/* 4. FRIEND CODE — last/bottom */}
       <div className="rounded-2xl bg-forest-800/40 border border-forest-700 p-5 mt-auto">
