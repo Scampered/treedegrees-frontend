@@ -288,6 +288,18 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
   }, [fetchState])
 
   useEffect(() => { setSlots([null,null,null]) }, [state?.turnPhase, state?.turnPlayerIndex, state?.targetPlayerIndex])
+  // Auto-skip defense if I'm the defender with 0 cards
+  useEffect(() => {
+    if (
+      state?.turnPhase === 'defending' &&
+      state?.myPlayerIndex === state?.targetPlayerIndex &&
+      state?.myHand?.length === 0 &&
+      !state?.pendingSpyForMe
+    ) {
+      doAction('skip_defense')
+    }
+  }, [state?.turnPhase, state?.targetPlayerIndex, state?.myHand?.length])
+
   useEffect(() => {
     if (state?.pendingDivertForMe) {
       setDivertPick(true)
@@ -585,7 +597,9 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
           {state.playZone.length>0 && (
             <div style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'center', maxWidth: isMobile?180:260 }}>
               {state.playZone.map(c=>(
-                <CardSvg key={c.uid} card={c} hidden={c.hidden} w={isMobile?44:54} h={isMobile?66:80}/>
+                <CardSvg key={c.uid} card={c}
+                  hidden={c.hidden || (state.blockCommsActive && !isMyTurn)}
+                  w={isMobile?44:54} h={isMobile?66:80}/>
               ))}
             </div>
           )}
@@ -683,7 +697,7 @@ export default function TrumpCardGame({ gameId: propId, onBack: propOnBack }) {
                 </button>
                 {isDefender && (
                   <button onClick={()=>doAction('skip_defense')} style={{ padding:'8px 14px', borderRadius:10, fontSize:12, cursor:'pointer', background:'transparent', border:'1px solid #374151', color:'#6b7280' }}>
-                    Pass
+                    {state.myHand?.length === 0 ? 'No cards — Pass' : 'Pass (take full damage)'}
                   </button>
                 )}
               </div>
