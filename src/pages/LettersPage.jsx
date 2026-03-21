@@ -1,5 +1,5 @@
 // src/pages/LettersPage.jsx
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { lettersApi, friendsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -131,6 +131,115 @@ function FuelDots({ fuel }) {
 }
 
 // ── Send modal ────────────────────────────────────────────────────────────────
+
+// ── Streak helpers ────────────────────────────────────────────────────────────
+function useMidnightCountdown() {
+  const [label, setLabel] = React.useState('')
+  React.useEffect(() => {
+    const tick = () => {
+      const now  = new Date()
+      const mss  = (new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)) - now
+      const h    = Math.floor(mss / 3600000)
+      const m    = Math.floor((mss % 3600000) / 60000)
+      const icon = h >= 10 ? '🕛' : h >= 7 ? '🕙' : h >= 4 ? '🕕' : h >= 1 ? '🕑' : '🕧'
+      setLabel(`${icon} ${h}h ${m}m`)
+    }
+    tick()
+    const iv = setInterval(tick, 30000)
+    return () => clearInterval(iv)
+  }, [])
+  return label
+}
+
+function StreakDropdown({ streaks }) {
+  const [open, setOpen] = React.useState(false)
+  const midnight = useMidnightCountdown()
+  if (!streaks.some(s => s.streakDays > 0)) return null
+
+  const active  = [...streaks].filter(s => s.streakDays > 0).sort((a,b) => b.streakDays - a.streakDays)
+  const warning = active.filter(s => s.fuel === 1)
+
+  return (
+    <div className="border-b border-forest-800 flex-shrink-0">
+      {/* Scrollable pill row */}
+      <div className="px-5 py-2.5 flex gap-3 overflow-x-auto">
+        {active.map(s => {
+          const nearBreak = s.fuel === 1
+          const bothSent  = s.iSentToday && s.theySentToday
+          const iSent     = s.iSentToday && !s.theySentToday
+          return (
+            <div key={s.friendId}
+              className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors
+                ${nearBreak ? 'bg-bark-900/30 border-bark-800' : 'bg-forest-900/50 border-forest-800'}`}>
+              <span>{s.tierEmoji}</span>
+              <div>
+                <div className="flex items-baseline gap-1.5 leading-none">
+                  <p className="text-forest-200 text-xs font-medium leading-none">{s.displayName}</p>
+                  <span className="text-forest-700 text-xs italic font-normal">{midnight}</span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <FuelDots fuel={s.fuel} />
+                  <span className={`text-xs ${nearBreak ? 'text-bark-400' : 'text-forest-600'}`}>
+                    {nearBreak ? '⌛' : bothSent ? '✅' : iSent ? '📤' : '🔥'}{s.streakDays}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Expand/collapse button */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-5 py-1.5 flex items-center justify-between text-forest-700 hover:text-forest-400 hover:bg-forest-900/20 transition-colors">
+        <span className="text-xs">{open ? 'Hide streak details' : `Show all ${active.length} streak${active.length!==1?'s':''}`}</span>
+        <span className="text-xs">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {/* Expanded detail table */}
+      {open && (
+        <div className="px-5 pb-3 space-y-2">
+          <div className="rounded-xl overflow-hidden border border-forest-800">
+            {/* Header */}
+            <div className="grid grid-cols-5 px-3 py-1.5 bg-forest-900/60 border-b border-forest-800">
+              {['Connection','Streak','New day in','I sent','They sent'].map(h => (
+                <span key={h} className="text-forest-600 text-xs uppercase tracking-wide">{h}</span>
+              ))}
+            </div>
+            {active.map(s => {
+              const nearBreak = s.fuel === 1
+              return (
+                <div key={s.friendId}
+                  className={`grid grid-cols-5 px-3 py-2 border-b border-forest-900 last:border-0 items-center
+                    ${nearBreak ? 'bg-bark-900/10' : ''}`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{s.tierEmoji}</span>
+                    <span className="text-forest-200 text-xs font-medium truncate">{s.displayName}</span>
+                  </div>
+                  <span className={`text-xs font-mono ${nearBreak ? 'text-bark-400' : 'text-forest-300'}`}>
+                    🔥 {s.streakDays}d
+                  </span>
+                  <span className="text-forest-500 text-xs italic">{midnight}</span>
+                  <span className="text-xs">{s.iSentToday ? '✅' : '❌'}</span>
+                  <span className="text-xs">{s.theySentToday ? '✅' : '❌'}</span>
+                </div>
+              )
+            })}
+          </div>
+          {warning.length > 0 && (
+            <p className="text-bark-400 text-xs text-center italic">
+              ⌛ {warning.length === 1
+                ? `${warning[0].displayName}'s streak is about to break — send a letter before midnight!`
+                : `${warning.length} streaks are about to break — send letters before midnight!`}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SendModal({ friends, streaks, letters, onSend, onClose }) {
   const [step, setStep]       = useState(1)
   const [selected, setSelected] = useState(null)
@@ -327,33 +436,7 @@ export default function LettersPage() {
         </button>
       </div>
 
-      {/* Streaks bar — only active streaks, ranked by streak length, scrollable */}
-      {streaks.some(s => s.streakDays > 0) && (
-        <div className="px-5 py-2.5 border-b border-forest-800 flex gap-3 overflow-x-auto flex-shrink-0">
-          {[...streaks]
-            .filter(s => s.streakDays > 0)
-            .sort((a, b) => b.streakDays - a.streakDays)
-            .map(s => {
-              const nearBreak = s.fuel === 1
-              return (
-                <div key={s.friendId} className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors
-                  ${nearBreak ? 'bg-bark-900/30 border-bark-800' : 'bg-forest-900/50 border-forest-800'}`}>
-                  <span>{s.tierEmoji}</span>
-                  <div>
-                    <p className="text-forest-200 text-xs font-medium leading-none">{s.displayName}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <FuelDots fuel={s.fuel} />
-                      <span className={`text-xs ${nearBreak ? 'text-bark-400' : 'text-forest-600'}`}>
-                        {nearBreak ? '⌛' : '🔥'}{s.streakDays}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          }
-        </div>
-      )}
+      <StreakDropdown streaks={streaks} />
 
       {/* Tabs */}
       <div className="px-5 py-2 border-b border-forest-800 flex gap-1 flex-shrink-0">

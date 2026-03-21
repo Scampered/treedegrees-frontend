@@ -66,9 +66,22 @@ export default function Layout() {
       import('../api/client').then(({ lettersApi: la }) => {
         la.streaks().then(r => {
           const atRisk = (r.data || []).filter(s => s.streakDays > 0 && s.fuel === 1)
-          for (const s of atRisk) {
-            import('../utils/pwa').then(({ notifyStreakWarning }) => notifyStreakWarning(s.displayName, 1))
-          }
+          if (atRisk.length === 0) return
+          import('../utils/notifications').then(({ showLocalNotification }) => {
+            if (atRisk.length === 1) {
+              showLocalNotification(
+                '⌛ Streak about to break!',
+                `Send a letter to ${atRisk[0].displayName} before midnight to keep your streak alive.`,
+                '/letters', 'streak-warning'
+              )
+            } else {
+              showLocalNotification(
+                `⌛ ${atRisk.length} streaks about to break!`,
+                `Send letters to ${atRisk.map(s=>s.displayName).join(', ')} before midnight.`,
+                '/letters', 'streak-warning'
+              )
+            }
+          })
         }).catch(() => {})
       })
 

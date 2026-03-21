@@ -155,7 +155,7 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-forest-100 text-sm font-semibold leading-none truncate">{person.name}</p>
-          <p className="text-forest-600 text-xs mt-0.5">{person.city || person.country}</p>
+          <p className="text-forest-600 text-xs mt-0.5">{person.country}</p>
         </div>
         <div className="text-right flex-shrink-0">
           <p className="font-mono font-bold text-lg leading-none" style={{color: trendCol}}>
