@@ -137,3 +137,12 @@ export const gamesApi = {
   state:      (id)                  => api.get(`/api/games/${id}`),
   action:     (id, type, payload)   => api.post(`/api/games/${id}/action`, { type, payload }),
 }
+
+// ── Grove (Seeds / Stocks) ────────────────────────────────────────────────────
+export const groveApi = {
+  me:          ()                    => api.get('/api/grove/me'),
+  connections: ()                    => api.get('/api/grove/connections'),
+  leaderboard: ()                    => api.get('/api/grove/leaderboard'),
+  invest:      (targetId, amount)    => api.post('/api/grove/invest', { targetId, amount }),
+  withdraw:    (targetId)            => api.post('/api/grove/withdraw', { targetId }),
+}

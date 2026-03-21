@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 
 const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
-  { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },
+  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove'       },
   { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/groups',    icon: '☘️',  fullLabel: 'Groups'      },
   { to: '/letters',   icon: '✉️',   fullLabel: 'Letters'     },
@@ -18,7 +18,7 @@ const sidebarItems = [
 ]
 
 const mobileNavItems = [
-  { to: '/friends',   icon: '🌱', label: 'People'  },
+  { to: '/grove',     icon: '🪴', label: 'Grove'   },
   { to: '/map',       icon: '🗺️', label: 'Map'     },
   { to: '/dashboard', icon: '🌳', label: 'Home',   isCenter: true },
   { to: '/letters',   icon: '✉️',  label: 'Letters' },
@@ -26,6 +26,7 @@ const mobileNavItems = [
 ]
 
 const moreItems = [
+  { to: '/friends',  icon: '🌿', label: 'Connections' },
   { to: '/groups',   icon: '☘️', label: 'Groups'      },
   { to: '/games',    icon: '🎮', label: 'Games'       },
   { to: '/guide',    icon: '📖', label: 'Guide'       },

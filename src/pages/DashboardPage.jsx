@@ -22,8 +22,6 @@ export default function DashboardPage() {
   const [noteLoading, setNoteLoading] = useState(false)
   const [hoursLeft, setHoursLeft]     = useState(null)
   const [loading, setLoading]         = useState(true)
-  const [myMood, setMyMood]             = useState(null)
-  const [moodLoading, setMoodLoading]   = useState(false)
   const [friendNotes, setFriendNotes]   = useState([])
 
   useEffect(() => {
@@ -39,8 +37,6 @@ export default function DashboardPage() {
       setFriendNotes(feed.data || [])
     }).finally(() => setLoading(false))
   }, [])
-
-  useEffect(() => { setMyMood(user?.mood || null) }, [user?.mood])
 
   useEffect(() => {
     if (user?.dailyNoteUpdatedAt) {
@@ -67,24 +63,6 @@ export default function DashboardPage() {
     } finally {
       setNoteLoading(false)
     }
-  }
-
-  const MOODS = ['😄','😢','😡','😴','🤔','🥹']
-  const MOOD_LABELS = { '😄':'Happy','😢':'Sad','😡':'Angry','😴':'Tired','🤔':'Thinking','🥹':'Emotional' }
-
-  const handleMood = async (emoji) => {
-    setMoodLoading(true)
-    try {
-      if (myMood === emoji) {
-        await usersApi.clearMood()
-        setMyMood(null)
-        updateUser({ mood: null })
-      } else {
-        await usersApi.setMood(emoji)
-        setMyMood(emoji)
-        updateUser({ mood: emoji })
-      }
-    } catch {} finally { setMoodLoading(false) }
   }
 
   return (

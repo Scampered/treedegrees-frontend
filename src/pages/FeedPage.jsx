@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { usersApi } from '../api/client'
+import MoodPicker, { MOOD_LABELS } from '../components/MoodPicker'
 
 function timeAgo(date) {
   const diff = (Date.now() - new Date(date).getTime()) / 1000
@@ -18,15 +19,12 @@ export default function FeedPage() {
   const [posting, setPosting]     = useState(false)
   const [status, setStatus]       = useState('')
   const [loading, setLoading]     = useState(true)
-  const [myMood, setMyMood]         = useState(user?.mood || null)
-  const [moodLoading, setMoodLoading] = useState(false)
 
   useEffect(() => {
     usersApi.feed().then(r => setFeed(r.data || [])).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   // Sync mood from user object (AuthContext /me includes it after we add it)
-  useEffect(() => { setMyMood(user?.mood || null) }, [user?.mood])
 
   const hoursLeft = user?.dailyNoteUpdatedAt
     ? Math.max(0, 24 - (Date.now() - new Date(user.dailyNoteUpdatedAt).getTime()) / 3600000)
@@ -37,23 +35,7 @@ export default function FeedPage() {
   const myNoteIsFresh = user?.dailyNoteUpdatedAt &&
     (Date.now() - new Date(user.dailyNoteUpdatedAt).getTime()) < 86400000
 
-  const MOODS = ['😄','😢','😡','😴','🤔','🥹']
-  const MOOD_LABELS = { '😄':'Happy','😢':'Sad','😡':'Angry','😴':'Tired','🤔':'Thinking','🥹':'Emotional' }
 
-  const handleMood = async (emoji) => {
-    setMoodLoading(true)
-    try {
-      if (myMood === emoji) {
-        await usersApi.clearMood()
-        setMyMood(null)
-        updateUser({ mood: null })
-      } else {
-        await usersApi.setMood(emoji)
-        setMyMood(emoji)
-        updateUser({ mood: emoji })
-      }
-    } catch {} finally { setMoodLoading(false) }
-  }
 
   const handlePost = async () => {
     if (!note.trim()) return
@@ -91,39 +73,8 @@ export default function FeedPage() {
               <p className="text-forest-600 text-xs">{user?.city || user?.country}</p>
             </div>
           </div>
-
           {/* Mood picker */}
-          <div className="mb-3">
-            <p className="text-forest-600 text-xs mb-2 uppercase tracking-wide">Today's mood</p>
-            <div className="flex gap-2 flex-wrap">
-              {MOODS.map(emoji => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onPointerDown={e => { e.preventDefault(); e.stopPropagation(); if (!moodLoading) handleMood(emoji) }}
-                  title={MOOD_LABELS[emoji]}
-                  className="flex items-center justify-center rounded-xl transition-all select-none"
-                  style={{
-                    fontSize: 22, width: 44, height: 44,
-                    background: myMood === emoji ? 'rgba(74,186,74,0.25)' : 'rgba(255,255,255,0.04)',
-                    border: `2px solid ${myMood === emoji ? '#4dba4d' : 'rgba(255,255,255,0.1)'}`,
-                    transform: myMood === emoji ? 'scale(1.15)' : 'scale(1)',
-                    opacity: moodLoading ? 0.5 : 1,
-                    cursor: 'pointer',
-                  }}>
-                  {emoji}
-                </button>
-              ))}
-              {myMood && (
-                <button type="button"
-                  onPointerDown={e => { e.preventDefault(); handleMood(myMood) }}
-                  className="text-xs text-forest-600 hover:text-forest-400 px-2 self-center transition-colors">
-                  Clear
-                </button>
-              )}
-            </div>
-            {myMood && <p className="text-forest-500 text-xs mt-1">{myMood} showing on map · 24h</p>}
-          </div>
+          <div className="mb-3"><MoodPicker /></div>
 
           {/* Show current note if fresh */}
           {myNoteIsFresh && user?.dailyNote && (

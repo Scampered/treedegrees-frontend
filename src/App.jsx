@@ -15,6 +15,7 @@ import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/AdminPage'
 import GuidePage from './pages/GuidePage'
 import GroupsPage from './pages/GroupsPage'
+import GrovePage from './pages/GrovePage'
 import GamesPage from './pages/GamesPage'
 import TrumpCardGame from './pages/TrumpCardGame'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -86,7 +87,8 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/map" element={<MaintenanceGuard pageKey="map"><MapPage /></MaintenanceGuard>} />
             <Route path="/friends" element={<MaintenanceGuard pageKey="friends"><FriendsPage /></MaintenanceGuard>} />
-            <Route path="/games" element={<GamesPage />} />
+            <Route path="/grove" element={<GrovePage />} />
+          <Route path="/games" element={<GamesPage />} />
             <Route path="/games/trump-card/:id" element={<TrumpCardGame />} />
             <Route path="/feed" element={<MaintenanceGuard pageKey="feed"><FeedPage /></MaintenanceGuard>} />
             <Route path="/letters" element={<MaintenanceGuard pageKey="letters"><LettersPage /></MaintenanceGuard>} />
