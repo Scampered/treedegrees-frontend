@@ -11,7 +11,8 @@ const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
   { to: '/grove',     icon: '🪴',  fullLabel: 'Grove'       },
   { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
-  { to: '/groups',    icon: '☘️',  fullLabel: 'Groups'      },
+  { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },
+  { to: '/groups',    icon: '☘️',  fullLabel: 'Groups',     extra: '🎮', extraTo: '/games' },
   { to: '/letters',   icon: '✉️',   fullLabel: 'Letters'     },
   { to: '/feed',      icon: '📝',  fullLabel: 'Notes'       },
   { to: '/guide',     icon: '📖',  fullLabel: 'Guide'       },
@@ -135,20 +136,31 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {sidebarItems.map(({ to, icon, fullLabel }) => (
-            <NavLink key={to} to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
-                 ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
-              }>
-              <span className="text-base">{icon}</span>
-              <span className="flex-1">{fullLabel}</span>
-              {badgeFor(to) > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
-                  {badgeFor(to) > 9 ? '9+' : badgeFor(to)}
-                </span>
+          {sidebarItems.map(({ to, icon, fullLabel, extra, extraTo }) => (
+            <div key={to} className="flex items-center gap-1">
+              <NavLink to={to}
+                className={({ isActive }) =>
+                  `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                   ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
+                }>
+                <span className="text-base">{icon}</span>
+                <span className="flex-1">{fullLabel}</span>
+                {badgeFor(to) > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
+                    {badgeFor(to) > 9 ? '9+' : badgeFor(to)}
+                  </span>
+                )}
+              </NavLink>
+              {extra && extraTo && (
+                <NavLink to={extraTo} title="Games"
+                  className={({ isActive }) =>
+                    `w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors flex-shrink-0
+                     ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-600 hover:text-forest-300 hover:bg-forest-900'}`
+                  }>
+                  {extra}
+                </NavLink>
               )}
-            </NavLink>
+            </div>
           ))}
         </nav>
 

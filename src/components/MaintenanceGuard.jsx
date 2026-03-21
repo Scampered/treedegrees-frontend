@@ -25,7 +25,7 @@ export default function MaintenanceGuard({ pageKey, children }) {
     }).catch(() => setStatus(false))
   }, [pageKey])
 
-  if (status === null) return null // brief loading flash — acceptable
+  if (status === null) return <>{children}</> // render optimistically; block only if confirmed down
   if (status) return (
     <div className="flex flex-col items-center justify-center h-full px-6 text-center">
       <div className="text-5xl mb-5">🔧</div>
