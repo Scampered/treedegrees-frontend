@@ -18,10 +18,15 @@ export default function FeedPage() {
   const [posting, setPosting]     = useState(false)
   const [status, setStatus]       = useState('')
   const [loading, setLoading]     = useState(true)
+  const [myMood, setMyMood]         = useState(user?.mood || null)
+  const [moodLoading, setMoodLoading] = useState(false)
 
   useEffect(() => {
     usersApi.feed().then(r => setFeed(r.data || [])).catch(() => {}).finally(() => setLoading(false))
   }, [])
+
+  // Sync mood from user object (AuthContext /me includes it after we add it)
+  useEffect(() => { setMyMood(user?.mood || null) }, [user?.mood])
 
   const hoursLeft = user?.dailyNoteUpdatedAt
     ? Math.max(0, 24 - (Date.now() - new Date(user.dailyNoteUpdatedAt).getTime()) / 3600000)
@@ -31,6 +36,22 @@ export default function FeedPage() {
   // Check if user's own note is still fresh
   const myNoteIsFresh = user?.dailyNoteUpdatedAt &&
     (Date.now() - new Date(user.dailyNoteUpdatedAt).getTime()) < 86400000
+
+  const MOODS = ['😄','😢','😡','😴','🤔','🥹']
+  const MOOD_LABELS = { '😄':'Happy','😢':'Sad','😡':'Angry','😴':'Tired','🤔':'Thinking','🥹':'Emotional' }
+
+  const handleMood = async (emoji) => {
+    setMoodLoading(true)
+    try {
+      if (myMood === emoji) {
+        await usersApi.clearMood()
+        setMyMood(null)
+      } else {
+        await usersApi.setMood(emoji)
+        setMyMood(emoji)
+      }
+    } catch {} finally { setMoodLoading(false) }
+  }
 
   const handlePost = async () => {
     if (!note.trim()) return
@@ -67,6 +88,31 @@ export default function FeedPage() {
               <p className="text-forest-200 text-sm font-medium">You</p>
               <p className="text-forest-600 text-xs">{user?.city || user?.country}</p>
             </div>
+          </div>
+
+          {/* Mood picker */}
+          <div className="mb-3">
+            <p className="text-forest-600 text-xs mb-2 uppercase tracking-wide">Today's mood</p>
+            <div className="flex gap-2 flex-wrap">
+              {MOODS.map(emoji => (
+                <button key={emoji} onClick={() => handleMood(emoji)}
+                  disabled={moodLoading}
+                  title={MOOD_LABELS[emoji]}
+                  className={`text-xl p-2 rounded-xl border transition-all
+                    ${myMood === emoji
+                      ? 'border-forest-500 bg-forest-800/80 scale-110'
+                      : 'border-forest-800 bg-forest-900/40 hover:border-forest-600 opacity-60 hover:opacity-100'}`}>
+                  {emoji}
+                </button>
+              ))}
+              {myMood && (
+                <button onClick={() => handleMood(myMood)}
+                  className="text-xs text-forest-600 hover:text-forest-400 px-2 self-center transition-colors">
+                  Clear
+                </button>
+              )}
+            </div>
+            {myMood && <p className="text-forest-500 text-xs mt-1">Showing as {myMood} on the map for 24h</p>}
           </div>
 
           {/* Show current note if fresh */}

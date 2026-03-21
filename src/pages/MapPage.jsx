@@ -42,7 +42,7 @@ const CUSTOM_LABELS = [
 
 // ── Leaflet icon builders ─────────────────────────────────────────────────────
 
-function buildNodeIcon(degree, hasNote, isHidden) {
+function buildNodeIcon(degree, hasNote, isHidden, mood) {
   if (isHidden) {
     return L.divIcon({
       className: '',
@@ -61,12 +61,22 @@ function buildNodeIcon(degree, hasNote, isHidden) {
         border-radius:50%;background:white;border:2px solid #0d2b0d;
         box-shadow:0 0 4px rgba(0,0,0,0.6);z-index:10;"></div>`
     : ''
+  // Mood emoji floats above the node
+  const moodBubble = mood
+    ? `<div style="position:absolute;top:${-size*0.85}px;left:50%;transform:translateX(-50%);
+        font-size:${size * 0.75}px;line-height:1;
+        filter:drop-shadow(0 1px 4px rgba(0,0,0,0.8));
+        pointer-events:none;z-index:20;">${mood}</div>`
+    : ''
+  const totalH = mood ? size + Math.round(size * 0.85) : size
+  const anchor = mood ? [half, totalH - half + 2] : [half, half]
   return L.divIcon({
     className: '',
-    iconSize: [size, size], iconAnchor: [half, half],
-    popupAnchor: [0, -half - 4], tooltipAnchor: [0, -half - 4],
-    html: `<div style="position:relative;width:${size}px;height:${size}px;">
-      <div style="width:${size}px;height:${size}px;border-radius:50%;
+    iconSize: [size, totalH], iconAnchor: anchor,
+    popupAnchor: [0, -totalH + half - 4], tooltipAnchor: [0, -totalH + half - 4],
+    html: `<div style="position:relative;width:${size}px;height:${totalH}px;">
+      ${moodBubble}
+      <div style="position:absolute;bottom:0;left:0;width:${size}px;height:${size}px;border-radius:50%;
         background:${bg};border:${degree === 0 ? 3 : 2}px solid ${border};
         box-shadow:0 0 ${degree === 0 ? 10 : 5}px ${bg}88;"></div>
       ${badge}
@@ -488,7 +498,8 @@ export default function MapPage() {
           {filteredNodes.map(node => {
             const me = isMe(node.id)
             const hasNote = !me && (node.hasNote || false)
-            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink)
+            const nodeMood = (node.degree === 0 || node.degree === 1) ? (node.mood || null) : null
+            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood)
 
             return (
               <Marker key={node.id} position={[node.latitude, node.longitude]}
