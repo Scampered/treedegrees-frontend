@@ -10,17 +10,31 @@ const WINDOWS = [
   { key: '1w',  label: '1w',  xStepH: 24, xFormat: h => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][Math.floor(h/24) % 7] },
 ]
 
-
-// ── Compute withdraw payout preview (mirrors backend logic) ──────────────────
+// ── Compute withdraw payout preview (mirrors backend logic exactly) ───────────
+// FIX: fee now applies only to the active portion, NOT the full totalValue.
+//
+//   principal  = seeds originally invested
+//   seedsAtInvest = target's seeds when you invested (baseline)
+//   currentSeeds  = target's seeds right now
+//
+//   activeHalf  = principal / 2       ← tracks growth
+//   safeHalf    = principal / 2       ← always returned at face value
+//   activeValue = activeHalf × multiplier
+//   fee         = activeValue × 20%   ← fee on active portion only
+//   payout      = safeHalf + activeValue - fee
+//
+// Example: invest 40 @ baseline 124, current 155 (×1.25):
+//   activeHalf=20, activeValue=25, fee=5, payout = 20+25-5 = 40
 function computePayout(principal, seedsAtInvest, currentSeeds) {
-  if (!principal) return 0
-  const baseline   = Math.max(10, seedsAtInvest || currentSeeds || 10)
-  const multiplier = Math.min(10, Math.max(0, currentSeeds / baseline))
-  const activeHalf = principal / 2
-  const safeHalf   = principal - activeHalf
-  const totalValue = Math.floor(safeHalf + activeHalf * multiplier)
-  const fee        = Math.floor(totalValue * 0.20)
-  return totalValue - fee
+  if (!principal) return { payout: 0, multiplier: 0, fee: 0, activeValue: 0, safeHalf: 0 }
+  const baseline    = Math.max(10, seedsAtInvest || currentSeeds || 10)
+  const multiplier  = Math.min(10, Math.max(0, currentSeeds / baseline))
+  const activeHalf  = Math.floor(principal / 2)
+  const safeHalf    = principal - activeHalf
+  const activeValue = Math.floor(activeHalf * multiplier)
+  const fee         = Math.floor(activeValue * 0.20)
+  const payout      = safeHalf + activeValue - fee
+  return { payout, multiplier, fee, activeValue, safeHalf }
 }
 
 // ── Full chart with axes ──────────────────────────────────────────────────────
@@ -42,19 +56,16 @@ function StockChart({ data, win, w = 320, h = 90 }) {
   const maxV = Math.max(...vals)
   const rangeV = Math.max(maxV - minV, 1)
 
-  // X axis: fixed window bounds (windowStart → now), NOT data bounds
-  // This ensures the line always stretches all the way to the right edge
   const nowMs = Date.now()
   const windowMs = win === '12h' ? 12*3600000 : win === '1w' ? 7*24*3600000 : 24*3600000
-  const minT  = nowMs - windowMs   // left edge = window start
-  const maxT  = nowMs              // right edge = right now
+  const minT  = nowMs - windowMs
+  const maxT  = nowMs
   const rangeT = maxT - minT
 
   const clamp = (t) => Math.max(minT, Math.min(maxT, new Date(t).getTime()))
   const toX = t  => PAD.left + ((clamp(t) - minT) / rangeT) * cw
   const toY = v  => PAD.top  + (1 - (v - minV) / rangeV) * ch
 
-  // Build SVG path
   const pts = data.map(d => ({ x: toX(d.ts), y: toY(d.seeds) }))
   const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
   const area = `${line} L${pts[pts.length-1].x},${PAD.top+ch} L${pts[0].x},${PAD.top+ch} Z`
@@ -65,10 +76,8 @@ function StockChart({ data, win, w = 320, h = 90 }) {
   const diff   = last - first
   const diffStr = (diff >= 0 ? '+' : '') + diff
 
-  // X axis ticks
   const winCfg  = WINDOWS.find(ww => ww.key === win) || WINDOWS[1]
   const stepMs  = winCfg.xStepH * 3600000
-  // windowMs already declared above
   const xTicks  = []
   const tickStart = Math.ceil(minT / stepMs) * stepMs
   for (let t = tickStart; t <= maxT; t += stepMs) {
@@ -78,12 +87,10 @@ function StockChart({ data, win, w = 320, h = 90 }) {
     xTicks.push({ x, label: winCfg.xFormat(win === '1w' ? dayIdx * 24 : hOfDay) })
   }
 
-  // Y axis ticks (3 levels)
   const yTicks = [minV, Math.round((minV + maxV) / 2), maxV]
 
   return (
     <svg width={w} height={h} style={{ display: 'block' }}>
-      {/* Y axis */}
       {yTicks.map((v, i) => {
         const y = toY(v)
         return (
@@ -96,15 +103,11 @@ function StockChart({ data, win, w = 320, h = 90 }) {
         )
       })}
 
-      {/* Area fill */}
       <path d={area} fill={col} opacity="0.08"/>
-      {/* Line */}
       <path d={line} fill="none" stroke={col} strokeWidth="2"
         strokeLinejoin="round" strokeLinecap="round"/>
-      {/* Current value dot */}
       <circle cx={pts[pts.length-1].x} cy={pts[pts.length-1].y} r="3" fill={col}/>
 
-      {/* X axis ticks */}
       {xTicks.map((t, i) => (
         <g key={i}>
           <line x1={t.x} y1={PAD.top+ch} x2={t.x} y2={PAD.top+ch+3} stroke="#1f2f1f" strokeWidth="1"/>
@@ -113,10 +116,8 @@ function StockChart({ data, win, w = 320, h = 90 }) {
         </g>
       ))}
 
-      {/* X axis baseline */}
       <line x1={PAD.left} y1={PAD.top+ch} x2={PAD.left+cw} y2={PAD.top+ch} stroke="#1f2f1f" strokeWidth="1"/>
 
-      {/* Diff badge top-right */}
       <text x={PAD.left+cw} y={PAD.top+8} textAnchor="end"
         fill={col} fontSize="10" fontWeight="700" fontFamily="monospace">{diffStr}</text>
       <text x={PAD.left+cw} y={PAD.top+18} textAnchor="end"
@@ -134,7 +135,6 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
   const timer    = useRef(null)
   const wrapRef  = useRef(null)
 
-  // Measure container width so chart fills its card
   useEffect(() => {
     if (!wrapRef.current) return
     const ro = new ResizeObserver(entries => {
@@ -156,13 +156,11 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
   useEffect(() => {
     setLoad(true)
     load()
-    // Polling: 12h → 1min, 1d → 2min, 1w → 5min
     const interval = win === '12h' ? 60000 : win === '1d' ? 120000 : 300000
     timer.current = setInterval(load, interval)
     return () => clearInterval(timer.current)
   }, [load, win])
 
-  // Re-load when seedsNow changes (they just earned/lost seeds)
   const prevSeeds = useRef(seedsNow)
   useEffect(() => {
     if (seedsNow !== prevSeeds.current) {
@@ -173,7 +171,6 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
 
   return (
     <div ref={wrapRef} style={{ marginBottom: 6, width: '100%' }}>
-      {/* Window selector */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
         {WINDOWS.map(ww => (
           <button key={ww.key} onClick={() => { setData(null); setLoad(true); setWin(ww.key) }}
@@ -199,11 +196,10 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
   const quickAmounts = [10, 20, 50, 100].filter(a => a <= mySeeds)
-  // Payout computed server-side based on multiplier; show estimate on button
-  // 20% fee on total value (total = safe half + active half × multiplier)
-  const fee    = null  // computed server-side
-  const payout = null  // computed server-side
-  const boost  = Math.max(1, Math.floor(amount * 0.05))
+
+  // Live payout preview so user can see what they'd get back right now
+  const { payout: previewPayout, multiplier: previewMult, fee: previewFee } =
+    computePayout(target.myInvestment, target.mySeedsAtInvest, target.seeds)
 
   const invest = async () => {
     if (amount < 10 || amount > mySeeds) return
@@ -211,6 +207,7 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
     try { await groveApi.invest(target.id, amount); onDone() }
     catch (e) { setError(e.response?.data?.error || 'Failed'); setLoading(false) }
   }
+
   const withdraw = async () => {
     setLoading(true); setError('')
     try { await groveApi.withdraw(target.id); onDone() }
@@ -227,24 +224,58 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
           </div>
           <button onClick={onClose} className="text-forest-600 hover:text-forest-300 text-xl">✕</button>
         </div>
+
         <div className="p-5 space-y-4">
+          {/* Existing investment — show breakdown + withdraw */}
           {target.myInvestment > 0 && (
-            <div className="rounded-xl border border-forest-700 bg-forest-900/40 p-4">
-              <p className="text-forest-400 text-xs mb-1">Your investment</p>
+            <div className="rounded-xl border border-forest-700 bg-forest-900/40 p-4 space-y-2">
+              <p className="text-forest-400 text-xs mb-1">Your current stake</p>
               <p className="text-forest-100 font-medium text-lg">🌱 {target.myInvestment}</p>
+
+              {/* Payout breakdown */}
+              <div className="text-xs space-y-1 pt-1 border-t border-forest-800">
+                <div className="flex justify-between text-forest-500">
+                  <span>Growth multiplier</span>
+                  <span className={`font-mono ${previewMult > 1 ? 'text-green-400' : previewMult < 1 ? 'text-red-400' : 'text-forest-400'}`}>
+                    ×{previewMult.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-forest-500">
+                  <span>Active half (×{previewMult.toFixed(2)})</span>
+                  <span className="text-forest-300 font-mono">🌱 {previewFee + (previewPayout - (target.myInvestment - Math.floor(target.myInvestment / 2)))}</span>
+                </div>
+                <div className="flex justify-between text-forest-500">
+                  <span>Fee (20% on active)</span>
+                  <span className="text-forest-500 font-mono">−🌱 {previewFee}</span>
+                </div>
+                <div className="flex justify-between text-forest-300 font-medium pt-0.5 border-t border-forest-800">
+                  <span>You'd receive</span>
+                  <span className={`font-mono ${previewPayout >= target.myInvestment ? 'text-green-400' : 'text-red-400'}`}>
+                    🌱 {previewPayout}
+                  </span>
+                </div>
+              </div>
+
               <button onClick={withdraw} disabled={loading}
-                className="mt-2 w-full py-2 text-sm rounded-xl border border-forest-700 text-forest-400
+                className="mt-1 w-full py-2 text-sm rounded-xl border border-forest-700 text-forest-400
                            hover:text-forest-200 hover:border-forest-500 transition-colors disabled:opacity-40">
-                Withdraw investment (20% fee → goes to them)
+                Withdraw (fee of 🌱{previewFee} goes to {target.name})
               </button>
             </div>
           )}
+
+          {/* Add seeds — always shown if you have enough, supports unlimited top-ups */}
           {mySeeds >= 10 && (
             <>
               <div>
                 <p className="text-forest-400 text-xs uppercase tracking-wide mb-2">
-                  {target.myInvestment > 0 ? 'Add more' : 'Invest seeds'}
+                  {target.myInvestment > 0 ? '＋ Add more seeds' : '🌱 Invest seeds'}
                 </p>
+                {target.myInvestment > 0 && (
+                  <p className="text-forest-700 text-xs mb-2">
+                    You can top up as many times as you like — each add updates your weighted baseline.
+                  </p>
+                )}
                 <div className="flex gap-2 mb-2 flex-wrap">
                   {quickAmounts.map(v => (
                     <button key={v} onClick={() => setAmount(v)}
@@ -256,11 +287,13 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
                 </div>
                 <div className="flex gap-2 items-center">
                   <input type="number" min={10} max={mySeeds} value={amount}
-                    onChange={e => setAmount(Math.max(10,Math.min(mySeeds,parseInt(e.target.value)||10)))}
+                    onChange={e => setAmount(Math.max(10, Math.min(mySeeds, parseInt(e.target.value)||10)))}
                     className="input text-sm flex-1"/>
-                  <span className="text-forest-700 text-xs flex-shrink-0">/ {mySeeds}</span>
+                  <span className="text-forest-700 text-xs flex-shrink-0">/ {mySeeds} available</span>
                 </div>
-                <p className="text-forest-700 text-xs mt-1">{target.name} gains +{boost} immediately</p>
+                <p className="text-forest-700 text-xs mt-1">
+                  {target.name} receives 🌱{amount} immediately · your payout tracks their growth
+                </p>
               </div>
               {error && <p className="text-red-400 text-sm">{error}</p>}
               <button onClick={invest} disabled={loading || amount < 10 || amount > mySeeds}
@@ -269,6 +302,7 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
               </button>
             </>
           )}
+
           {mySeeds < 10 && !target.myInvestment && (
             <p className="text-forest-600 text-sm text-center py-2">You need at least 🌱 10 seeds to invest.</p>
           )}
@@ -283,8 +317,6 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
   const rising = person.history?.length >= 2 &&
     person.history[person.history.length-1]?.seeds >= person.history[0]?.seeds
   const trendCol = rising ? '#4ade80' : '#f87171'
-  const fee      = Math.floor((person.myInvestment || 0) * 0.10)
-  const payout   = (person.myInvestment || 0) - fee
 
   return (
     <div className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-700 transition-colors overflow-hidden">
@@ -309,11 +341,13 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
         <ChartCard userId={person.id} name={person.name} seedsNow={person.seeds} />
       </div>
 
-      {/* Stake info */}
+      {/* Stake info — uses correct computePayout */}
       {person.myInvestment > 0 && (() => {
-        const preview = computePayout(person.myInvestment, person.mySeedsAtInvest, person.seeds)
-        const profit  = preview - person.myInvestment
-        const sign    = profit >= 0 ? '+' : ''
+        const { payout: preview, multiplier, fee } = computePayout(
+          person.myInvestment, person.mySeedsAtInvest, person.seeds
+        )
+        const profit = preview - person.myInvestment
+        const sign   = profit >= 0 ? '+' : ''
         return (
           <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-forest-800/50 border border-forest-700">
             <div className="flex items-center justify-between">
@@ -321,7 +355,9 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
               <span className="text-forest-100 font-mono font-medium text-sm">🌱 {person.myInvestment}</span>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-forest-600 text-xs">Withdraw payout</span>
+              <span className="text-forest-600 text-xs">
+                Withdraw payout <span className="opacity-60">(×{multiplier.toFixed(2)})</span>
+              </span>
               <span className={`text-xs font-mono font-medium ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 🌱 {preview} ({sign}{profit})
               </span>
@@ -338,7 +374,9 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
           {person.myInvestment > 0 ? '＋ Add seeds' : '🌱 Invest'}
         </button>
         {person.myInvestment > 0 && (() => {
-          const preview = computePayout(person.myInvestment, person.mySeedsAtInvest, person.seeds)
+          const { payout: preview } = computePayout(
+            person.myInvestment, person.mySeedsAtInvest, person.seeds
+          )
           return (
             <button onClick={() => onWithdraw(person)}
               className="flex-1 py-2 rounded-xl text-sm font-medium border border-red-900/60
@@ -409,7 +447,6 @@ export default function GrovePage() {
           </div>
         </div>
 
-        {/* My own chart */}
         {me && user?.id && (
           <div className="mt-3 rounded-xl bg-forest-900/40 border border-forest-800 px-4 py-2">
             <div className="flex items-center justify-between mb-1">
