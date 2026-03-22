@@ -5,9 +5,11 @@ import { useAuth } from '../context/AuthContext'
 
 // ── Time window config ────────────────────────────────────────────────────────
 const WINDOWS = [
-  { key: '12h', label: '12h', xStepH: 2,  xFormat: h => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` },
-  { key: '1d',  label: '1d',  xStepH: 4,  xFormat: h => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` },
-  { key: '1w',  label: '1w',  xStepH: 24, xFormat: h => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][Math.floor(h/24) % 7] },
+  { key: '1h',  label: '1h',  xStepH: 0.1667, xFormat: t => { const m = new Date(t).getMinutes(); return m === 0 ? `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` : `${m}m` } },
+  { key: '6h',  label: '6h',  xStepH: 1,      xFormat: t => `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` },
+  { key: '12h', label: '12h', xStepH: 2,      xFormat: t => `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` },
+  { key: '1d',  label: '1d',  xStepH: 4,      xFormat: t => `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` },
+  { key: '1w',  label: '1w',  xStepH: 24,     xFormat: t => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(t).getDay()] },
 ]
 
 
@@ -67,15 +69,13 @@ function StockChart({ data, win, w = 320, h = 90 }) {
 
   // X axis ticks
   const winCfg  = WINDOWS.find(ww => ww.key === win) || WINDOWS[1]
-  const stepMs  = winCfg.xStepH * 3600000
   // windowMs already declared above
   const xTicks  = []
-  const tickStart = Math.ceil(minT / stepMs) * stepMs
-  for (let t = tickStart; t <= maxT; t += stepMs) {
+  const stepMs2 = winCfg.xStepH * 3600000
+  const tickStart = Math.ceil(minT / stepMs2) * stepMs2
+  for (let t = tickStart; t <= maxT; t += stepMs2) {
     const x = PAD.left + ((t - minT) / rangeT) * cw
-    const hOfDay = new Date(t).getHours()
-    const dayIdx = Math.floor((t - (nowMs - windowMs)) / 86400000)
-    xTicks.push({ x, label: winCfg.xFormat(win === '1w' ? dayIdx * 24 : hOfDay) })
+    xTicks.push({ x, label: winCfg.xFormat(new Date(t).toISOString()) })
   }
 
   // Y axis ticks (3 levels)
@@ -157,7 +157,7 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
     setLoad(true)
     load()
     // Polling: 12h → 1min, 1d → 2min, 1w → 5min
-    const interval = win === '12h' ? 60000 : win === '1d' ? 120000 : 300000
+    const interval = win === '1h' ? 30000 : win === '6h' ? 60000 : win === '12h' ? 90000 : win === '1d' ? 120000 : 300000
     timer.current = setInterval(load, interval)
     return () => clearInterval(timer.current)
   }, [load, win])

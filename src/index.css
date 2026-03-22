@@ -7,106 +7,148 @@
   html { scroll-behavior: smooth; }
   body {
     font-family: 'Dosis', sans-serif;
-    background-color: var(--f950);
-    color: var(--f50);
+    background-color: rgb(var(--f950));
+    color: rgb(var(--f50));
     margin: 0; padding: 0; min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.5s ease, color 0.4s ease;
   }
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--f900); }
-  ::-webkit-scrollbar-thumb { background: var(--f500); border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: rgb(var(--f900)); }
+  ::-webkit-scrollbar-thumb { background: rgb(var(--f500)); border-radius: 3px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   THEME VARIABLES  —  data-theme on <html> controls all colours.
-   Tailwind forest-* classes read from --f50 … --f950.
+   THEME VARIABLES — CSS vars as space-separated R G B channels
+   so Tailwind opacity modifiers (bg-forest-900/40) work correctly.
    ═══════════════════════════════════════════════════════════════ */
 
 /* Default / Dark (Slate) */
 :root, [data-theme="dark"] {
-  --f50:  #c8d4c9; --f100: #a8bfaa; --f200: #8fa890; --f300: #749878;
-  --f400: #5e8262; --f500: #4a6b4f; --f600: #3a5540;
-  --f700: #2c4230; --f800: #1e2e20; --f900: #121e14; --f950: #070d09;
+  --f50:  200 212 201;
+  --f100: 168 191 170;
+  --f200: 143 168 144;
+  --f300: 116 152 120;
+  --f400: 94 130 98;
+  --f500: 74 107 79;
+  --f600: 58 85 64;
+  --f700: 44 66 48;
+  --f800: 30 46 32;
+  --f900: 18 30 20;
+  --f950: 7 13 9;
   --grain: 0.04;
 }
+
+/* Light (Sage) */
 [data-theme="light"] {
-  --f50:  #1a3d22; --f100: #1f4828; --f200: #2d6638; --f300: #3a7845;
-  --f400: #2e7d44; --f500: #226634; --f600: #1a5228;
-  --f700: #5a9a6a; --f800: #8cc898; --f900: rgba(200,238,208,0.65); --f950: #e8f5e9;
+  --f50:  26 61 34;
+  --f100: 31 72 40;
+  --f200: 45 102 56;
+  --f300: 58 120 69;
+  --f400: 46 125 68;
+  --f500: 34 102 52;
+  --f600: 26 82 40;
+  --f700: 90 154 106;
+  --f800: 140 200 152;
+  --f900: 200 238 208;
+  --f950: 232 245 233;
   --grain: 0.01;
 }
+
+/* Rain */
 [data-theme="rain"] {
-  --f50:  #c8dde8; --f100: #a8c8d8; --f200: #7aaabb; --f300: #5a8fa0;
-  --f400: #4a8fa8; --f500: #3a7a90; --f600: #2a6078;
-  --f700: #1a4a60; --f800: #0d2a3a; --f900: #061420; --f950: #060d12;
-  --grain: 0.05;
+  --f50:  200 221 232; --f100: 168 200 216; --f200: 122 170 187;
+  --f300: 90 143 160; --f400: 74 143 168; --f500: 58 122 144;
+  --f600: 42 96 120; --f700: 26 74 96; --f800: 13 42 58;
+  --f900: 6 20 32; --f950: 6 13 18; --grain: 0.05;
 }
+
+/* Storm */
 [data-theme="storm"] {
-  --f50:  #dde4ff; --f100: #bbc4f0; --f200: #8890cc; --f300: #6068b0;
-  --f400: #6060ff; --f500: #5050e0; --f600: #3838b8;
-  --f700: #28287a; --f800: #181850; --f900: #0c0c2a; --f950: #04080f;
-  --grain: 0.06;
+  --f50:  221 228 255; --f100: 187 196 240; --f200: 136 144 204;
+  --f300: 96 104 176; --f400: 96 96 255; --f500: 80 80 224;
+  --f600: 56 56 184; --f700: 40 40 122; --f800: 24 24 80;
+  --f900: 12 12 42; --f950: 4 8 15; --grain: 0.06;
 }
+
+/* Sunny */
 [data-theme="sunny"] {
-  --f50:  #3d2800; --f100: #5a3c00; --f200: #7a5200; --f300: #a07000;
-  --f400: #c07800; --f500: #a06000; --f600: #804800;
-  --f700: #b88a40; --f800: #d4aa70; --f900: #f0d898; --f950: #fffbf0;
-  --grain: 0.02;
+  --f50:  61 40 0; --f100: 90 60 0; --f200: 122 82 0;
+  --f300: 160 112 0; --f400: 192 120 0; --f500: 160 96 0;
+  --f600: 128 72 0; --f700: 184 138 64; --f800: 212 170 112;
+  --f900: 240 216 152; --f950: 255 251 240; --grain: 0.02;
 }
+
+/* Partly Cloudy */
 [data-theme="partly-cloudy"] {
-  --f50:  #1e2a38; --f100: #2a3c50; --f200: #4a6080; --f300: #6080a0;
-  --f400: #4a80b0; --f500: #3a70a0; --f600: #2a5888;
-  --f700: #8aa0b8; --f800: #b0c4d8; --f900: #d0dce8; --f950: #f0f4f8;
-  --grain: 0.02;
+  --f50:  30 42 56; --f100: 42 60 80; --f200: 74 96 128;
+  --f300: 96 128 160; --f400: 74 128 176; --f500: 58 112 160;
+  --f600: 42 88 136; --f700: 138 160 184; --f800: 176 196 216;
+  --f900: 208 220 232; --f950: 240 244 248; --grain: 0.02;
 }
+
+/* Cloudy */
 [data-theme="cloudy"] {
-  --f50:  #c8ccd4; --f100: #a8adb8; --f200: #7a8090; --f300: #606878;
-  --f400: #6070a0; --f500: #505888; --f600: #404870;
-  --f700: #3a3e48; --f800: #282c34; --f900: #181c22; --f950: #0e1014;
-  --grain: 0.04;
+  --f50:  200 204 212; --f100: 168 173 184; --f200: 122 128 144;
+  --f300: 96 104 120; --f400: 96 112 160; --f500: 80 88 136;
+  --f600: 64 72 112; --f700: 58 62 72; --f800: 40 44 52;
+  --f900: 24 28 34; --f950: 14 16 20; --grain: 0.04;
 }
+
+/* Foggy */
 [data-theme="foggy"] {
-  --f50:  #2a2e32; --f100: #404850; --f200: #606870; --f300: #808890;
-  --f400: #707880; --f500: #606870; --f600: #505860;
-  --f700: #a0a8b0; --f800: #c0c8d0; --f900: #d8dce0; --f950: #e8eaec;
-  --grain: 0.025;
+  --f50:  42 46 50; --f100: 64 72 80; --f200: 96 104 112;
+  --f300: 128 136 144; --f400: 112 120 128; --f500: 96 104 112;
+  --f600: 80 88 96; --f700: 160 168 176; --f800: 192 200 208;
+  --f900: 216 220 224; --f950: 232 234 236; --grain: 0.025;
 }
+
+/* Snow */
 [data-theme="snow"] {
-  --f50:  #0a1428; --f100: #162040; --f200: #2a4470; --f300: #3c5c90;
-  --f400: #4470cc; --f500: #3460bb; --f600: #2450a0;
-  --f700: #6080b0; --f800: #90b0d0; --f900: #c0d4f0; --f950: #f0f4ff;
-  --grain: 0.02;
+  --f50:  10 20 40; --f100: 22 32 64; --f200: 42 68 112;
+  --f300: 60 92 144; --f400: 68 112 204; --f500: 52 96 187;
+  --f600: 36 80 160; --f700: 96 128 176; --f800: 144 176 208;
+  --f900: 192 212 240; --f950: 240 244 255; --grain: 0.02;
 }
+
+/* Dust */
 [data-theme="dust"] {
-  --f50:  #e8d0a8; --f100: #d0b080; --f200: #b89060; --f300: #a07040;
-  --f400: #c07830; --f500: #a86020; --f600: #904810;
-  --f700: #705030; --f800: #4a3018; --f900: #2e1c08; --f950: #1a1008;
-  --grain: 0.08;
+  --f50:  232 208 168; --f100: 208 176 128; --f200: 184 144 96;
+  --f300: 160 112 64; --f400: 192 120 48; --f500: 168 96 32;
+  --f600: 144 72 16; --f700: 112 80 48; --f800: 74 48 24;
+  --f900: 46 28 8; --f950: 26 16 8; --grain: 0.08;
 }
+
+/* Night */
 [data-theme="night"] {
-  --f50:  #d0d8f0; --f100: #a8b4d8; --f200: #7080b0; --f300: #546090;
-  --f400: #5060c0; --f500: #4050a8; --f600: #303888;
-  --f700: #303860; --f800: #202040; --f900: #101020; --f950: #04060f;
-  --grain: 0.04;
+  --f50:  208 216 240; --f100: 168 180 216; --f200: 112 128 176;
+  --f300: 84 96 144; --f400: 80 96 192; --f500: 64 80 168;
+  --f600: 48 56 136; --f700: 48 56 96; --f800: 32 32 64;
+  --f900: 16 16 32; --f950: 4 6 15; --grain: 0.04;
 }
+
+/* Tropical */
 [data-theme="tropical"] {
-  --f50:  #a8e8d4; --f100: #70c8b0; --f200: #40b090; --f300: #28906e;
-  --f400: #20a878; --f500: #189060; --f600: #107848;
-  --f700: #1a6050; --f800: #0e3828; --f900: #081e14; --f950: #041410;
-  --grain: 0.05;
+  --f50:  168 232 212; --f100: 112 200 176; --f200: 64 176 144;
+  --f300: 40 144 110; --f400: 32 168 120; --f500: 24 144 96;
+  --f600: 16 120 72; --f700: 26 96 80; --f800: 14 56 40;
+  --f900: 8 30 20; --f950: 4 20 16; --grain: 0.05;
 }
+
+/* Sunset */
 [data-theme="sunset"] {
-  --f50:  #f0c8d8; --f100: #e0a0b8; --f200: #d08090; --f300: #c06070;
-  --f400: #e06040; --f500: #c84828; --f600: #a83018;
-  --f700: #704050; --f800: #401828; --f900: #200c14; --f950: #100810;
-  --grain: 0.05;
+  --f50:  240 200 216; --f100: 224 160 184; --f200: 208 128 144;
+  --f300: 192 96 112; --f400: 224 96 64; --f500: 200 72 40;
+  --f600: 168 48 24; --f700: 112 64 80; --f800: 64 24 40;
+  --f900: 32 12 20; --f950: 16 8 16; --grain: 0.05;
 }
+
+/* Flight */
 [data-theme="flight"] {
-  --f50:  #e8eeff; --f100: #c0ccf0; --f200: #8898cc; --f300: #6070a8;
-  --f400: #a0b0ff; --f500: #8090e0; --f600: #6070c0;
-  --f700: #303860; --f800: #1c2240; --f900: #0e1020; --f950: #02040c;
-  --grain: 0.04;
+  --f50:  232 238 255; --f100: 192 204 240; --f200: 136 152 204;
+  --f300: 96 112 168; --f400: 160 176 255; --f500: 128 144 224;
+  --f600: 96 112 192; --f700: 48 56 96; --f800: 28 34 64;
+  --f900: 14 16 32; --f950: 2 4 12; --grain: 0.04;
 }
 
 /* ── Grain overlay ── */
@@ -119,6 +161,7 @@ body::before {
 }
 
 @layer components {
+  /* Leaflet stays fixed dark to not clash with map tiles */
   .leaflet-container {
     background: #0a1a0a !important;
     font-family: 'Dosis', sans-serif !important;
@@ -128,41 +171,39 @@ body::before {
   .leaflet-container * { transition: none !important; }
   .leaflet-popup-content-wrapper, .leaflet-popup-tip {
     background: #0d2b0d !important; border: 1px solid #196219 !important;
-    border-radius: 12px !important; box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
-    color: #f0faf0 !important; padding: 0 !important;
+    border-radius: 12px !important; color: #f0faf0 !important; padding: 0 !important;
   }
   .leaflet-popup-content { margin: 0 !important; padding: 0 !important; }
-  .leaflet-popup-close-button { color: #4dba4d !important; font-size: 16px !important; top: 6px !important; right: 8px !important; }
+  .leaflet-popup-close-button { color: #4dba4d !important; top: 6px !important; right: 8px !important; }
   .leaflet-control-attribution { background: rgba(8,34,8,0.85) !important; color: #4dba4d !important; font-size: 10px !important; }
-  .leaflet-control-attribution a { color: #80d580 !important; }
-  .leaflet-control-zoom a { background: var(--f900) !important; color: var(--f300) !important; border-color: var(--f600) !important; }
-  .leaflet-control-zoom a:hover { background: var(--f800) !important; }
+  .leaflet-control-zoom a { background: rgb(var(--f900)) !important; color: rgb(var(--f300)) !important; border-color: rgb(var(--f600)) !important; }
 
-  .glass      { background: var(--f900); backdrop-filter: blur(12px); border: 1px solid var(--f700); }
-  .glass-dark { background: var(--f950); backdrop-filter: blur(16px); border: 1px solid var(--f800); }
+  .glass      { background: rgb(var(--f900) / 0.4); backdrop-filter: blur(12px); border: 1px solid rgb(var(--f700) / 0.4); }
+  .glass-dark { background: rgb(var(--f950) / 0.7); backdrop-filter: blur(16px); border: 1px solid rgb(var(--f800) / 0.5); }
 
   .btn-primary {
-    @apply font-medium py-2.5 px-5 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
-    background: var(--f500); color: var(--f50);
+    @apply font-medium py-2.5 px-5 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50;
+    background: rgb(var(--f500)); color: rgb(var(--f50));
   }
-  .btn-primary:hover { background: var(--f400); }
+  .btn-primary:hover { background: rgb(var(--f400)); }
   .btn-ghost {
     @apply font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
-    background: transparent; color: var(--f300); border: 1px solid var(--f700);
+    background: transparent; color: rgb(var(--f300));
+    border: 1px solid rgb(var(--f700));
   }
-  .btn-ghost:hover { background: var(--f900); color: var(--f100); border-color: var(--f500); }
-  .btn-danger { @apply bg-red-900 hover:bg-red-800 text-red-100 font-medium py-2.5 px-5 rounded-lg border border-red-700 hover:border-red-500 transition-all duration-200; }
+  .btn-ghost:hover { background: rgb(var(--f900)); color: rgb(var(--f100)); border-color: rgb(var(--f500)); }
+  .btn-danger { @apply bg-red-900 hover:bg-red-800 text-red-100 font-medium py-2.5 px-5 rounded-lg border border-red-700 transition-all; }
 
   .input {
-    @apply rounded-lg px-4 py-2.5 w-full outline-none transition-colors duration-200 font-body text-sm;
-    background: var(--f950); border: 1px solid var(--f700); color: var(--f50);
+    @apply rounded-lg px-4 py-2.5 w-full outline-none transition-colors font-body text-sm;
+    background: rgb(var(--f950)); border: 1px solid rgb(var(--f700)); color: rgb(var(--f50));
   }
-  .input::placeholder { color: var(--f600); }
-  .input:focus { border-color: var(--f400); }
+  .input::placeholder { color: rgb(var(--f600)); }
+  .input:focus { border-color: rgb(var(--f400)); }
 
   .fade-in  { animation: fadeIn 0.4s ease-out forwards; }
   .slide-up { animation: slideUp 0.35s ease-out forwards; }
-  @keyframes fadeIn  { from { opacity: 0; }  to { opacity: 1; } }
+  @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
   .friend-code { font-family: 'JetBrains Mono', monospace; letter-spacing: 0.15em; }
