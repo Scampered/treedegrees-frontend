@@ -11,18 +11,21 @@ const CACHE_MS  = 30 * 60 * 1000
 const OWM_KEY = import.meta.env.VITE_OWM_KEY || 'bd5e378503939ddaee76f12ad7a97608'
 
 function weatherIdToTheme(id, isDay) {
-  if (!isDay)                          return 'night'
-  if (id >= 200 && id < 300)           return 'storm'
-  if (id >= 300 && id < 600)           return 'rain'
-  if (id >= 600 && id < 700)           return 'snow'
-  if (id === 711 || id === 762)        return 'ash'
+  // Weather condition is always prioritised over time of day.
+  // Night only applies when sky is clear (800) or nearly clear (801).
+  if (id >= 200 && id < 300)                return 'storm'
+  if (id >= 300 && id < 600)                return 'rain'
+  if (id >= 600 && id < 700)                return 'snow'
+  if (id === 711 || id === 762)             return 'ash'
   if (id === 731 || id === 751 || id === 761) return 'dust'
-  if (id === 771 || id === 781)        return 'cyclone'
-  if (id >= 700 && id < 800)           return 'foggy'
-  if (id === 800)                      return 'sunny'
-  if (id === 801 || id === 802)        return 'partly-cloudy'
-  if (id >= 803)                       return 'cloudy'
-  return 'dark'
+  if (id === 771 || id === 781)             return 'cyclone'
+  if (id >= 700 && id < 800)                return 'foggy'
+  // Clear / few clouds — now apply time of day
+  if (id === 800)  return isDay ? 'sunny' : 'night'
+  if (id === 801)  return isDay ? 'partly-cloudy' : 'night'
+  if (id === 802)  return 'partly-cloudy'   // scattered clouds, ok either way
+  if (id >= 803)   return 'cloudy'          // broken/overcast — same day or night
+  return isDay ? 'dark' : 'night'
 }
 
 async function fetchThemeForLocation(city, country) {
@@ -30,6 +33,7 @@ async function fetchThemeForLocation(city, country) {
     const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
     if (cached && Date.now() - cached.at < CACHE_MS) return cached.theme
   } catch {}
+  localStorage.removeItem(CACHE_KEY) // clear before fetch so stale data never blocks
   try {
     const q   = encodeURIComponent(`${city},${country}`)
     const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${q}&appid=${OWM_KEY}`)
