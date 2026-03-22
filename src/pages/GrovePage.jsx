@@ -19,6 +19,12 @@ const WINDOWS = [
     sinceLabel: '1h ago',
   },
   {
+    key: '6h', label: '6h',
+    xStepMs: 60 * 60 * 1000, // 1-hour separators
+    xFormat: ts => { const h = new Date(ts).getHours(); return `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` },
+    sinceLabel: '6h ago',
+  },
+  {
     key: '12h', label: '12h',
     xStepMs: 2 * 3600 * 1000, // 2-hour separators
     xFormat: ts => { const h = new Date(ts).getHours(); return `${h % 12 || 12}${h < 12 ? 'a' : 'p'}` },
@@ -81,6 +87,7 @@ function StockChart({ data, win, w = 320, h = 90 }) {
   const nowMs    = Date.now()
   const winCfg   = WINDOWS.find(ww => ww.key === win) || WINDOWS[2]
   const windowMs = win === '1h'  ? 3600000
+                 : win === '6h'  ? 6*3600000
                  : win === '12h' ? 12*3600000
                  : win === '1w'  ? 7*24*3600000
                  :                 24*3600000
@@ -184,7 +191,7 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
     // 12h → every 1 min
     // 1d  → every 2 min
     // 1w  → every 5 min
-    const interval = win === '1h' ? 120000 : win === '12h' ? 60000 : win === '1d' ? 120000 : 300000
+    const interval = win === '1h' ? 120000 : win === '6h' ? 120000 : win === '12h' ? 60000 : win === '1d' ? 120000 : 300000
     timer.current = setInterval(load, interval)
     return () => clearInterval(timer.current)
   }, [load, win])
