@@ -195,15 +195,15 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
 
 // ── Investment modal ──────────────────────────────────────────────────────────
 function InvestModal({ target, mySeeds, onDone, onClose }) {
-  const [amount, setAmount] = useState(20)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState('')
+  const [amount, setAmount]           = useState(20)
+  const [withdrawAmt, setWithdrawAmt] = useState(target.myInvestment || 0)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState('')
   const quickAmounts = [10, 20, 50, 100].filter(a => a <= mySeeds)
-  // Payout computed server-side based on multiplier; show estimate on button
-  // 20% fee on total value (total = safe half + active half × multiplier)
-  const fee    = null  // computed server-side
-  const payout = null  // computed server-side
-  const boost  = Math.max(1, Math.floor(amount * 0.05))
+
+  // Live multiplier for payout preview
+  const baseline = Math.max(10, target.mySeedsAtInvest || target.seeds || 10)
+  const mult     = Math.min(10, Math.max(0, target.seeds / baseline))
 
   const invest = async () => {
     if (amount < 10 || amount > mySeeds) return
@@ -211,10 +211,12 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
     try { await groveApi.invest(target.id, amount); onDone() }
     catch (e) { setError(e.response?.data?.error || 'Failed'); setLoading(false) }
   }
-  const withdraw = async (withdrawAmount) => {
+
+  const doWithdraw = async () => {
     setLoading(true); setError('')
     try {
-      await groveApi.withdraw(target.id, withdrawAmount < target.myInvestment ? withdrawAmount : undefined)
+      const isPartial = withdrawAmt < target.myInvestment
+      await groveApi.withdraw(target.id, isPartial ? withdrawAmt : undefined)
       onDone()
     } catch (e) { setError(e.response?.data?.error || 'Failed'); setLoading(false) }
   }
@@ -285,7 +287,7 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
                     </p>
                   )}
                 </div>
-                <button onClick={() => withdraw(wAmt)} disabled={loading}
+                <button onClick={doWithdraw} disabled={loading}
                   className="w-full py-2 text-sm rounded-xl border border-red-900/50 text-red-400/80
                              hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 transition-colors disabled:opacity-40">
                   {loading ? 'Withdrawing…' : `Withdraw 🌱${wPayout} ${wAmt < target.myInvestment ? '(partial)' : '(full)'}`}
