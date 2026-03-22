@@ -234,69 +234,7 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
           <button onClick={onClose} className="text-forest-600 hover:text-forest-300 text-xl">✕</button>
         </div>
         <div className="p-5 space-y-4">
-          {target.myInvestment > 0 && (() => {
-            const wAmt = withdrawAmt ?? target.myInvestment
-            const frac = wAmt / target.myInvestment
-            const wPrincipal = Math.floor(target.myInvestment * frac)
-            const wActive    = Math.floor((wPrincipal / 2) * mult)
-            const wSafe      = wPrincipal - Math.floor(wPrincipal / 2)
-            const wFee       = Math.floor(wActive * 0.20)
-            const wPayout    = wSafe + wActive - wFee
-            const wProfit    = wPayout - wPrincipal
-            return (
-              <div className="rounded-xl border border-forest-700 bg-forest-900/40 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-forest-400 text-xs">Your investment</p>
-                  <p className="text-forest-100 font-mono font-medium">🌱 {target.myInvestment}</p>
-                </div>
-                {/* Partial amount slider */}
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <label className="text-forest-500 text-xs">Withdraw amount</label>
-                    <span className="text-forest-200 text-xs font-mono">🌱 {wAmt}</span>
-                  </div>
-                  <input type="range" min={10} max={target.myInvestment} step={1}
-                    value={wAmt}
-                    onChange={e => setWithdrawAmt(parseInt(e.target.value))}
-                    className="w-full accent-green-500"/>
-                  <div className="flex justify-between text-forest-700 text-xs mt-0.5">
-                    <span>10</span><span>All ({target.myInvestment})</span>
-                  </div>
-                </div>
-                {/* Payout breakdown */}
-                <div className="space-y-1 text-xs border-t border-forest-800 pt-2">
-                  <div className="flex justify-between">
-                    <span className="text-forest-600">Safe half (×1)</span>
-                    <span className="text-forest-400 font-mono">+{wSafe}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-forest-600">Active half (×{mult.toFixed(2)})</span>
-                    <span className="text-forest-400 font-mono">+{wActive}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-forest-600">Fee (20% of active)</span>
-                    <span className="text-red-400/70 font-mono">−{wFee}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-forest-800 pt-1 font-medium">
-                    <span className="text-forest-300">You receive</span>
-                    <span className={`font-mono ${wProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      🌱 {wPayout} ({wProfit >= 0 ? '+' : ''}{wProfit})
-                    </span>
-                  </div>
-                  {wAmt < target.myInvestment && (
-                    <p className="text-forest-700 text-xs text-center pt-1">
-                      🌱 {target.myInvestment - wAmt} stays invested at current multiplier
-                    </p>
-                  )}
-                </div>
-                <button onClick={doWithdraw} disabled={loading}
-                  className="w-full py-2 text-sm rounded-xl border border-red-900/50 text-red-400/80
-                             hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 transition-colors disabled:opacity-40">
-                  {loading ? 'Withdrawing…' : `Withdraw 🌱${wPayout} ${wAmt < target.myInvestment ? '(partial)' : '(full)'}`}
-                </button>
-              </div>
-            )
-          })()}
+
           {mySeeds >= 10 && (
             <>
               <div>
@@ -336,6 +274,97 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
   )
 }
 
+
+// ── Withdraw Modal ────────────────────────────────────────────────────────────
+function WithdrawModal({ target, onDone, onClose }) {
+  const [withdrawAmt, setWithdrawAmt] = useState(target.myInvestment || 0)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState('')
+
+  const baseline = Math.max(10, target.mySeedsAtInvest || target.seeds || 10)
+  const mult     = Math.min(10, Math.max(0, target.seeds / baseline))
+  const wAmt     = withdrawAmt ?? target.myInvestment
+  const frac     = wAmt / target.myInvestment
+  const wPrincipal = Math.floor(target.myInvestment * frac)
+  const wActive    = Math.floor((wPrincipal / 2) * mult)
+  const wSafe      = wPrincipal - Math.floor(wPrincipal / 2)
+  const wFee       = Math.floor(wActive * 0.20)
+  const wPayout    = wSafe + wActive - wFee
+  const wProfit    = wPayout - wPrincipal
+
+  const doWithdraw = async () => {
+    setLoading(true); setError('')
+    try {
+      const isPartial = withdrawAmt < target.myInvestment
+      await groveApi.withdraw(target.id, isPartial ? withdrawAmt : undefined)
+      onDone()
+    } catch (e) { setError(e.response?.data?.error || 'Failed'); setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+      <div className="w-full max-w-sm rounded-2xl bg-forest-950 border border-forest-700 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-forest-800">
+          <div>
+            <h2 className="font-display text-forest-100 text-lg leading-none">Withdraw from {target.name}</h2>
+            <p className="text-forest-500 text-xs mt-0.5">🌱 {target.myInvestment} invested · ×{mult.toFixed(2)} multiplier</p>
+          </div>
+          <button onClick={onClose} className="text-forest-600 hover:text-forest-300 text-xl">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Slider */}
+          <div>
+            <div className="flex justify-between mb-1">
+              <label className="text-forest-400 text-xs">Withdraw amount</label>
+              <span className="text-forest-200 text-xs font-mono">🌱 {wAmt}</span>
+            </div>
+            <input type="range" min={10} max={target.myInvestment} step={1}
+              value={wAmt}
+              onChange={e => setWithdrawAmt(parseInt(e.target.value))}
+              className="w-full accent-green-500"/>
+            <div className="flex justify-between text-forest-700 text-xs mt-0.5">
+              <span>10</span><span>All ({target.myInvestment})</span>
+            </div>
+          </div>
+          {/* Breakdown */}
+          <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-forest-600">Safe half (×1.00)</span>
+              <span className="text-forest-400 font-mono">+{wSafe}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-forest-600">Active half (×{mult.toFixed(2)})</span>
+              <span className="text-forest-400 font-mono">+{wActive}</span>
+            </div>
+            <div className="flex justify-between text-xs border-t border-forest-800 pt-1">
+              <span className="text-forest-600">Fee (20% of active)</span>
+              <span className="text-red-400/70 font-mono">−{wFee}</span>
+            </div>
+            <div className="flex justify-between text-sm font-medium border-t border-forest-800 pt-1.5">
+              <span className="text-forest-200">You receive</span>
+              <span className={`font-mono ${wProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                🌱 {wPayout} ({wProfit >= 0 ? '+' : ''}{wProfit})
+              </span>
+            </div>
+            {wAmt < target.myInvestment && (
+              <p className="text-forest-700 text-xs text-center pt-0.5">
+                🌱 {target.myInvestment - wAmt} stays invested at ×{mult.toFixed(2)}
+              </p>
+            )}
+          </div>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button onClick={doWithdraw} disabled={loading}
+            className="w-full py-2.5 rounded-xl text-sm font-medium border border-red-900/50
+                       text-red-400/80 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20
+                       transition-colors disabled:opacity-40">
+            {loading ? 'Withdrawing…' : `Withdraw 🌱${wPayout} ${wAmt < target.myInvestment ? '(partial)' : '(full)'}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Stock card ────────────────────────────────────────────────────────────────
 function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
   const rising = person.history?.length >= 2 &&
@@ -367,22 +396,39 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
         <ChartCard userId={person.id} name={person.name} seedsNow={person.seeds} />
       </div>
 
-      {/* Stake info */}
+      {/* Stake info + buy marker */}
       {person.myInvestment > 0 && (() => {
         const preview = computePayout(person.myInvestment, person.mySeedsAtInvest, person.seeds)
         const profit  = preview - person.myInvestment
         const sign    = profit >= 0 ? '+' : ''
+        const buyPrice = person.mySeedsAtInvest || null
         return (
-          <div className="mx-4 mb-2 px-3 py-2 rounded-xl bg-forest-800/50 border border-forest-700">
-            <div className="flex items-center justify-between">
-              <span className="text-forest-400 text-xs">Your stake</span>
-              <span className="text-forest-100 font-mono font-medium text-sm">🌱 {person.myInvestment}</span>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-forest-600 text-xs">Withdraw payout</span>
-              <span className={`text-xs font-mono font-medium ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                🌱 {preview} ({sign}{profit})
-              </span>
+          <div className="mx-4 mb-2">
+            {/* Buy marker ribbon */}
+            {buyPrice > 0 && (
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-mono font-medium"
+                  style={{ background: 'var(--accent-soft, rgba(74,107,79,0.15))', border: '1px solid var(--accent, #4a6b4f)', color: 'var(--accent, #4a6b4f)' }}>
+                  📍 Bought at 🌱{buyPrice}
+                </div>
+                {person.seeds !== buyPrice && (
+                  <span className={`text-xs font-mono ${person.seeds > buyPrice ? 'text-green-400' : 'text-red-400'}`}>
+                    {person.seeds > buyPrice ? '▲' : '▼'} {Math.abs(person.seeds - buyPrice)} since buy
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="px-3 py-2 rounded-xl bg-forest-800/50 border border-forest-700">
+              <div className="flex items-center justify-between">
+                <span className="text-forest-400 text-xs">Your stake</span>
+                <span className="text-forest-100 font-mono font-medium text-sm">🌱 {person.myInvestment}</span>
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-forest-600 text-xs">Withdraw payout</span>
+                <span className={`text-xs font-mono font-medium ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  🌱 {preview} ({sign}{profit})
+                </span>
+              </div>
             </div>
           </div>
         )
@@ -395,16 +441,13 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
                      text-forest-300 hover:border-forest-500 hover:text-forest-100 hover:bg-forest-800/40 transition-colors">
           {person.myInvestment > 0 ? '＋ Add seeds' : '🌱 Invest'}
         </button>
-        {person.myInvestment > 0 && (() => {
-          const preview = computePayout(person.myInvestment, person.mySeedsAtInvest, person.seeds)
-          return (
-            <button onClick={() => onWithdraw(person)}
-              className="flex-1 py-2 rounded-xl text-sm font-medium border border-red-900/60
-                         text-red-400/80 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 transition-colors">
-              Withdraw 🌱{preview}
-            </button>
-          )
-        })()}
+        {person.myInvestment > 0 && (
+          <button onClick={() => onWithdraw(person)}
+            className="flex-1 py-2 rounded-xl text-sm font-medium border border-red-900/60
+                       text-red-400/80 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 transition-colors">
+            Withdraw
+          </button>
+        )}
       </div>
     </div>
   )
@@ -419,6 +462,7 @@ export default function GrovePage() {
   const [loading, setLoading]         = useState(true)
   const [tab, setTab]                 = useState('stocks')
   const [investing, setInvesting]     = useState(null)
+  const [withdrawing, setWithdrawing]   = useState(null)
   const [sort, setSort]               = useState('seeds')
 
   const reload = useCallback(async () => {
@@ -436,12 +480,14 @@ export default function GrovePage() {
 
   useEffect(() => { reload() }, [reload])
 
-  const sorted = [...connections].sort((a, b) => {
-    if (sort === 'seeds')    return b.seeds - a.seeds
-    if (sort === 'rising')   return (b.history?.slice(-1)[0]?.seeds - b.history?.[0]?.seeds) - (a.history?.slice(-1)[0]?.seeds - a.history?.[0]?.seeds)
-    if (sort === 'invested') return b.myInvestment - a.myInvestment
-    return 0
-  })
+  const sorted = [...connections]
+    .filter(c => sort === 'invested' ? c.myInvestment > 0 : true)
+    .sort((a, b) => {
+      if (sort === 'seeds')    return b.seeds - a.seeds
+      if (sort === 'rising')   return (b.history?.slice(-1)[0]?.seeds - b.history?.[0]?.seeds) - (a.history?.slice(-1)[0]?.seeds - a.history?.[0]?.seeds)
+      if (sort === 'invested') return b.myInvestment - a.myInvestment
+      return 0
+    })
 
   const myRank = leaderboard.findIndex(l => l.isMe) + 1
 
@@ -523,10 +569,7 @@ export default function GrovePage() {
                 person={person}
                 mySeeds={me?.seeds || 0}
                 onInvest={p => setInvesting(p)}
-                onWithdraw={async p => {
-                  try { await groveApi.withdraw(p.id); reload() }
-                  catch(e) { alert(e.response?.data?.error || 'Failed') }
-                }}
+                onWithdraw={p => setWithdrawing(p)}
               />
             ))}
           </>
@@ -563,6 +606,13 @@ export default function GrovePage() {
           mySeeds={me?.seeds || 0}
           onDone={() => { setInvesting(null); reload() }}
           onClose={() => setInvesting(null)}
+        />
+      )}
+      {withdrawing && (
+        <WithdrawModal
+          target={withdrawing}
+          onDone={() => { setWithdrawing(null); reload() }}
+          onClose={() => setWithdrawing(null)}
         />
       )}
     </div>
