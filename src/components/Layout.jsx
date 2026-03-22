@@ -6,6 +6,7 @@ import NotificationPrompt from './NotificationPrompt'
 import { lettersApi } from '../api/client'
 import PopupSystem from './PopupSystem'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
@@ -36,6 +37,7 @@ const moreItems = [
 
 export default function Layout() {
   const { user, logout } = useAuth()
+  const { resolveTheme, pref } = useTheme()
   const navigate   = useNavigate()
   const location   = useLocation()
   const [unreadLetters, setUnreadLetters] = useState(0)
@@ -43,6 +45,7 @@ export default function Layout() {
   const [showMore, setShowMore]           = useState(false)
 
   useEffect(() => { registerSW() }, [])
+  useEffect(() => { if (user) resolveTheme(pref, user) }, [user?.id]) // eslint-disable-line
   useEffect(() => { setShowMore(false) }, [location.pathname])
 
   useEffect(() => {

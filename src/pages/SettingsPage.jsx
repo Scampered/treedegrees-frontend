@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { usersApi, authApi, friendsApi } from '../api/client'
 
 async function reverseGeocode(lat, lon) {
@@ -191,6 +192,7 @@ function LockedField({ label, value, hint, onChange, maxLength = 120 }) {
 
 // ── Main Settings Page ────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const { pref: themePref, active: activeTheme, loading: themeLoading, setPreference } = useTheme()
   const { user, updateUser, logout } = useAuth()
   const navigate = useNavigate()
   const [showConnectionsModal, setShowConnectionsModal] = useState(false)
@@ -288,6 +290,61 @@ export default function SettingsPage() {
       </Link>
 
       {/* Profile */}
+
+      {/* ── Theme / Appearance ── */}
+      <div className="rounded-2xl bg-forest-900/40 border border-forest-800 overflow-hidden">
+        <div className="px-5 py-4 border-b border-forest-800">
+          <p className="text-forest-200 font-medium">Appearance</p>
+          <p className="text-forest-600 text-xs mt-0.5">How the app looks and feels</p>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <div className="flex flex-col gap-2">
+            {[
+              {
+                key: 'dark',
+                label: '🪨 Dark',
+                desc: 'Slate dark — calm, desaturated, easy on the eyes',
+              },
+              {
+                key: 'light',
+                label: '🌿 Light',
+                desc: 'Soft sage — bright, airy, mint greens',
+              },
+              {
+                key: 'adaptive',
+                label: '🌦️ Adaptive',
+                desc: 'Changes with your local weather — rain, sun, snow and more',
+              },
+            ].map(({ key, label, desc }) => (
+              <button key={key}
+                onClick={() => setPreference(key, user)}
+                className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-left transition-all
+                  ${themePref === key
+                    ? 'border-forest-500 bg-forest-800/60'
+                    : 'border-forest-800 bg-forest-900/30 hover:border-forest-700'}`}>
+                <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5
+                  ${themePref === key ? 'border-forest-400 bg-forest-400' : 'border-forest-600'}`}/>
+                <div>
+                  <p className="text-forest-200 text-sm font-medium">{label}</p>
+                  <p className="text-forest-600 text-xs mt-0.5">{desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+          {themePref === 'adaptive' && (
+            <div className="flex items-center gap-2 px-1">
+              {themeLoading
+                ? <p className="text-forest-600 text-xs">Checking your weather…</p>
+                : <p className="text-forest-500 text-xs">
+                    Current theme: <span className="text-forest-300 font-medium">{activeTheme}</span>
+                    {' '}· based on weather in {user?.city || user?.country || 'your location'}
+                  </p>
+              }
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <h2 className="text-forest-200 font-medium mb-4">Profile</h2>
         <form onSubmit={saveProfile} className="space-y-4">
