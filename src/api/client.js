@@ -149,6 +149,6 @@ export const groveApi = {
   connections: ()                    => api.get('/api/grove/connections'),
   leaderboard: ()                    => api.get('/api/grove/leaderboard'),
   invest:      (targetId, amount)    => api.post('/api/grove/invest', { targetId, amount }),
-  withdraw:    (targetId)            => api.post('/api/grove/withdraw', { targetId }),
+  withdraw:    (targetId, amount)     => api.post('/api/grove/withdraw', { targetId, ...(amount !== undefined && { withdrawAmount: amount }) }),
   history:     (userId, window)      => api.get(`/api/grove/history/${userId}?window=${window}`),
 }
