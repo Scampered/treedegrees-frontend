@@ -164,9 +164,7 @@ function StreakDropdown({ streaks }) {
       {/* Scrollable pill row */}
       <div className="px-5 py-2.5 flex gap-3 overflow-x-auto">
         {active.map(s => {
-          const nearBreak = s.fuel === 1
-          const bothSent  = s.iSentToday && s.theySentToday
-          const iSent     = s.iSentToday && !s.theySentToday
+          const nearBreak = s.fuel <= 1 && s.streakDays > 0
           return (
             <div key={s.friendId}
               className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors
@@ -180,7 +178,7 @@ function StreakDropdown({ streaks }) {
                 <div className="flex items-center gap-1.5 mt-1">
                   <FuelDots fuel={s.fuel} />
                   <span className={`text-xs ${nearBreak ? 'text-bark-400' : 'text-forest-600'}`}>
-                    {nearBreak ? '⌛' : bothSent ? '✅' : iSent ? '📤' : '🔥'}{s.streakDays}
+                    {s.iSentToday ? '🔥' : '❄️'}{s.streakDays}
                   </span>
                 </div>
               </div>
@@ -218,7 +216,7 @@ function StreakDropdown({ streaks }) {
                     <span className="text-forest-200 text-xs font-medium truncate">{s.displayName}</span>
                   </div>
                   <span className={`text-xs font-mono ${nearBreak ? 'text-bark-400' : 'text-forest-300'}`}>
-                    🔥 {s.streakDays}d
+                    {s.iSentToday ? '🔥' : '❄️'} {s.streakDays}d
                   </span>
                   <span className="text-forest-500 text-xs italic">{midnight}</span>
                   <span className="text-xs">{s.iSentToday ? '✅' : '❌'}</span>
