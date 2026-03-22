@@ -45,7 +45,7 @@ export default function Layout() {
   const [showMore, setShowMore]           = useState(false)
 
   useEffect(() => { registerSW() }, [])
-  useEffect(() => { if (user) applyForUser(user) }, [user?.id]) // eslint-disable-line
+  useEffect(() => { if (user) applyForUser(user) }, [user?.id, user?.city, user?.country]) // eslint-disable-line
   useEffect(() => { setShowMore(false) }, [location.pathname])
 
   useEffect(() => {
