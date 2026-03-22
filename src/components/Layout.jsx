@@ -37,7 +37,7 @@ const moreItems = [
 
 export default function Layout() {
   const { user, logout } = useAuth()
-  const { resolveTheme, pref } = useTheme()
+  const { applyForUser } = useTheme()
   const navigate   = useNavigate()
   const location   = useLocation()
   const [unreadLetters, setUnreadLetters] = useState(0)
@@ -45,7 +45,7 @@ export default function Layout() {
   const [showMore, setShowMore]           = useState(false)
 
   useEffect(() => { registerSW() }, [])
-  useEffect(() => { if (user) resolveTheme(pref, user) }, [user?.id]) // eslint-disable-line
+  useEffect(() => { if (user) applyForUser(user) }, [user?.id]) // eslint-disable-line
   useEffect(() => { setShowMore(false) }, [location.pathname])
 
   useEffect(() => {

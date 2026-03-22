@@ -57,13 +57,23 @@ function PublicOnlyRoute({ children }) {
 
 function FullScreenLoader() {
   return (
-    <div className="fixed inset-0 bg-forest-950 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative">
-          <div className="w-12 h-12 rounded-full border-2 border-forest-700 border-t-forest-400 animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center text-xl">🌳</div>
+    <div style={{ position:'fixed', inset:0, background:'var(--bg,#070d09)',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:16 }}>
+        <div style={{ position:'relative', width:52, height:52 }}>
+          <div style={{
+            width:52, height:52, borderRadius:'50%',
+            border:'2px solid var(--border,rgba(35,55,40,0.45))',
+            borderTopColor:'var(--accent,#4a6b4f)',
+            animation:'spin 1s linear infinite',
+          }}/>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <div style={{ position:'absolute', inset:0, display:'flex',
+                        alignItems:'center', justifyContent:'center', fontSize:22 }}>🌳</div>
         </div>
-        <p className="text-forest-500 text-sm font-body">Growing your tree...</p>
+        <p style={{ color:'var(--t2,#5e7862)', fontSize:13, fontFamily:'Dosis,sans-serif' }}>
+          Growing your tree…
+        </p>
       </div>
     </div>
   )
@@ -71,7 +81,7 @@ function FullScreenLoader() {
 
 export default function App() {
   return (
-    <AuthProvider>
+    <ThemeProvider><AuthProvider>
       <BrowserRouter>
         <Routes>
           {/* Public */}
@@ -101,6 +111,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </AuthProvider>
+    </AuthProvider></ThemeProvider>
   )
 }

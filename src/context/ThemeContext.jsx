@@ -1,111 +1,98 @@
 // src/context/ThemeContext.jsx
-// Manages dark / light / adaptive theme. Adaptive fetches weather and maps it.
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 
-const ThemeContext = createContext({})
-export const useTheme = () => useContext(ThemeContext)
+const Ctx = createContext({})
+export const useTheme = () => useContext(Ctx)
 
-// ── OpenWeatherMap condition code → theme key ─────────────────────────────────
-// Free API, no account needed for basic weather by city name
-const OWM_KEY = 'bd5e378503939ddaee76f12ad7a97608' // public demo key — replace if needed
+const PREF_KEY  = 'td_theme_pref'
+const CACHE_KEY = 'td_weather_cache'
+const CACHE_MS  = 30 * 60 * 1000
 
-function conditionToTheme(weatherId, isDay) {
-  if (!isDay) return 'night'
-  if (weatherId >= 200 && weatherId < 300) return 'storm'
-  if (weatherId >= 300 && weatherId < 400) return 'rain'
-  if (weatherId >= 500 && weatherId < 600) return 'rain'
-  if (weatherId >= 600 && weatherId < 700) return 'snow'
-  if (weatherId === 701) return 'foggy'
-  if (weatherId === 711) return 'ash'
-  if (weatherId === 721) return 'foggy'
-  if (weatherId === 731 || weatherId === 761) return 'dust'
-  if (weatherId === 741) return 'foggy'
-  if (weatherId === 751 || weatherId === 762) return 'dust'
-  if (weatherId === 771) return 'cyclone'
-  if (weatherId === 781) return 'cyclone'
-  if (weatherId >= 700 && weatherId < 800) return 'foggy'
-  if (weatherId === 800) return 'sunny'
-  if (weatherId === 801) return 'partly-cloudy'
-  if (weatherId === 802) return 'partly-cloudy'
-  if (weatherId >= 803) return 'cloudy'
+const OWM_KEY = import.meta.env.VITE_OWM_KEY || 'bd5e378503939ddaee76f12ad7a97608'
+
+function weatherIdToTheme(id, isDay) {
+  if (!isDay)                          return 'night'
+  if (id >= 200 && id < 300)           return 'storm'
+  if (id >= 300 && id < 600)           return 'rain'
+  if (id >= 600 && id < 700)           return 'snow'
+  if (id === 711 || id === 762)        return 'ash'
+  if (id === 731 || id === 751 || id === 761) return 'dust'
+  if (id === 771 || id === 781)        return 'cyclone'
+  if (id >= 700 && id < 800)           return 'foggy'
+  if (id === 800)                      return 'sunny'
+  if (id === 801 || id === 802)        return 'partly-cloudy'
+  if (id >= 803)                       return 'cloudy'
   return 'dark'
 }
 
-async function fetchWeatherTheme(city, country) {
+async function fetchThemeForLocation(city, country) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
+    if (cached && Date.now() - cached.at < CACHE_MS) return cached.theme
+  } catch {}
   try {
     const q   = encodeURIComponent(`${city},${country}`)
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${q}&appid=${OWM_KEY}`
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const data = await res.json()
-    const id    = data.weather?.[0]?.id
-    const sunrise = data.sys?.sunrise * 1000
-    const sunset  = data.sys?.sunset  * 1000
-    const now     = Date.now()
-    const isDay   = now >= sunrise && now < sunset
-    return conditionToTheme(id, isDay)
-  } catch { return null }
+    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${q}&appid=${OWM_KEY}`)
+    if (!res.ok) return 'dark'
+    const d     = await res.json()
+    const id    = d.weather?.[0]?.id || 800
+    const isDay = Date.now() >= d.sys.sunrise * 1000 && Date.now() < d.sys.sunset * 1000
+    const theme = weatherIdToTheme(id, isDay)
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ theme, at: Date.now() }))
+    return theme
+  } catch { return 'dark' }
 }
 
-const PREF_KEY   = 'td_theme_pref'   // 'dark' | 'light' | 'adaptive'
-const CACHE_KEY  = 'td_theme_cache'  // { theme, fetchedAt }
-const CACHE_MS   = 30 * 60 * 1000   // 30 min weather cache
+function setDocTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme)
+}
 
 export function ThemeProvider({ children }) {
-  const [pref, setPref]   = useState(() => localStorage.getItem(PREF_KEY) || 'dark')
-  const [active, setActive] = useState('dark') // the actual data-theme value
+  const [pref, setPref]     = useState(() => localStorage.getItem(PREF_KEY) || 'dark')
+  const [active, setActive] = useState('dark')
   const [loading, setLoading] = useState(false)
+  const applied = useRef(false)
 
-  const applyTheme = useCallback((theme) => {
-    document.documentElement.setAttribute('data-theme', theme)
-    setActive(theme)
+  // Apply static theme immediately on first render
+  useEffect(() => {
+    const p = localStorage.getItem(PREF_KEY) || 'dark'
+    if (p !== 'adaptive') {
+      setDocTheme(p)
+      setActive(p)
+    }
+    applied.current = true
   }, [])
 
-  const resolveTheme = useCallback(async (preference, user) => {
-    if (preference === 'dark')  { applyTheme('dark');  return }
-    if (preference === 'light') { applyTheme('light'); return }
-
-    // Adaptive — try cache first
-    try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
-      if (cached && Date.now() - cached.fetchedAt < CACHE_MS) {
-        applyTheme(cached.theme); return
-      }
-    } catch {}
-
-    // Fetch weather
-    setLoading(true)
+  // Called from Layout once user data is available
+  function applyForUser(user) {
+    const p = localStorage.getItem(PREF_KEY) || 'dark'
+    if (p === 'dark' || p === 'light') {
+      setDocTheme(p); setActive(p); return
+    }
+    // adaptive
     const city    = user?.city    || ''
     const country = user?.country || ''
-    if (!city && !country) { applyTheme('dark'); setLoading(false); return }
+    if (!city && !country) { setDocTheme('dark'); setActive('dark'); return }
+    setLoading(true)
+    fetchThemeForLocation(city, country).then(theme => {
+      setDocTheme(theme); setActive(theme); setLoading(false)
+    })
+  }
 
-    const theme = await fetchWeatherTheme(city, country)
-    const result = theme || 'dark'
-    applyTheme(result)
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ theme: result, fetchedAt: Date.now() }))
-    setLoading(false)
-  }, [applyTheme])
-
-  const setPreference = useCallback((newPref, user) => {
+  function setPreference(newPref, user) {
     localStorage.setItem(PREF_KEY, newPref)
+    localStorage.removeItem(CACHE_KEY) // clear weather cache on pref change
     setPref(newPref)
-    // Clear weather cache so next adaptive load re-fetches
-    if (newPref === 'adaptive') localStorage.removeItem(CACHE_KEY)
-    resolveTheme(newPref, user)
-  }, [resolveTheme])
-
-  // Apply on mount and when user changes
-  useEffect(() => {
-    // We'll call resolveTheme from App once user is loaded
-    const storedPref = localStorage.getItem(PREF_KEY) || 'dark'
-    if (storedPref !== 'adaptive') {
-      applyTheme(storedPref === 'light' ? 'light' : 'dark')
+    if (newPref === 'dark' || newPref === 'light') {
+      setDocTheme(newPref); setActive(newPref)
+    } else if (user) {
+      applyForUser(user)
     }
-  }, [applyTheme])
+  }
 
   return (
-    <ThemeContext.Provider value={{ pref, active, loading, setPreference, resolveTheme }}>
+    <Ctx.Provider value={{ pref, active, loading, setPreference, applyForUser }}>
       {children}
-    </ThemeContext.Provider>
+    </Ctx.Provider>
   )
 }
