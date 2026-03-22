@@ -205,6 +205,8 @@ function InvestModal({ target, mySeeds, onDone, onClose }) {
   const baseline = Math.max(10, target.mySeedsAtInvest || target.seeds || 10)
   const mult     = Math.min(10, Math.max(0, target.seeds / baseline))
 
+  const boost = Math.max(1, Math.floor(amount * 0.05))
+
   const invest = async () => {
     if (amount < 10 || amount > mySeeds) return
     setLoading(true); setError('')
