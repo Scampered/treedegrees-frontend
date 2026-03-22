@@ -3,354 +3,177 @@
 @tailwind utilities;
 
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
-
-  html {
-    scroll-behavior: smooth;
-  }
-
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     font-family: 'Dosis', sans-serif;
-    background-color: #082208;
-    color: #f0faf0;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
+    background-color: var(--f950);
+    color: var(--f50);
+    margin: 0; padding: 0; min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.5s ease, color 0.4s ease;
   }
-
   ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #113f11; }
-  ::-webkit-scrollbar-thumb { background: #2d9e2d; border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: var(--f900); }
+  ::-webkit-scrollbar-thumb { background: var(--f500); border-radius: 3px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   THEME VARIABLES  —  data-theme on <html> controls all colours.
+   Tailwind forest-* classes read from --f50 … --f950.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Default / Dark (Slate) */
+:root, [data-theme="dark"] {
+  --f50:  #c8d4c9; --f100: #a8bfaa; --f200: #8fa890; --f300: #749878;
+  --f400: #5e8262; --f500: #4a6b4f; --f600: #3a5540;
+  --f700: #2c4230; --f800: #1e2e20; --f900: #121e14; --f950: #070d09;
+  --grain: 0.04;
+}
+[data-theme="light"] {
+  --f50:  #1a3d22; --f100: #1f4828; --f200: #2d6638; --f300: #3a7845;
+  --f400: #2e7d44; --f500: #226634; --f600: #1a5228;
+  --f700: #5a9a6a; --f800: #8cc898; --f900: rgba(200,238,208,0.65); --f950: #e8f5e9;
+  --grain: 0.01;
+}
+[data-theme="rain"] {
+  --f50:  #c8dde8; --f100: #a8c8d8; --f200: #7aaabb; --f300: #5a8fa0;
+  --f400: #4a8fa8; --f500: #3a7a90; --f600: #2a6078;
+  --f700: #1a4a60; --f800: #0d2a3a; --f900: #061420; --f950: #060d12;
+  --grain: 0.05;
+}
+[data-theme="storm"] {
+  --f50:  #dde4ff; --f100: #bbc4f0; --f200: #8890cc; --f300: #6068b0;
+  --f400: #6060ff; --f500: #5050e0; --f600: #3838b8;
+  --f700: #28287a; --f800: #181850; --f900: #0c0c2a; --f950: #04080f;
+  --grain: 0.06;
+}
+[data-theme="sunny"] {
+  --f50:  #3d2800; --f100: #5a3c00; --f200: #7a5200; --f300: #a07000;
+  --f400: #c07800; --f500: #a06000; --f600: #804800;
+  --f700: #b88a40; --f800: #d4aa70; --f900: #f0d898; --f950: #fffbf0;
+  --grain: 0.02;
+}
+[data-theme="partly-cloudy"] {
+  --f50:  #1e2a38; --f100: #2a3c50; --f200: #4a6080; --f300: #6080a0;
+  --f400: #4a80b0; --f500: #3a70a0; --f600: #2a5888;
+  --f700: #8aa0b8; --f800: #b0c4d8; --f900: #d0dce8; --f950: #f0f4f8;
+  --grain: 0.02;
+}
+[data-theme="cloudy"] {
+  --f50:  #c8ccd4; --f100: #a8adb8; --f200: #7a8090; --f300: #606878;
+  --f400: #6070a0; --f500: #505888; --f600: #404870;
+  --f700: #3a3e48; --f800: #282c34; --f900: #181c22; --f950: #0e1014;
+  --grain: 0.04;
+}
+[data-theme="foggy"] {
+  --f50:  #2a2e32; --f100: #404850; --f200: #606870; --f300: #808890;
+  --f400: #707880; --f500: #606870; --f600: #505860;
+  --f700: #a0a8b0; --f800: #c0c8d0; --f900: #d8dce0; --f950: #e8eaec;
+  --grain: 0.025;
+}
+[data-theme="snow"] {
+  --f50:  #0a1428; --f100: #162040; --f200: #2a4470; --f300: #3c5c90;
+  --f400: #4470cc; --f500: #3460bb; --f600: #2450a0;
+  --f700: #6080b0; --f800: #90b0d0; --f900: #c0d4f0; --f950: #f0f4ff;
+  --grain: 0.02;
+}
+[data-theme="dust"] {
+  --f50:  #e8d0a8; --f100: #d0b080; --f200: #b89060; --f300: #a07040;
+  --f400: #c07830; --f500: #a86020; --f600: #904810;
+  --f700: #705030; --f800: #4a3018; --f900: #2e1c08; --f950: #1a1008;
+  --grain: 0.08;
+}
+[data-theme="night"] {
+  --f50:  #d0d8f0; --f100: #a8b4d8; --f200: #7080b0; --f300: #546090;
+  --f400: #5060c0; --f500: #4050a8; --f600: #303888;
+  --f700: #303860; --f800: #202040; --f900: #101020; --f950: #04060f;
+  --grain: 0.04;
+}
+[data-theme="tropical"] {
+  --f50:  #a8e8d4; --f100: #70c8b0; --f200: #40b090; --f300: #28906e;
+  --f400: #20a878; --f500: #189060; --f600: #107848;
+  --f700: #1a6050; --f800: #0e3828; --f900: #081e14; --f950: #041410;
+  --grain: 0.05;
+}
+[data-theme="sunset"] {
+  --f50:  #f0c8d8; --f100: #e0a0b8; --f200: #d08090; --f300: #c06070;
+  --f400: #e06040; --f500: #c84828; --f600: #a83018;
+  --f700: #704050; --f800: #401828; --f900: #200c14; --f950: #100810;
+  --grain: 0.05;
+}
+[data-theme="flight"] {
+  --f50:  #e8eeff; --f100: #c0ccf0; --f200: #8898cc; --f300: #6070a8;
+  --f400: #a0b0ff; --f500: #8090e0; --f600: #6070c0;
+  --f700: #303860; --f800: #1c2240; --f900: #0e1020; --f950: #02040c;
+  --grain: 0.04;
+}
+
+/* ── Grain overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  opacity: var(--grain, 0.04);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  transition: opacity 0.6s ease;
 }
 
 @layer components {
-
-  /* ── Leaflet container — MUST be isolated so its styles can't bleed out ── */
   .leaflet-container {
     background: #0a1a0a !important;
     font-family: 'Dosis', sans-serif !important;
-    /* Contain the stacking context — prevents green bleed */
-    position: relative !important;
-    isolation: isolate;
+    position: relative !important; isolation: isolate;
     contain: layout paint style;
   }
-
-  /* Carto dark tiles already look dark — NO filter needed.
-     The old hue-rotate(90deg) filter was bleeding outside the map. */
-  .leaflet-tile {
-    /* intentionally empty — carto tiles are already dark */
+  .leaflet-container * { transition: none !important; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #0d2b0d !important; border: 1px solid #196219 !important;
+    border-radius: 12px !important; box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
+    color: #f0faf0 !important; padding: 0 !important;
   }
-
-  /* Popup overrides — dark themed */
-  .leaflet-popup-content-wrapper,
-  .leaflet-popup-tip {
-    background: #0d2b0d !important;
-    border: 1px solid #196219 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
-    color: #f0faf0 !important;
-    padding: 0 !important;
-  }
-  .leaflet-popup-content {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .leaflet-popup-close-button {
-    color: #4dba4d !important;
-    font-size: 16px !important;
-    top: 6px !important;
-    right: 8px !important;
-  }
-
-  .leaflet-control-attribution {
-    background: rgba(8, 34, 8, 0.85) !important;
-    color: #4dba4d !important;
-    font-size: 10px !important;
-  }
+  .leaflet-popup-content { margin: 0 !important; padding: 0 !important; }
+  .leaflet-popup-close-button { color: #4dba4d !important; font-size: 16px !important; top: 6px !important; right: 8px !important; }
+  .leaflet-control-attribution { background: rgba(8,34,8,0.85) !important; color: #4dba4d !important; font-size: 10px !important; }
   .leaflet-control-attribution a { color: #80d580 !important; }
+  .leaflet-control-zoom a { background: var(--f900) !important; color: var(--f300) !important; border-color: var(--f600) !important; }
+  .leaflet-control-zoom a:hover { background: var(--f800) !important; }
 
-  .leaflet-control-zoom a {
-    background: #113f11 !important;
-    color: #80d580 !important;
-    border-color: #2d9e2d !important;
-  }
-  .leaflet-control-zoom a:hover { background: #1f7e1f !important; }
+  .glass      { background: var(--f900); backdrop-filter: blur(12px); border: 1px solid var(--f700); }
+  .glass-dark { background: var(--f950); backdrop-filter: blur(16px); border: 1px solid var(--f800); }
 
-  /* ── Glass card ── */
-  .glass {
-    background: rgba(17, 63, 17, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(45, 158, 45, 0.2);
-  }
-  .glass-dark {
-    background: rgba(8, 34, 8, 0.7);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(45, 158, 45, 0.15);
-  }
-
-  /* ── Buttons ── */
   .btn-primary {
-    @apply bg-forest-600 hover:bg-forest-500 text-forest-50 font-medium py-2.5 px-5 rounded-lg
-           transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply font-medium py-2.5 px-5 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+    background: var(--f500); color: var(--f50);
   }
+  .btn-primary:hover { background: var(--f400); }
   .btn-ghost {
-    @apply bg-transparent hover:bg-forest-900 text-forest-300 hover:text-forest-100 font-medium
-           py-2.5 px-5 rounded-lg border border-forest-700 hover:border-forest-500 transition-all duration-200;
+    @apply font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
+    background: transparent; color: var(--f300); border: 1px solid var(--f700);
   }
-  .btn-danger {
-    @apply bg-red-900 hover:bg-red-800 text-red-100 font-medium py-2.5 px-5 rounded-lg
-           border border-red-700 hover:border-red-500 transition-all duration-200;
-  }
+  .btn-ghost:hover { background: var(--f900); color: var(--f100); border-color: var(--f500); }
+  .btn-danger { @apply bg-red-900 hover:bg-red-800 text-red-100 font-medium py-2.5 px-5 rounded-lg border border-red-700 hover:border-red-500 transition-all duration-200; }
 
-  /* ── Input ── */
   .input {
-    @apply bg-forest-950 border border-forest-700 focus:border-forest-400 text-forest-50
-           placeholder-forest-600 rounded-lg px-4 py-2.5 w-full outline-none
-           transition-colors duration-200 font-body text-sm;
+    @apply rounded-lg px-4 py-2.5 w-full outline-none transition-colors duration-200 font-body text-sm;
+    background: var(--f950); border: 1px solid var(--f700); color: var(--f50);
   }
+  .input::placeholder { color: var(--f600); }
+  .input:focus { border-color: var(--f400); }
 
-  /* ── Animations ── */
-  .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+  .fade-in  { animation: fadeIn 0.4s ease-out forwards; }
   .slide-up { animation: slideUp 0.35s ease-out forwards; }
+  @keyframes fadeIn  { from { opacity: 0; }  to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ── Friend code ── */
-  .friend-code {
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.15em;
-  }
-
-  /* ── Degree badges ── */
+  .friend-code { font-family: 'JetBrains Mono', monospace; letter-spacing: 0.15em; }
   .badge-1 { @apply bg-forest-800 text-forest-300 border border-forest-600; }
   .badge-2 { @apply bg-bark-900 text-bark-300 border border-bark-700; }
   .badge-3 { @apply bg-indigo-950 text-indigo-300 border border-indigo-800; }
 }
 
-/* ── Mobile bottom nav map fix ── */
-/* On mobile, the map container needs to not extend behind the bottom nav */
 @media (max-width: 1023px) {
-  .leaflet-container {
-    /* Leaflet fills its parent — parent uses pb-16 so this is fine */
-  }
-
-  /* Ensure leaflet controls don't hide behind bottom nav */
-  .leaflet-bottom {
-    bottom: 4rem !important;
-  }
+  .leaflet-bottom { bottom: 4rem !important; }
 }
-
-/* Safe area support for notched phones (iPhone etc) */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
-  nav.fixed.bottom-0 {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+  nav.fixed.bottom-0 { padding-bottom: env(safe-area-inset-bottom); }
 }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   THEME SYSTEM — CSS custom properties
-   Applied via data-theme="..." on <html>
-   Default (no attribute) = dark (slate)
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-:root,
-[data-theme="dark"] {
-  --bg:          #070d09;
-  --card:        rgba(14, 22, 16, 0.6);
-  --border:      rgba(35, 55, 40, 0.45);
-  --border-s:    rgba(55, 80, 60, 0.65);
-  --t1:          #8fa890;
-  --t2:          #5e7862;
-  --t3:          #364a39;
-  --t4:          #1e2e20;
-  --accent:      #4a6b4f;
-  --accent-h:    #597a5e;
-  --accent-soft: rgba(74, 107, 79, 0.15);
-  --sidebar:     rgba(6, 11, 7, 0.95);
-  --pill:        rgba(25, 40, 27, 0.6);
-  --grain:       0.04;
-  --scrollbar:   #2d4a2f;
-  --scrollbar-t: #0d1f0e;
-}
-
-[data-theme="light"] {
-  --bg:          #e8f5e9;
-  --card:        rgba(200, 238, 208, 0.65);
-  --border:      rgba(90, 160, 110, 0.35);
-  --border-s:    rgba(60, 130, 80, 0.55);
-  --t1:          #1a3d22;
-  --t2:          #2d6638;
-  --t3:          #5a9a6a;
-  --t4:          #8cc898;
-  --accent:      #2e7d44;
-  --accent-h:    #226634;
-  --accent-soft: rgba(46, 125, 68, 0.12);
-  --sidebar:     rgba(200, 238, 210, 0.95);
-  --pill:        rgba(140, 200, 160, 0.35);
-  --grain:       0.01;
-  --scrollbar:   #5a9a6a;
-  --scrollbar-t: #b5e5c0;
-}
-
-/* ── Weather themes ── */
-[data-theme="rain"] {
-  --bg: #060d12; --card: rgba(10,20,30,0.65);
-  --border: rgba(40,80,110,0.45); --border-s: rgba(60,110,150,0.6);
-  --t1: #c8dde8; --t2: #7aaabb; --t3: #3a5a6a; --t4: #1a2a34;
-  --accent: #4a8fa8; --accent-h: #5aafc8; --accent-soft: rgba(74,143,168,0.15);
-  --sidebar: rgba(6,14,20,0.95); --pill: rgba(20,50,70,0.6); --grain: 0.05;
-  --scrollbar: #4a8fa8; --scrollbar-t: #061420;
-}
-[data-theme="storm"] {
-  --bg: #04080f; --card: rgba(8,14,22,0.75);
-  --border: rgba(50,60,120,0.5); --border-s: rgba(80,90,180,0.65);
-  --t1: #dde4ff; --t2: #8890cc; --t3: #3a3f70; --t4: #1a1e38;
-  --accent: #6060ff; --accent-h: #8080ff; --accent-soft: rgba(96,96,255,0.15);
-  --sidebar: rgba(4,7,14,0.97); --pill: rgba(30,35,80,0.6); --grain: 0.06;
-  --scrollbar: #6060ff; --scrollbar-t: #04080f;
-}
-[data-theme="sunny"] {
-  --bg: #fffbf0; --card: rgba(255,243,210,0.70);
-  --border: rgba(210,160,60,0.35); --border-s: rgba(200,140,40,0.55);
-  --t1: #3d2800; --t2: #7a5200; --t3: #b88a40; --t4: #d4aa70;
-  --accent: #e09000; --accent-h: #c07800; --accent-soft: rgba(224,144,0,0.12);
-  --sidebar: rgba(255,245,220,0.95); --pill: rgba(240,200,100,0.35); --grain: 0.02;
-  --scrollbar: #e09000; --scrollbar-t: #fff8e0;
-}
-[data-theme="partly-cloudy"] {
-  --bg: #f0f4f8; --card: rgba(220,230,240,0.65);
-  --border: rgba(160,180,200,0.40); --border-s: rgba(130,160,190,0.55);
-  --t1: #1e2a38; --t2: #4a6080; --t3: #8aa0b8; --t4: #b8cad8;
-  --accent: #4a80b0; --accent-h: #3a70a0; --accent-soft: rgba(74,128,176,0.12);
-  --sidebar: rgba(225,232,240,0.95); --pill: rgba(170,190,210,0.35); --grain: 0.02;
-  --scrollbar: #4a80b0; --scrollbar-t: #dce8f0;
-}
-[data-theme="cloudy"] {
-  --bg: #0e1014; --card: rgba(20,22,26,0.65);
-  --border: rgba(55,60,70,0.45); --border-s: rgba(75,82,96,0.6);
-  --t1: #c8ccd4; --t2: #7a8090; --t3: #3a3e48; --t4: #1e2028;
-  --accent: #6070a0; --accent-h: #7080b0; --accent-soft: rgba(96,112,160,0.15);
-  --sidebar: rgba(10,12,16,0.95); --pill: rgba(40,44,55,0.6); --grain: 0.04;
-  --scrollbar: #6070a0; --scrollbar-t: #0e1014;
-}
-[data-theme="foggy"] {
-  --bg: #e8eaec; --card: rgba(210,215,220,0.60);
-  --border: rgba(150,158,165,0.30); --border-s: rgba(130,140,150,0.45);
-  --t1: #2a2e32; --t2: #606870; --t3: #a0a8b0; --t4: #c4c8cc;
-  --accent: #707880; --accent-h: #606870; --accent-soft: rgba(112,120,128,0.12);
-  --sidebar: rgba(215,218,222,0.95); --pill: rgba(170,176,182,0.35); --grain: 0.025;
-  --scrollbar: #707880; --scrollbar-t: #d0d4d8;
-}
-[data-theme="snow"] {
-  --bg: #f0f4ff; --card: rgba(220,230,255,0.65);
-  --border: rgba(140,170,220,0.40); --border-s: rgba(110,148,210,0.55);
-  --t1: #0a1428; --t2: #2a4470; --t3: #6080b0; --t4: #a0b8d8;
-  --accent: #4470cc; --accent-h: #3460bb; --accent-soft: rgba(68,112,204,0.12);
-  --sidebar: rgba(225,232,255,0.95); --pill: rgba(160,185,235,0.35); --grain: 0.02;
-  --scrollbar: #4470cc; --scrollbar-t: #dce8ff;
-}
-[data-theme="hail"] {
-  --bg: #080e18; --card: rgba(14,22,36,0.70);
-  --border: rgba(60,100,150,0.50); --border-s: rgba(80,128,188,0.65);
-  --t1: #b8cce0; --t2: #6888a8; --t3: #304060; --t4: #182030;
-  --accent: #4878b8; --accent-h: #5888c8; --accent-soft: rgba(72,120,184,0.15);
-  --sidebar: rgba(6,10,18,0.97); --pill: rgba(28,48,78,0.6); --grain: 0.05;
-  --scrollbar: #4878b8; --scrollbar-t: #080e18;
-}
-[data-theme="cyclone"] {
-  --bg: #050a08; --card: rgba(10,18,14,0.75);
-  --border: rgba(40,80,55,0.55); --border-s: rgba(55,110,75,0.7);
-  --t1: #b8d4c0; --t2: #6a9878; --t3: #304838; --t4: #182418;
-  --accent: #3a7850; --accent-h: #4a8860; --accent-soft: rgba(58,120,80,0.15);
-  --sidebar: rgba(4,8,6,0.97); --pill: rgba(22,44,28,0.6); --grain: 0.07;
-  --scrollbar: #3a7850; --scrollbar-t: #050a08;
-}
-[data-theme="dust"] {
-  --bg: #1a1008; --card: rgba(40,26,10,0.70);
-  --border: rgba(120,80,30,0.50); --border-s: rgba(160,108,40,0.65);
-  --t1: #e8d0a8; --t2: #b89060; --t3: #705030; --t4: #3a2810;
-  --accent: #c07830; --accent-h: #d08840; --accent-soft: rgba(192,120,48,0.15);
-  --sidebar: rgba(16,10,4,0.97); --pill: rgba(70,42,12,0.6); --grain: 0.08;
-  --scrollbar: #c07830; --scrollbar-t: #1a1008;
-}
-[data-theme="ash"] {
-  --bg: #100e0c; --card: rgba(24,20,16,0.70);
-  --border: rgba(80,65,50,0.50); --border-s: rgba(108,88,68,0.65);
-  --t1: #d4c8b8; --t2: #907868; --t3: #504038; --t4: #28201a;
-  --accent: #c06030; --accent-h: #d07040; --accent-soft: rgba(192,96,48,0.15);
-  --sidebar: rgba(10,8,6,0.97); --pill: rgba(56,44,32,0.6); --grain: 0.06;
-  --scrollbar: #c06030; --scrollbar-t: #100e0c;
-}
-[data-theme="tropical"] {
-  --bg: #041410; --card: rgba(8,28,22,0.70);
-  --border: rgba(20,100,75,0.50); --border-s: rgba(28,140,105,0.65);
-  --t1: #a8e8d4; --t2: #40b090; --t3: #1a6050; --t4: #0a3028;
-  --accent: #20a878; --accent-h: #30c090; --accent-soft: rgba(32,168,120,0.15);
-  --sidebar: rgba(4,12,10,0.97); --pill: rgba(12,60,44,0.6); --grain: 0.05;
-  --scrollbar: #20a878; --scrollbar-t: #041410;
-}
-[data-theme="sunset"] {
-  --bg: #100810; --card: rgba(28,14,22,0.70);
-  --border: rgba(120,50,80,0.50); --border-s: rgba(168,70,110,0.65);
-  --t1: #f0c8d8; --t2: #d08090; --t3: #704050; --t4: #381828;
-  --accent: #e06040; --accent-h: #f07050; --accent-soft: rgba(224,96,64,0.15);
-  --sidebar: rgba(10,6,10,0.97); --pill: rgba(70,28,48,0.6); --grain: 0.05;
-  --scrollbar: #e06040; --scrollbar-t: #100810;
-}
-[data-theme="night"] {
-  --bg: #04060f; --card: rgba(8,12,24,0.70);
-  --border: rgba(30,40,80,0.45); --border-s: rgba(44,58,120,0.6);
-  --t1: #d0d8f0; --t2: #7080b0; --t3: #303860; --t4: #181c30;
-  --accent: #5060c0; --accent-h: #6070d0; --accent-soft: rgba(80,96,192,0.15);
-  --sidebar: rgba(4,5,12,0.97); --pill: rgba(20,26,58,0.6); --grain: 0.04;
-  --scrollbar: #5060c0; --scrollbar-t: #04060f;
-}
-[data-theme="flight"] {
-  --bg: #02040c; --card: rgba(6,10,22,0.75);
-  --border: rgba(40,50,100,0.40); --border-s: rgba(60,75,150,0.55);
-  --t1: #e8eeff; --t2: #8898cc; --t3: #303860; --t4: #141830;
-  --accent: #a0b0ff; --accent-h: #c0d0ff; --accent-soft: rgba(160,176,255,0.12);
-  --sidebar: rgba(2,4,10,0.98); --pill: rgba(20,25,60,0.6); --grain: 0.04;
-  --scrollbar: #a0b0ff; --scrollbar-t: #02040c;
-}
-
-/* ── Apply CSS vars to body and scrollbar ── */
-body {
-  background-color: var(--bg) !important;
-  color: var(--t1) !important;
-  transition: background-color 0.6s ease, color 0.4s ease;
-}
-::-webkit-scrollbar-track { background: var(--scrollbar-t) !important; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar) !important; }
-
-/* ── Grain overlay ── */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  pointer-events: none;
-  opacity: var(--grain, 0.04);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  transition: opacity 0.6s ease;
-}
-
-/* ── Themed utility classes (used in JSX) ── */
-.theme-bg     { background-color: var(--bg); }
-.theme-card   { background: var(--card); border: 1px solid var(--border); }
-.theme-t1     { color: var(--t1); }
-.theme-t2     { color: var(--t2); }
-.theme-t3     { color: var(--t3); }
-.theme-accent { color: var(--accent); }
