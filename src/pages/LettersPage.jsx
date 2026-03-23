@@ -378,10 +378,10 @@ export default function LettersPage() {
   // Also triggers a reload so the letter moves from in-transit to received
   const triggerArrived = React.useCallback(async (letterList) => {
     const due = letterList.filter(l =>
-      l.isInbox &&               // only recipient triggers this
-      l.inTransit &&             // still marked in-transit
-      new Date(l.arrivesAt) <= new Date() &&
-      !arrivedIds.current.has(l.id)
+      l.isInbox &&                          // only recipient triggers this
+      !l.seedsAwarded &&                    // seeds not yet awarded
+      new Date(l.arrivesAt) <= new Date() && // letter has arrived
+      !arrivedIds.current.has(l.id)         // not already called this session
     )
     for (const l of due) {
       arrivedIds.current.add(l.id)  // mark immediately to prevent double-call
