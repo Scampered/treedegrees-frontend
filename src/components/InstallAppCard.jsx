@@ -30,7 +30,7 @@ export default function InstallAppCard() {
   // Start letter arrival polling when notifications are granted
   useEffect(() => {
     if (notificationsEnabled()) {
-      startLetterPolling(() => lettersApi.list().then(r => r.data))
+      startLetterPolling()
       return () => stopLetterPolling()
     }
   }, [notifPerm])

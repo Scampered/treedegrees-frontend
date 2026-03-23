@@ -68,19 +68,26 @@ export default function Layout() {
 
       import('../api/client').then(({ lettersApi: la }) => {
         la.streaks().then(r => {
-          const atRisk = (r.data || []).filter(s => s.streakDays > 0 && s.fuel === 1)
+          // Only warn about streaks where YOU haven't sent yet today
+          const atRisk = (r.data || []).filter(s =>
+            s.streakDays > 0 && s.fuel <= 1 && !s.iSentToday
+          )
           if (atRisk.length === 0) return
+          // Use a daily localStorage key so we don't spam on every page load
+          const warnKey = `td_streak_warned_${new Date().toISOString().split('T')[0]}`
+          if (localStorage.getItem(warnKey)) return
+          localStorage.setItem(warnKey, '1')
           import('../utils/notifications').then(({ showLocalNotification }) => {
             if (atRisk.length === 1) {
               showLocalNotification(
-                '⌛ Streak about to break!',
-                `Send a letter to ${atRisk[0].displayName} before midnight to keep your streak alive.`,
+                '⌛ Streak at risk!',
+                `Send a letter to ${atRisk[0].displayName} before midnight.`,
                 '/letters', 'streak-warning'
               )
             } else {
               showLocalNotification(
-                `⌛ ${atRisk.length} streaks about to break!`,
-                `Send letters to ${atRisk.map(s=>s.displayName).join(', ')} before midnight.`,
+                `⌛ ${atRisk.length} streaks at risk!`,
+                `You haven\'t sent to ${atRisk.map(s=>s.displayName).join(', ')} today.`,
                 '/letters', 'streak-warning'
               )
             }

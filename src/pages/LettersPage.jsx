@@ -395,16 +395,20 @@ export default function LettersPage() {
       new Date(l.arrivesAt) <= new Date() && // letter has arrived
       !calledIds.has(l.id)                   // not already processed (persists across refreshes)
     )
+    let anyAwarded = false
     for (const l of due) {
       addCalledId(l.id) // mark before call to prevent race
       try {
-        await lettersApi.arrived(l.id)
-        console.log('[Letters] /arrived →', l.id)
+        const res = await lettersApi.arrived(l.id)
+        console.log('[Letters] /arrived →', l.id, res?.data)
+        anyAwarded = true
       } catch (e) {
         if (e?.response?.status !== 404) console.warn('[Letters] arrived err:', e?.message)
       }
     }
     if (due.length > 0) reload()
+    // Notify other parts of the app that seeds changed
+    if (anyAwarded) window.dispatchEvent(new Event('seeds-updated'))
   }, [reload])
 
   // Check on every letters update
