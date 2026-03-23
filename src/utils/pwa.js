@@ -1,12 +1,30 @@
-// src/utils/pwa.js — PWA install prompt + notification utilities
+// src/utils/pwa.js — PWA install + notifications
 import { lettersApi } from '../api/client'
 
-// ── Install prompt ────────────────────────────────────────────────────────────
-let _deferredPrompt = null
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _deferredPrompt = e; window.dispatchEvent(new Event('pwa-installable')) })
-window.addEventListener('appinstalled', () => { _deferredPrompt = null; window.dispatchEvent(new Event('pwa-installed')) })
+// ── Device & install helpers ──────────────────────────────────────────────────
+export function getDeviceType() {
+  const ua = navigator.userAgent
+  if (/iPhone|iPad|iPod/.test(ua)) return 'ios'
+  if (/Android/.test(ua)) return 'android'
+  return 'desktop'
+}
 
-export function isPWAInstallable() { return !!_deferredPrompt }
+export function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+}
+
+let _deferredPrompt = null
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); _deferredPrompt = e
+  window.dispatchEvent(new Event('pwa-installable'))
+})
+window.addEventListener('appinstalled', () => {
+  _deferredPrompt = null
+  window.dispatchEvent(new Event('pwa-installed'))
+})
+
+export function canShowInstallPrompt() { return !!_deferredPrompt }
+
 export async function triggerInstallPrompt() {
   if (!_deferredPrompt) return false
   _deferredPrompt.prompt()
@@ -14,17 +32,32 @@ export async function triggerInstallPrompt() {
   _deferredPrompt = null
   return outcome === 'accepted'
 }
-export function isPWAInstalled() {
-  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
-}
 
 // ── Notification permission ───────────────────────────────────────────────────
+export function getNotifPermission() {
+  if (!('Notification' in window)) return 'unsupported'
+  return Notification.permission // 'default' | 'granted' | 'denied'
+}
+
+export async function requestNotifPermission() {
+  if (!('Notification' in window)) return 'unsupported'
+  if (Notification.permission === 'granted') return 'granted'
+  if (Notification.permission === 'denied') return 'denied'
+  const result = await Notification.requestPermission()
+  if (result === 'granted') {
+    // Subscribe to Web Push for background notifications
+    import('./notifications').then(({ subscribeToPush }) => {
+      subscribeToPush().catch(() => {})
+    })
+  }
+  return result
+}
+
 export function notificationsEnabled() {
   return 'Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator
 }
 
-// ── Show a local notification via the service worker ─────────────────────────
-// tag deduplication: same tag replaces the previous notification silently
+// ── Show notification via service worker ─────────────────────────────────────
 export async function showNotification(title, body, url = '/dashboard', tag = 'td') {
   if (!notificationsEnabled()) return
   try {
@@ -36,29 +69,16 @@ export async function showNotification(title, body, url = '/dashboard', tag = 't
   } catch {}
 }
 
-// ── Streak warning ────────────────────────────────────────────────────────────
-export async function notifyStreakWarning(friendName) {
-  await showNotification(
-    '⌛ Streak at risk!',
-    `Send a letter to ${friendName} before midnight.`,
-    '/letters',
-    'streak-warning'
-  )
-}
-
-// ── Letter arrival notification ───────────────────────────────────────────────
 export async function notifyLetterArrived(senderName, vehicleEmoji) {
   await showNotification(
     `${vehicleEmoji} Letter arrived!`,
     `${senderName} sent you a letter. Open it now!`,
     '/letters',
-    `letter-arrived-${senderName}` // stable tag so same sender doesn't stack
+    `letter-arrived-${senderName}`
   )
 }
 
-// ── Letter polling — persists seen IDs in localStorage ───────────────────────
-// This is the ONLY place letter arrival notifications are fired.
-// IDs are stored in localStorage so they survive page refreshes.
+// ── Letter polling — persists seen IDs across refreshes ──────────────────────
 let _letterPollInterval = null
 
 function getSeenIds() {
@@ -71,14 +91,12 @@ function addSeenId(id) {
     localStorage.setItem('td_notif_seen', JSON.stringify([...ids].slice(-500)))
   } catch {}
 }
-// Seed the seen set from current letter list on startup — prevents spam on app open
+
+// Seed all currently-arrived letters as seen so we don't spam on app open
 async function seedSeenIds() {
   try {
     const r = await lettersApi.list()
-    const letters = r.data || []
-    // Mark ALL currently arrived inbox letters as already seen
-    // Only NEW arrivals after this point will trigger a notification
-    for (const l of letters) {
+    for (const l of (r.data || [])) {
       if (l.isInbox && !l.inTransit) addSeenId(l.id)
     }
   } catch {}
@@ -86,17 +104,14 @@ async function seedSeenIds() {
 
 export function startLetterPolling(intervalMs = 60000) {
   if (_letterPollInterval) return
-  // Seed seen IDs first — this prevents the "spam on open" bug
   seedSeenIds().then(() => {
     _letterPollInterval = setInterval(async () => {
       if (!notificationsEnabled()) return
       try {
         const r = await lettersApi.list()
-        const letters = r.data || []
         const seen = getSeenIds()
-        for (const l of letters) {
-          if (!l.isInbox || l.inTransit) continue
-          if (seen.has(l.id)) continue
+        for (const l of (r.data || [])) {
+          if (!l.isInbox || l.inTransit || seen.has(l.id)) continue
           addSeenId(l.id)
           await notifyLetterArrived(l.senderName, l.vehicleEmoji || '✉️')
         }
