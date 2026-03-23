@@ -13,16 +13,24 @@ const WINDOWS = [
 ]
 
 
+// Tiered fee — mirrors backend withdrawFeeRate()
+function withdrawFeeRate(principal) {
+  if (principal < 50)  return 0.08
+  if (principal < 150) return 0.12
+  if (principal < 300) return 0.16
+  return 0.20
+}
+
 // ── Compute withdraw payout preview (mirrors backend logic) ──────────────────
 function computePayout(principal, seedsAtInvest, currentSeeds) {
   if (!principal) return 0
   const baseline   = Math.max(10, seedsAtInvest || currentSeeds || 10)
   const multiplier = Math.min(10, Math.max(0, currentSeeds / baseline))
-  const activeHalf = principal / 2
+  const activeHalf = Math.floor(principal / 2)
   const safeHalf   = principal - activeHalf
-  const totalValue = Math.floor(safeHalf + activeHalf * multiplier)
-  const fee        = Math.floor(totalValue * 0.20)
-  return totalValue - fee
+  const activeValue = Math.floor(activeHalf * multiplier)
+  const fee        = Math.floor(activeValue * withdrawFeeRate(principal))
+  return safeHalf + activeValue - fee
 }
 
 // ── Full chart with axes ──────────────────────────────────────────────────────
@@ -288,7 +296,7 @@ function WithdrawModal({ target, onDone, onClose }) {
   const wPrincipal = Math.floor(target.myInvestment * frac)
   const wActive    = Math.floor((wPrincipal / 2) * mult)
   const wSafe      = wPrincipal - Math.floor(wPrincipal / 2)
-  const wFee       = Math.floor(wActive * 0.20)
+  const wFee       = Math.floor(wActive * withdrawFeeRate(wPrincipal))
   const wPayout    = wSafe + wActive - wFee
   const wProfit    = wPayout - wPrincipal
 
@@ -370,8 +378,6 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
   const rising = person.history?.length >= 2 &&
     person.history[person.history.length-1]?.seeds >= person.history[0]?.seeds
   const trendCol = rising ? '#4ade80' : '#f87171'
-  const fee      = Math.floor((person.myInvestment || 0) * 0.10)
-  const payout   = (person.myInvestment || 0) - fee
 
   return (
     <div className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-700 transition-colors overflow-hidden">

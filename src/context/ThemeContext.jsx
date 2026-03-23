@@ -27,11 +27,12 @@ function weatherIdToTheme(id, isDay) {
 
 // ── Fetch weather (wttr.in primary, OWM fallback) ─────────────────────────────
 async function fetchThemeForLocation(city, country, bust = false) {
+  const locKey = (city + '|' + country).toLowerCase()
   if (!bust) {
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
-      if (cached && Date.now() - cached.at < CACHE_MS) {
-        console.log('[Theme] cache hit:', cached.theme)
+      if (cached && cached.locKey === locKey && Date.now() - cached.at < CACHE_MS) {
+        console.log('[Theme] cache hit:', cached.theme, 'for', locKey)
         return cached.theme
       }
     } catch {}
@@ -49,18 +50,19 @@ async function fetchThemeForLocation(city, country, bust = false) {
     if (res.ok) {
       const d    = await res.json()
       const code = parseInt(d.current_condition?.[0]?.weatherCode || '113')
+      // wttr.in weather codes
       let id = 800
-      if (code === 113)                          id = 800
-      else if (code === 116)                     id = 801
-      else if (code === 119 || code === 122)     id = 804
-      else if ([143,248,260].includes(code))     id = 741
-      else if (code >= 263 && code <= 281)       id = 300
-      else if (code >= 293 && code <= 321)       id = 500
-      else if (code >= 353 && code <= 395)       id = 500
-      else if (code >= 200 && code <= 232)       id = 200
-      else if (code >= 386 && code <= 395)       id = 200
-      else if (code >= 227 && code <= 260)       id = 600
-      else if (code >= 323 && code <= 350)       id = 600
+      if (code === 113)                                    id = 800 // Clear
+      else if (code === 116)                               id = 801 // Partly cloudy
+      else if (code === 119 || code === 122)               id = 804 // Cloudy/overcast
+      else if (code === 143 || code === 248 || code === 260) id = 741 // Fog/mist
+      else if (code === 263 || code === 266 || code === 281 || code === 284) id = 300 // Drizzle
+      else if (code === 176 || (code >= 293 && code <= 320)) id = 500 // Rain
+      else if (code >= 353 && code <= 377)                 id = 500 // Rain showers
+      else if (code === 386 || code === 389)               id = 200 // Thunder + rain ⛈️
+      else if (code === 392 || code === 395)               id = 200 // Thunder + snow
+      else if (code >= 179 && code <= 230)                 id = 601 // Blizzard/heavy snow
+      else if (code >= 323 && code <= 350 || code === 368 || code === 371) id = 600 // Snow
       const sun = d.weather?.[0]?.astronomy?.[0]
       const parse12 = s => {
         if (!s) return null
@@ -77,7 +79,7 @@ async function fetchThemeForLocation(city, country, bust = false) {
       const isDay = rise && set ? now >= rise && now < set : true
       const theme = weatherIdToTheme(id, isDay)
       console.log('[Theme] wttr.in code:', code, '→', theme, '(isDay:', isDay + ')')
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ theme, city, country, at: Date.now() }))
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ theme, locKey, at: Date.now() }))
       return theme
     }
   } catch (e) { console.warn('[Theme] wttr.in failed:', e.message) }
@@ -94,7 +96,7 @@ async function fetchThemeForLocation(city, country, bust = false) {
       const isDay = Date.now() >= d.sys.sunrise * 1000 && Date.now() < d.sys.sunset * 1000
       const theme = weatherIdToTheme(id, isDay)
       console.log('[Theme] OWM id:', id, '→', theme)
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ theme, city, country, at: Date.now() }))
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ theme, locKey, at: Date.now() }))
       return theme
     }
   } catch (e) { console.warn('[Theme] OWM failed:', e.message) }
