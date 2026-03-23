@@ -314,6 +314,24 @@ export function ThemeProvider({ children }) {
     }
   }, [])
 
+  // Re-check weather every 15 minutes when adaptive mode is active
+  useEffect(() => {
+    const POLL_MS = 15 * 60 * 1000
+    const poll = () => {
+      const pref = localStorage.getItem(PREF_KEY) || 'dark'
+      if (pref !== 'adaptive') return
+      const loc = lastLocRef.current
+      if (!loc || loc === '|') return
+      const [city, country] = loc.split('|')
+      console.log('[Theme] 15-min poll → re-checking weather for', loc)
+      // Force bust so it always fetches fresh on the interval
+      localStorage.removeItem(CACHE_KEY)
+      applyAdaptive(city, country, true)
+    }
+    const iv = setInterval(poll, POLL_MS)
+    return () => clearInterval(iv)
+  }, []) // eslint-disable-line
+
   // Update particles when active theme changes
   useEffect(() => {
     engineRef.current?.setTheme(active)
