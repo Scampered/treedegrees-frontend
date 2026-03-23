@@ -205,46 +205,43 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
 
 // ── Market chart card (Canopy + Crude) ───────────────────────────────────────
 function MarketCard({ market }) {
-  const isCrude   = market === 'crude'
-  const label     = isCrude ? '🛢️ Crude' : '🌳 The Canopy'
-  const subtitle  = isCrude ? 'Oil & fuel market' : 'Platform economy index'
+  const isCrude  = market === 'crude'
+  const label    = isCrude ? '🛢️ Crude' : '🌳 The Canopy'
+  const subtitle = isCrude ? 'Oil & fuel market' : 'Platform economy index'
+  const lineCol  = isCrude ? '#b87820' : '#c8a830'
+  const areaCol  = isCrude ? 'rgba(184,120,32,0.10)' : 'rgba(200,168,48,0.12)'
 
-  // Theme-aware colours: gold for canopy, dark amber for crude
-  const lineCol   = isCrude ? '#b87820' : '#c8a830'
-  const areaCol   = isCrude ? 'rgba(184,120,32,0.10)' : 'rgba(200,168,48,0.12)'
-
-  const [win, setWin]       = useState('1d')
-  const [data, setData]     = useState(null)
-  const [state, setState]   = useState(null)
-  const [pos, setPos]       = useState(null)    // my position
-  const [loading, setLoad]  = useState(true)
-  const [investing, setInv] = useState(false)
-  const [amount, setAmount] = useState(20)
-  const [withdrawing, setWithdrawing] = useState(false)
-  const [withdrawAmt, setWithdrawAmt] = useState(0)
-  const [busy, setBusy]     = useState(false)
-  const [msg, setMsg]       = useState('')
+  const [win, setWin]           = useState('1d')
+  const [data, setData]         = useState(null)
+  const [state, setState]       = useState(null)
+  const [pos, setPos]           = useState(null)
+  const [loading, setLoad]      = useState(true)
+  const [showInvest, setShowInv] = useState(false)
+  const [showWithdraw, setShowW] = useState(false)
+  const [amount, setAmount]     = useState(20)
+  const [withdrawAmt, setWAmt]  = useState(0)
+  const [busy, setBusy]         = useState(false)
+  const [error, setError]       = useState('')
   const wrapRef = useRef(null)
-  const [chartW, setChartW] = useState(320)
-  const timer = useRef(null)
+  const [chartW, setChartW]     = useState(320)
+  const timer   = useRef(null)
 
   useEffect(() => {
     if (!wrapRef.current) return
     const ro = new ResizeObserver(e => setChartW(Math.floor(e[0].contentRect.width) || 320))
-    ro.observe(wrapRef.current)
-    return () => ro.disconnect()
+    ro.observe(wrapRef.current); return () => ro.disconnect()
   }, [])
 
   const load = useCallback(async () => {
     try {
-      const [histRes, stateRes, posRes] = await Promise.all([
+      const [h, s, p] = await Promise.all([
         marketApi.history(market, win),
         marketApi.state(),
         marketApi.positions(),
       ])
-      setData(histRes.data.data || [])
-      setState(stateRes.data[market])
-      setPos(posRes.data.find(p => p.market === market) || null)
+      setData(h.data.data || [])
+      setState(s.data[market])
+      setPos(p.data.find(x => x.market === market) || null)
     } catch {} finally { setLoad(false) }
   }, [market, win])
 
@@ -255,58 +252,58 @@ function MarketCard({ market }) {
     return () => clearInterval(timer.current)
   }, [load, win])
 
-  // Payout preview for position
+  // Payout calculations
   const baseline    = pos ? Math.max(1, pos.priceAtInvest) : 1
   const currentP    = state?.price || baseline
   const mult        = Math.min(10, Math.max(0, currentP / baseline))
-  const wAmt2       = withdrawAmt || pos?.amount || 0
-  const frac2       = pos ? wAmt2 / pos.amount : 0
-  const wPrincipal2 = pos ? Math.floor(pos.amount * frac2) : 0
-  const wActive2    = Math.floor((wPrincipal2 / 2) * mult)
-  const wSafe2      = wPrincipal2 - Math.floor(wPrincipal2 / 2)
-  const feeRate2    = withdrawFeeRate(wPrincipal2)
-  const wFee2       = Math.floor(wActive2 * feeRate2)
-  const wPayout2    = wSafe2 + wActive2 - wFee2
-  const wProfit2    = wPayout2 - wPrincipal2
+  const wAmt        = withdrawAmt || (pos?.amount ?? 0)
+  const frac        = pos ? wAmt / pos.amount : 0
+  const wPrincipal  = pos ? Math.floor(pos.amount * frac) : 0
+  const wActive     = Math.floor((wPrincipal / 2) * mult)
+  const wSafe       = wPrincipal - Math.floor(wPrincipal / 2)
+  const wFee        = Math.floor(wActive * withdrawFeeRate(wPrincipal))
+  const wPayout     = wSafe + wActive - wFee
+  const wProfit     = wPayout - wPrincipal
+
+  const diff   = data?.length >= 2 ? Math.round(data[data.length-1].seeds - data[0].seeds) : 0
+  const rising = diff >= 0
 
   const doInvest = async () => {
     if (amount < 10) return
-    setBusy(true); setMsg('')
-    try { await marketApi.invest(market, amount); setInv(false); load(); setMsg(`Invested 🌱${amount}`) }
-    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
-    finally { setBusy(false) }
-  }
-  const doWithdraw = async () => {
-    setBusy(true); setMsg('')
-    const isPartial = withdrawAmt < pos.amount
-    try { await marketApi.withdraw(market, isPartial ? withdrawAmt : undefined); setWithdrawing(false); load(); setMsg('Withdrawn') }
-    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    setBusy(true); setError('')
+    try { await marketApi.invest(market, amount); setShowInv(false); load() }
+    catch (e) { setError(e.response?.data?.error || 'Failed') }
     finally { setBusy(false) }
   }
 
-  const diff = data && data.length >= 2 ? Math.round(data[data.length-1].seeds - data[0].seeds) : 0
-  const rising = diff >= 0
+  const doWithdraw = async () => {
+    setBusy(true); setError('')
+    try {
+      const isPartial = wAmt < pos.amount
+      await marketApi.withdraw(market, isPartial ? wAmt : undefined)
+      setShowW(false); load()
+    } catch (e) { setError(e.response?.data?.error || 'Failed') }
+    finally { setBusy(false) }
+  }
 
   return (
+    <>
     <div className="rounded-2xl border overflow-hidden"
-      style={{ borderColor: isCrude ? 'rgba(184,120,32,0.4)' : 'rgba(200,168,48,0.4)',
-               background: isCrude ? 'rgba(30,18,4,0.6)' : 'rgba(28,22,4,0.6)' }}>
+      style={{ borderColor: lineCol+'66', background:'rgba(20,14,2,0.5)' }}>
 
       {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-start justify-between">
+      <div className="px-4 pt-4 pb-1 flex items-start justify-between">
         <div>
           <p className="font-display text-lg leading-none" style={{ color: lineCol }}>{label}</p>
-          <p className="text-xs mt-0.5" style={{ color: lineCol + '88' }}>{subtitle}</p>
+          <p className="text-xs mt-0.5" style={{ color: lineCol+'88' }}>{subtitle}</p>
         </div>
         <div className="text-right">
           <p className="font-mono font-bold text-xl" style={{ color: lineCol }}>
             {loading ? '…' : Math.round(state?.price || 0)}
           </p>
-          {pos && (
-            <p className="text-xs font-mono mt-0.5" style={{ color: mult >= 1 ? '#4ade80' : '#f87171' }}>
-              ×{mult.toFixed(2)} · 🌱{pos.amount}
-            </p>
-          )}
+          <p className="text-xs mt-0.5" style={{ color: rising ? '#4ade80' : '#f87171' }}>
+            {diff >= 0 ? '+' : ''}{diff} since {win}
+          </p>
         </div>
       </div>
 
@@ -317,108 +314,164 @@ function MarketCard({ market }) {
             style={{
               padding:'2px 8px', borderRadius:20, fontSize:10, fontWeight:600, cursor:'pointer',
               background: win===w ? lineCol+'33' : 'transparent',
-              border: `1px solid ${win===w ? lineCol : lineCol+'33'}`,
-              color: win===w ? lineCol : lineCol+'66',
+              border:`1px solid ${win===w ? lineCol : lineCol+'33'}`,
+              color: win===w ? lineCol : lineCol+'55',
             }}>{w}</button>
         ))}
-        {loading && <span style={{ fontSize:9, color: lineCol+'44', alignSelf:'center' }}>…</span>}
       </div>
 
       {/* Chart */}
-      <div ref={wrapRef} className="px-3 pb-2">
-        {data && <StockChart data={data} win={win} w={chartW} h={80} overrideCol={lineCol} overrideArea={areaCol}/>}
-        {!data && <div style={{ height:80, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <span style={{ fontSize:10, color: lineCol+'44' }}>Loading…</span>
-        </div>}
-        <div style={{ display:'flex', justifyContent:'flex-end', marginTop:2 }}>
-          <span style={{ fontSize:9, fontFamily:'monospace', color: rising ? '#4ade80' : '#f87171' }}>
-            {diff >= 0 ? '+' : ''}{diff} since {win}
-          </span>
-        </div>
+      <div ref={wrapRef} className="px-3 pb-1">
+        {data
+          ? <StockChart data={data} win={win} w={chartW} h={80} overrideCol={lineCol} overrideArea={areaCol}/>
+          : <div style={{ height:80, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <span style={{ fontSize:10, color:lineCol+'44' }}>Loading…</span>
+            </div>
+        }
       </div>
 
-      {/* Position info */}
-      {pos && !withdrawing && (
-        <div className="mx-4 mb-2 px-3 py-2 rounded-xl border" style={{ borderColor: lineCol+'33', background: lineCol+'0a' }}>
-          <div className="flex justify-between text-xs">
-            <span style={{ color: lineCol+'88' }}>Your position</span>
-            <span className="font-mono" style={{ color: lineCol }}>🌱 {pos.amount} @ {Math.round(pos.priceAtInvest)}</span>
+      {/* Stake info (mirrors StockCard stake section) */}
+      {pos && (
+        <div className="mx-4 mb-2 px-3 py-2 rounded-xl" style={{ background:lineCol+'0d', border:`1px solid ${lineCol}33` }}>
+          {/* Buy marker ribbon */}
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono font-medium"
+              style={{ background:lineCol+'18', border:`1px solid ${lineCol}55`, color:lineCol }}>
+              📍 Bought at {Math.round(pos.priceAtInvest)}
+            </div>
+            <span className={`text-xs font-mono ${currentP >= pos.priceAtInvest ? 'text-green-400' : 'text-red-400'}`}>
+              {currentP >= pos.priceAtInvest ? '▲' : '▼'} {Math.abs(Math.round(currentP - pos.priceAtInvest))} since buy
+            </span>
           </div>
-          <div className="flex justify-between text-xs mt-0.5">
-            <span style={{ color: lineCol+'66' }}>Withdraw payout</span>
-            <span className={`font-mono font-medium ${wProfit2 >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              🌱 {wPayout2} ({wProfit2 >= 0 ? '+' : ''}{wProfit2})
+          <div className="flex justify-between">
+            <span className="text-xs" style={{ color:lineCol+'88' }}>Your stake</span>
+            <span className="font-mono font-medium text-sm" style={{ color:lineCol }}>🌱 {pos.amount}</span>
+          </div>
+          <div className="flex justify-between mt-0.5">
+            <span className="text-xs" style={{ color:lineCol+'66' }}>Withdraw payout</span>
+            <span className={`text-xs font-mono font-medium ${wProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              🌱 {wPayout} ({wProfit >= 0 ? '+' : ''}{wProfit})
             </span>
           </div>
         </div>
       )}
 
-      {/* Withdraw slider */}
-      {withdrawing && pos && (
-        <div className="mx-4 mb-2 px-3 py-3 rounded-xl border space-y-2" style={{ borderColor: lineCol+'33', background: lineCol+'0a' }}>
-          <div className="flex justify-between text-xs mb-1">
-            <span style={{ color: lineCol }}>Withdraw amount</span>
-            <span className="font-mono" style={{ color: lineCol }}>🌱 {withdrawAmt}</span>
-          </div>
-          <input type="range" min={10} max={pos.amount} step={1}
-            value={withdrawAmt} onChange={e => setWithdrawAmt(parseInt(e.target.value))}
-            className="w-full accent-green-500"/>
-          <div className="flex justify-between text-xs border-t pt-1" style={{ borderColor: lineCol+'22' }}>
-            <span style={{ color: lineCol+'66' }}>Safe + Active − Fee</span>
-            <span className={`font-mono ${wProfit2>=0?'text-green-400':'text-red-400'}`}>
-              🌱{wPayout2} ({wProfit2>=0?'+':''}{wProfit2})
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={doWithdraw} disabled={busy}
-              className="flex-1 py-1.5 rounded-lg text-xs border disabled:opacity-40"
-              style={{ borderColor:'#f8717140', color:'#f87171' }}>
-              {busy ? '…' : `Withdraw 🌱${wPayout2}`}
-            </button>
-            <button onClick={() => setWithdrawing(false)}
-              className="px-3 py-1.5 rounded-lg text-xs" style={{ color: lineCol+'88' }}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {/* Invest input */}
-      {investing && (
-        <div className="mx-4 mb-2 px-3 py-3 rounded-xl border space-y-2" style={{ borderColor: lineCol+'33', background: lineCol+'0a' }}>
-          <p className="text-xs" style={{ color: lineCol }}>Invest seeds</p>
-          <input type="number" min={10} value={amount} onChange={e => setAmount(Math.max(10,parseInt(e.target.value)||10))}
-            className="w-full rounded-lg px-3 py-1.5 text-sm font-mono"
-            style={{ background: lineCol+'11', border:`1px solid ${lineCol}33`, color: lineCol }}/>
-          <div className="flex gap-2">
-            <button onClick={doInvest} disabled={busy}
-              className="flex-1 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
-              style={{ background: lineCol+'22', border:`1px solid ${lineCol}55`, color: lineCol }}>
-              {busy ? '…' : `Invest 🌱${amount}`}
-            </button>
-            <button onClick={() => setInv(false)} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: lineCol+'88' }}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      {!investing && !withdrawing && (
-        <div className="flex gap-2 px-4 pb-4">
-          <button onClick={() => { setInv(true); setWithdrawing(false) }}
-            className="flex-1 py-2 rounded-xl text-xs font-medium border transition-colors"
-            style={{ borderColor: lineCol+'44', color: lineCol, background: lineCol+'0a' }}>
-            {pos ? '＋ Add' : '🌱 Invest'}
+      {/* Action buttons (mirrors StockCard) */}
+      <div className="flex gap-2 px-4 pb-4">
+        <button onClick={() => { setShowInv(true); setShowW(false); setError('') }}
+          className="flex-1 py-2 rounded-xl text-sm font-medium border transition-colors"
+          style={{ borderColor:lineCol+'44', color:lineCol, background:lineCol+'0a' }}>
+          {pos ? '＋ Add seeds' : '🌱 Invest'}
+        </button>
+        {pos && (
+          <button onClick={() => { setShowW(true); setShowInv(false); setWAmt(pos.amount); setError('') }}
+            className="flex-1 py-2 rounded-xl text-sm font-medium border transition-colors"
+            style={{ borderColor:'rgba(248,113,113,0.35)', color:'#f87171' }}>
+            Withdraw
           </button>
-          {pos && (
-            <button onClick={() => { setWithdrawing(true); setWithdrawAmt(pos.amount); setInv(false) }}
-              className="flex-1 py-2 rounded-xl text-xs font-medium border transition-colors"
-              style={{ borderColor:'rgba(248,113,113,0.3)', color:'#f87171' }}>
-              Withdraw
-            </button>
-          )}
-        </div>
-      )}
-
-      {msg && <p className="px-4 pb-3 text-xs" style={{ color: msg.includes('Failed') ? '#f87171' : '#4ade80' }}>{msg}</p>}
+        )}
+      </div>
     </div>
+
+    {/* Invest Modal (mirrors InvestModal exactly) */}
+    {showInvest && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div className="w-full max-w-sm rounded-2xl bg-forest-950 border border-forest-700 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-forest-800">
+            <div>
+              <h2 className="font-display text-forest-100 text-lg leading-none">Invest in {label}</h2>
+              <p className="text-forest-500 text-xs mt-0.5">Current price: {Math.round(state?.price || 0)}</p>
+            </div>
+            <button onClick={() => setShowInv(false)} className="text-forest-600 hover:text-forest-300 text-xl">✕</button>
+          </div>
+          <div className="p-5 space-y-4">
+            <div>
+              <p className="text-forest-400 text-xs uppercase tracking-wide mb-2">Invest seeds</p>
+              <div className="flex gap-2 mb-2 flex-wrap">
+                {[10,20,50,100].map(v => (
+                  <button key={v} onClick={() => setAmount(v)}
+                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors
+                      ${amount===v?'bg-forest-700 border-forest-500 text-forest-100':'border-forest-800 text-forest-500 hover:border-forest-600'}`}>
+                    {v}
+                  </button>
+                ))}
+              </div>
+              <input type="number" min={10} value={amount}
+                onChange={e => setAmount(Math.max(10, parseInt(e.target.value)||10))}
+                className="input text-sm"/>
+              <p className="text-forest-700 text-xs mt-1">50% of active stake tracks market movement</p>
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <button onClick={doInvest} disabled={busy || amount < 10}
+              className="w-full py-2.5 bg-forest-600 hover:bg-forest-500 disabled:opacity-40 text-white rounded-xl font-medium transition-colors">
+              {busy ? 'Investing…' : `Invest 🌱${amount}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Withdraw Modal (mirrors WithdrawModal exactly) */}
+    {showWithdraw && pos && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div className="w-full max-w-sm rounded-2xl bg-forest-950 border border-forest-700 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-forest-800">
+            <div>
+              <h2 className="font-display text-forest-100 text-lg leading-none">Withdraw from {label}</h2>
+              <p className="text-forest-500 text-xs mt-0.5">🌱 {pos.amount} invested · ×{mult.toFixed(2)} multiplier</p>
+            </div>
+            <button onClick={() => setShowW(false)} className="text-forest-600 hover:text-forest-300 text-xl">✕</button>
+          </div>
+          <div className="p-5 space-y-4">
+            <div>
+              <div className="flex justify-between mb-1">
+                <label className="text-forest-400 text-xs">Withdraw amount</label>
+                <span className="text-forest-200 text-xs font-mono">🌱 {wAmt}</span>
+              </div>
+              <input type="range" min={10} max={pos.amount} step={1}
+                value={wAmt} onChange={e => setWAmt(parseInt(e.target.value))}
+                className="w-full accent-green-500"/>
+              <div className="flex justify-between text-forest-700 text-xs mt-0.5">
+                <span>10</span><span>All ({pos.amount})</span>
+              </div>
+            </div>
+            <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-forest-600">Safe half (×1.00)</span>
+                <span className="text-forest-400 font-mono">+{wSafe}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-forest-600">Active half (×{mult.toFixed(2)})</span>
+                <span className="text-forest-400 font-mono">+{wActive}</span>
+              </div>
+              <div className="flex justify-between text-xs border-t border-forest-800 pt-1">
+                <span className="text-forest-600">Fee ({Math.round(withdrawFeeRate(wPrincipal)*100)}%)</span>
+                <span className="text-red-400/70 font-mono">−{wFee}</span>
+              </div>
+              <div className="flex justify-between text-sm font-medium border-t border-forest-800 pt-1.5">
+                <span className="text-forest-200">You receive</span>
+                <span className={`font-mono ${wProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  🌱 {wPayout} ({wProfit >= 0 ? '+' : ''}{wProfit})
+                </span>
+              </div>
+              {wAmt < pos.amount && (
+                <p className="text-forest-700 text-xs text-center pt-0.5">
+                  🌱 {pos.amount - wAmt} stays invested at ×{mult.toFixed(2)}
+                </p>
+              )}
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            <button onClick={doWithdraw} disabled={busy}
+              className="w-full py-2.5 rounded-xl text-sm font-medium border border-red-900/50
+                         text-red-400/80 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20
+                         transition-colors disabled:opacity-40">
+              {busy ? 'Withdrawing…' : `Withdraw 🌱${wPayout} ${wAmt < pos.amount ? '(partial)' : '(full)'}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -752,15 +805,9 @@ export default function GrovePage() {
         )}
       </div>
 
-      {/* Market cards — Canopy + Crude */}
-      <div className="px-4 pt-3 pb-2 space-y-3">
-        <MarketCard market="canopy" />
-        <MarketCard market="crude" />
-      </div>
-
       {/* Tabs */}
       <div className="flex gap-1 px-5 py-2 border-b border-forest-800 flex-shrink-0">
-        {[['stocks','📈 Stocks'],['leaders','🏆 Leaders']].map(([k,l]) => (
+        {[['stocks','📈 Stocks'],['markets','📊 Markets'],['leaders','🏆 Leaders']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors
               ${tab===k?'bg-forest-700 text-forest-100':'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
@@ -783,6 +830,13 @@ export default function GrovePage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {loading && <p className="text-forest-600 text-sm text-center py-12">Loading Grove…</p>}
+
+        {tab === 'markets' && (
+          <div className="space-y-3">
+            <MarketCard market="canopy" />
+            <MarketCard market="crude" />
+          </div>
+        )}
 
         {!loading && tab === 'stocks' && (
           <>
