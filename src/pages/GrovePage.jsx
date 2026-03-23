@@ -5,11 +5,11 @@ import { useAuth } from '../context/AuthContext'
 
 // ── Time window config ────────────────────────────────────────────────────────
 const WINDOWS = [
-  { key: '1h',  label: '1h',  xStepH: 0.1667, xFormat: t => { const m = new Date(t).getMinutes(); return m === 0 ? `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` : `${m}m` } },
-  { key: '6h',  label: '6h',  xStepH: 1,      xFormat: t => `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` },
-  { key: '12h', label: '12h', xStepH: 2,      xFormat: t => `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` },
-  { key: '1d',  label: '1d',  xStepH: 4,      xFormat: t => `${new Date(t).getHours()%12||12}${new Date(t).getHours()<12?'a':'p'}` },
-  { key: '1w',  label: '1w',  xStepH: 24,     xFormat: t => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(t).getDay()] },
+  { key: '1h',  label: '1h',  xStepMs: 10*60*1000,    xFormat: t => { const d=new Date(t); return d.getMinutes()===0?`${d.getHours()%12||12}${d.getHours()<12?'a':'p'}`:`${d.getMinutes()}m` } },
+  { key: '6h',  label: '6h',  xStepMs: 30*60*1000,    xFormat: t => { const d=new Date(t); return `${d.getHours()%12||12}${d.getHours()<12?'a':'p'}` } },
+  { key: '12h', label: '12h', xStepMs: 2*3600*1000,   xFormat: t => { const d=new Date(t); return `${d.getHours()%12||12}${d.getHours()<12?'a':'p'}` } },
+  { key: '1d',  label: '1d',  xStepMs: 4*3600*1000,   xFormat: t => { const d=new Date(t); return `${d.getHours()%12||12}${d.getHours()<12?'a':'p'}` } },
+  { key: '1w',  label: '1w',  xStepMs: 24*3600*1000,  xFormat: t => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(t).getDay()] },
 ]
 
 
@@ -165,7 +165,7 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
     setLoad(true)
     load()
     // Polling: 12h → 1min, 1d → 2min, 1w → 5min
-    const interval = win === '1h' ? 30000 : win === '6h' ? 60000 : win === '12h' ? 90000 : win === '1d' ? 120000 : 300000
+    const interval = win === '1h' ? 90000 : win === '6h' ? 180000 : win === '12h' ? 300000 : win === '1d' ? 300000 : 600000
     timer.current = setInterval(load, interval)
     return () => clearInterval(timer.current)
   }, [load, win])
