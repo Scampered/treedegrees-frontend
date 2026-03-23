@@ -1,6 +1,6 @@
 // src/pages/GrovePage.jsx — The Grove: Seeds & Stocks
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { groveApi } from '../api/client'
+import { groveApi, marketApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 // ── Time window config ────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ function computePayout(principal, seedsAtInvest, currentSeeds) {
 }
 
 // ── Full chart with axes ──────────────────────────────────────────────────────
-function StockChart({ data, win, w = 320, h = 90 }) {
+function StockChart({ data, win, w = 320, h = 90, overrideCol, overrideArea }) {
   if (!data || data.length < 2) {
     return (
       <div style={{ width: w, height: h, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -71,7 +71,8 @@ function StockChart({ data, win, w = 320, h = 90 }) {
 
   const first = vals[0], last = vals[vals.length-1]
   const rising = last >= first
-  const col    = rising ? '#4ade80' : '#f87171'
+  const col    = overrideCol || (rising ? '#4ade80' : '#f87171')
+  const areaFill = overrideArea || (rising ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)')
   const diff   = last - first
   const diffStr = (diff >= 0 ? '+' : '') + diff
 
@@ -105,7 +106,7 @@ function StockChart({ data, win, w = 320, h = 90 }) {
       })}
 
       {/* Area fill */}
-      <path d={area} fill={col} opacity="0.08"/>
+      <path d={area} fill={areaFill} opacity="1"/>
       {/* Line */}
       <path d={line} fill="none" stroke={col} strokeWidth="2"
         strokeLinejoin="round" strokeLinecap="round"/>
@@ -197,6 +198,226 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
         {loading && <span style={{ fontSize: 9, color: '#374151', alignSelf: 'center' }}>updating…</span>}
       </div>
       <StockChart data={data} win={win} w={chartW} h={90}/>
+    </div>
+  )
+}
+
+
+// ── Market chart card (Canopy + Crude) ───────────────────────────────────────
+function MarketCard({ market }) {
+  const isCrude   = market === 'crude'
+  const label     = isCrude ? '🛢️ Crude' : '🌳 The Canopy'
+  const subtitle  = isCrude ? 'Oil & fuel market' : 'Platform economy index'
+
+  // Theme-aware colours: gold for canopy, dark amber for crude
+  const lineCol   = isCrude ? '#b87820' : '#c8a830'
+  const areaCol   = isCrude ? 'rgba(184,120,32,0.10)' : 'rgba(200,168,48,0.12)'
+
+  const [win, setWin]       = useState('1d')
+  const [data, setData]     = useState(null)
+  const [state, setState]   = useState(null)
+  const [pos, setPos]       = useState(null)    // my position
+  const [loading, setLoad]  = useState(true)
+  const [investing, setInv] = useState(false)
+  const [amount, setAmount] = useState(20)
+  const [withdrawing, setWithdrawing] = useState(false)
+  const [withdrawAmt, setWithdrawAmt] = useState(0)
+  const [busy, setBusy]     = useState(false)
+  const [msg, setMsg]       = useState('')
+  const wrapRef = useRef(null)
+  const [chartW, setChartW] = useState(320)
+  const timer = useRef(null)
+
+  useEffect(() => {
+    if (!wrapRef.current) return
+    const ro = new ResizeObserver(e => setChartW(Math.floor(e[0].contentRect.width) || 320))
+    ro.observe(wrapRef.current)
+    return () => ro.disconnect()
+  }, [])
+
+  const load = useCallback(async () => {
+    try {
+      const [histRes, stateRes, posRes] = await Promise.all([
+        marketApi.history(market, win),
+        marketApi.state(),
+        marketApi.positions(),
+      ])
+      setData(histRes.data.data || [])
+      setState(stateRes.data[market])
+      setPos(posRes.data.find(p => p.market === market) || null)
+    } catch {} finally { setLoad(false) }
+  }, [market, win])
+
+  useEffect(() => {
+    setLoad(true); load()
+    const iv = win === '1h' ? 90000 : win === '6h' ? 180000 : 300000
+    timer.current = setInterval(load, iv)
+    return () => clearInterval(timer.current)
+  }, [load, win])
+
+  // Payout preview for position
+  const baseline    = pos ? Math.max(1, pos.priceAtInvest) : 1
+  const currentP    = state?.price || baseline
+  const mult        = Math.min(10, Math.max(0, currentP / baseline))
+  const wAmt2       = withdrawAmt || pos?.amount || 0
+  const frac2       = pos ? wAmt2 / pos.amount : 0
+  const wPrincipal2 = pos ? Math.floor(pos.amount * frac2) : 0
+  const wActive2    = Math.floor((wPrincipal2 / 2) * mult)
+  const wSafe2      = wPrincipal2 - Math.floor(wPrincipal2 / 2)
+  const feeRate2    = withdrawFeeRate(wPrincipal2)
+  const wFee2       = Math.floor(wActive2 * feeRate2)
+  const wPayout2    = wSafe2 + wActive2 - wFee2
+  const wProfit2    = wPayout2 - wPrincipal2
+
+  const doInvest = async () => {
+    if (amount < 10) return
+    setBusy(true); setMsg('')
+    try { await marketApi.invest(market, amount); setInv(false); load(); setMsg(`Invested 🌱${amount}`) }
+    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    finally { setBusy(false) }
+  }
+  const doWithdraw = async () => {
+    setBusy(true); setMsg('')
+    const isPartial = withdrawAmt < pos.amount
+    try { await marketApi.withdraw(market, isPartial ? withdrawAmt : undefined); setWithdrawing(false); load(); setMsg('Withdrawn') }
+    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    finally { setBusy(false) }
+  }
+
+  const diff = data && data.length >= 2 ? Math.round(data[data.length-1].seeds - data[0].seeds) : 0
+  const rising = diff >= 0
+
+  return (
+    <div className="rounded-2xl border overflow-hidden"
+      style={{ borderColor: isCrude ? 'rgba(184,120,32,0.4)' : 'rgba(200,168,48,0.4)',
+               background: isCrude ? 'rgba(30,18,4,0.6)' : 'rgba(28,22,4,0.6)' }}>
+
+      {/* Header */}
+      <div className="px-4 pt-4 pb-2 flex items-start justify-between">
+        <div>
+          <p className="font-display text-lg leading-none" style={{ color: lineCol }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: lineCol + '88' }}>{subtitle}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-mono font-bold text-xl" style={{ color: lineCol }}>
+            {loading ? '…' : Math.round(state?.price || 0)}
+          </p>
+          {pos && (
+            <p className="text-xs font-mono mt-0.5" style={{ color: mult >= 1 ? '#4ade80' : '#f87171' }}>
+              ×{mult.toFixed(2)} · 🌱{pos.amount}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Window tabs */}
+      <div className="px-4 flex gap-1.5 mb-1">
+        {['1h','6h','12h','1d','1w'].map(w => (
+          <button key={w} onClick={() => { setData(null); setLoad(true); setWin(w) }}
+            style={{
+              padding:'2px 8px', borderRadius:20, fontSize:10, fontWeight:600, cursor:'pointer',
+              background: win===w ? lineCol+'33' : 'transparent',
+              border: `1px solid ${win===w ? lineCol : lineCol+'33'}`,
+              color: win===w ? lineCol : lineCol+'66',
+            }}>{w}</button>
+        ))}
+        {loading && <span style={{ fontSize:9, color: lineCol+'44', alignSelf:'center' }}>…</span>}
+      </div>
+
+      {/* Chart */}
+      <div ref={wrapRef} className="px-3 pb-2">
+        {data && <StockChart data={data} win={win} w={chartW} h={80} overrideCol={lineCol} overrideArea={areaCol}/>}
+        {!data && <div style={{ height:80, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <span style={{ fontSize:10, color: lineCol+'44' }}>Loading…</span>
+        </div>}
+        <div style={{ display:'flex', justifyContent:'flex-end', marginTop:2 }}>
+          <span style={{ fontSize:9, fontFamily:'monospace', color: rising ? '#4ade80' : '#f87171' }}>
+            {diff >= 0 ? '+' : ''}{diff} since {win}
+          </span>
+        </div>
+      </div>
+
+      {/* Position info */}
+      {pos && !withdrawing && (
+        <div className="mx-4 mb-2 px-3 py-2 rounded-xl border" style={{ borderColor: lineCol+'33', background: lineCol+'0a' }}>
+          <div className="flex justify-between text-xs">
+            <span style={{ color: lineCol+'88' }}>Your position</span>
+            <span className="font-mono" style={{ color: lineCol }}>🌱 {pos.amount} @ {Math.round(pos.priceAtInvest)}</span>
+          </div>
+          <div className="flex justify-between text-xs mt-0.5">
+            <span style={{ color: lineCol+'66' }}>Withdraw payout</span>
+            <span className={`font-mono font-medium ${wProfit2 >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              🌱 {wPayout2} ({wProfit2 >= 0 ? '+' : ''}{wProfit2})
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw slider */}
+      {withdrawing && pos && (
+        <div className="mx-4 mb-2 px-3 py-3 rounded-xl border space-y-2" style={{ borderColor: lineCol+'33', background: lineCol+'0a' }}>
+          <div className="flex justify-between text-xs mb-1">
+            <span style={{ color: lineCol }}>Withdraw amount</span>
+            <span className="font-mono" style={{ color: lineCol }}>🌱 {withdrawAmt}</span>
+          </div>
+          <input type="range" min={10} max={pos.amount} step={1}
+            value={withdrawAmt} onChange={e => setWithdrawAmt(parseInt(e.target.value))}
+            className="w-full accent-green-500"/>
+          <div className="flex justify-between text-xs border-t pt-1" style={{ borderColor: lineCol+'22' }}>
+            <span style={{ color: lineCol+'66' }}>Safe + Active − Fee</span>
+            <span className={`font-mono ${wProfit2>=0?'text-green-400':'text-red-400'}`}>
+              🌱{wPayout2} ({wProfit2>=0?'+':''}{wProfit2})
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={doWithdraw} disabled={busy}
+              className="flex-1 py-1.5 rounded-lg text-xs border disabled:opacity-40"
+              style={{ borderColor:'#f8717140', color:'#f87171' }}>
+              {busy ? '…' : `Withdraw 🌱${wPayout2}`}
+            </button>
+            <button onClick={() => setWithdrawing(false)}
+              className="px-3 py-1.5 rounded-lg text-xs" style={{ color: lineCol+'88' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Invest input */}
+      {investing && (
+        <div className="mx-4 mb-2 px-3 py-3 rounded-xl border space-y-2" style={{ borderColor: lineCol+'33', background: lineCol+'0a' }}>
+          <p className="text-xs" style={{ color: lineCol }}>Invest seeds</p>
+          <input type="number" min={10} value={amount} onChange={e => setAmount(Math.max(10,parseInt(e.target.value)||10))}
+            className="w-full rounded-lg px-3 py-1.5 text-sm font-mono"
+            style={{ background: lineCol+'11', border:`1px solid ${lineCol}33`, color: lineCol }}/>
+          <div className="flex gap-2">
+            <button onClick={doInvest} disabled={busy}
+              className="flex-1 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
+              style={{ background: lineCol+'22', border:`1px solid ${lineCol}55`, color: lineCol }}>
+              {busy ? '…' : `Invest 🌱${amount}`}
+            </button>
+            <button onClick={() => setInv(false)} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: lineCol+'88' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {!investing && !withdrawing && (
+        <div className="flex gap-2 px-4 pb-4">
+          <button onClick={() => { setInv(true); setWithdrawing(false) }}
+            className="flex-1 py-2 rounded-xl text-xs font-medium border transition-colors"
+            style={{ borderColor: lineCol+'44', color: lineCol, background: lineCol+'0a' }}>
+            {pos ? '＋ Add' : '🌱 Invest'}
+          </button>
+          {pos && (
+            <button onClick={() => { setWithdrawing(true); setWithdrawAmt(pos.amount); setInv(false) }}
+              className="flex-1 py-2 rounded-xl text-xs font-medium border transition-colors"
+              style={{ borderColor:'rgba(248,113,113,0.3)', color:'#f87171' }}>
+              Withdraw
+            </button>
+          )}
+        </div>
+      )}
+
+      {msg && <p className="px-4 pb-3 text-xs" style={{ color: msg.includes('Failed') ? '#f87171' : '#4ade80' }}>{msg}</p>}
     </div>
   )
 }
@@ -529,6 +750,12 @@ export default function GrovePage() {
             <ChartCard userId={user.id} name="you" isMe seedsNow={me.seeds} />
           </div>
         )}
+      </div>
+
+      {/* Market cards — Canopy + Crude */}
+      <div className="px-4 pt-3 pb-2 space-y-3">
+        <MarketCard market="canopy" />
+        <MarketCard market="crude" />
       </div>
 
       {/* Tabs */}

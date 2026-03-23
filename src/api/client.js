@@ -144,6 +144,14 @@ export const gamesApi = {
 }
 
 // ── Grove (Seeds / Stocks) ────────────────────────────────────────────────────
+export const marketApi = {
+  state:      ()                  => api.get('/api/market/state'),
+  history:    (market, window)    => api.get(`/api/market/history/${market}?window=${window}`),
+  positions:  ()                  => api.get('/api/market/my-positions'),
+  invest:     (market, amount)    => api.post('/api/market/invest', { market, amount }),
+  withdraw:   (market, amt)       => api.post('/api/market/withdraw', { market, ...(amt !== undefined && { withdrawAmount: amt }) }),
+}
+
 export const groveApi = {
   me:          ()                    => api.get('/api/grove/me'),
   connections: ()                    => api.get('/api/grove/connections'),
