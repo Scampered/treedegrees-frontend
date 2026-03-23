@@ -371,12 +371,42 @@ export default function LettersPage() {
 
   useEffect(() => { reload() }, [reload])
 
-  // Auto-refresh when in-transit letters might have arrived
+  // Track which letters we've already called /arrived on this session
+  const arrivedIds = React.useRef(new Set())
+
+  // Call /arrived for any inbox letter whose arrivesAt has passed but seeds not yet awarded
+  // Also triggers a reload so the letter moves from in-transit to received
+  const triggerArrived = React.useCallback(async (letterList) => {
+    const due = letterList.filter(l =>
+      l.isInbox &&               // only recipient triggers this
+      l.inTransit &&             // still marked in-transit
+      new Date(l.arrivesAt) <= new Date() &&
+      !arrivedIds.current.has(l.id)
+    )
+    for (const l of due) {
+      arrivedIds.current.add(l.id)  // mark immediately to prevent double-call
+      try {
+        await lettersApi.arrived(l.id)
+        console.log('[Letters] /arrived called for', l.id, '→ seeds awarded')
+      } catch (e) {
+        // 404 = already processed, that's fine
+        if (e.response?.status !== 404) console.warn('[Letters] arrived error:', e.message)
+      }
+    }
+    if (due.length > 0) reload()
+  }, [reload])
+
+  // Check on every letters update
+  useEffect(() => {
+    if (letters.length > 0) triggerArrived(letters)
+  }, [letters, triggerArrived])
+
+  // Auto-refresh interval — also checks for newly arrived letters
   useEffect(() => {
     const iv = setInterval(() => {
-      const hasArriving = letters.some(l => l.inTransit && new Date(l.arrivesAt) <= Date.now())
+      const hasArriving = letters.some(l => l.inTransit && new Date(l.arrivesAt) <= new Date())
       if (hasArriving) reload()
-    }, 30000)
+    }, 15000)  // check every 15s instead of 30s
     return () => clearInterval(iv)
   }, [letters, reload])
 
