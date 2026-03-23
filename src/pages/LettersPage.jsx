@@ -372,25 +372,36 @@ export default function LettersPage() {
   useEffect(() => { reload() }, [reload])
 
   // Track which letters we've already called /arrived on this session
-  const arrivedIds = React.useRef(new Set())
+  // Persist which letters we've already processed across page refreshes
+  const getCalledIds = () => {
+    try { return new Set(JSON.parse(localStorage.getItem('td_arrived_ids') || '[]')) }
+    catch { return new Set() }
+  }
+  const addCalledId = (id) => {
+    try {
+      const ids = getCalledIds()
+      ids.add(id)
+      // Keep only last 200 IDs to avoid unbounded growth
+      const arr = [...ids].slice(-200)
+      localStorage.setItem('td_arrived_ids', JSON.stringify(arr))
+    } catch {}
+  }
 
-  // Call /arrived for any inbox letter whose arrivesAt has passed but seeds not yet awarded
-  // Also triggers a reload so the letter moves from in-transit to received
   const triggerArrived = React.useCallback(async (letterList) => {
+    const calledIds = getCalledIds()
     const due = letterList.filter(l =>
-      l.isInbox &&                          // only recipient triggers this
-      !l.seedsAwarded &&                    // seeds not yet awarded
+      l.isInbox &&                           // only recipient triggers this
+      !l.seedsAwarded &&                     // server says seeds not yet awarded
       new Date(l.arrivesAt) <= new Date() && // letter has arrived
-      !arrivedIds.current.has(l.id)         // not already called this session
+      !calledIds.has(l.id)                   // not already processed (persists across refreshes)
     )
     for (const l of due) {
-      arrivedIds.current.add(l.id)  // mark immediately to prevent double-call
+      addCalledId(l.id) // mark before call to prevent race
       try {
         await lettersApi.arrived(l.id)
-        console.log('[Letters] /arrived called for', l.id, '→ seeds awarded')
+        console.log('[Letters] /arrived →', l.id)
       } catch (e) {
-        // 404 = already processed, that's fine
-        if (e.response?.status !== 404) console.warn('[Letters] arrived error:', e.message)
+        if (e?.response?.status !== 404) console.warn('[Letters] arrived err:', e?.message)
       }
     }
     if (due.length > 0) reload()
