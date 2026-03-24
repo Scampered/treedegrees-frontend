@@ -93,8 +93,10 @@ export default function App() {
           <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="/signup" element={<PublicOnlyRoute><SignupPage /></PublicOnlyRoute>} />
 
-          {/* Email verification — public route */}
+          {/* Email verification & password reset — public routes */}
           <Route path="/verify" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Protected */}
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -103,8 +105,6 @@ export default function App() {
             <Route path="/friends" element={<MaintenanceGuard pageKey="friends"><FriendsPage /></MaintenanceGuard>} />
             <Route path="/grove" element={<GrovePage />} />
           <Route path="/jobs" element={<JobsPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/games" element={<GamesPage />} />
             <Route path="/games/trump-card/:id" element={<TrumpCardGame />} />
             <Route path="/feed" element={<MaintenanceGuard pageKey="feed"><FeedPage /></MaintenanceGuard>} />
