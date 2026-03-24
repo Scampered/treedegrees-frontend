@@ -760,6 +760,19 @@ export default function GrovePage() {
 
   useEffect(() => { reload() }, [reload])
 
+  // Refresh when server poller awards seeds (fired from LettersPage)
+  useEffect(() => {
+    const onUpdate = () => reload()
+    window.addEventListener('seeds-updated', onUpdate)
+    return () => window.removeEventListener('seeds-updated', onUpdate)
+  }, [reload])
+
+  // Auto-refresh seeds balance every 30s so sender sees update without manual refresh
+  useEffect(() => {
+    const iv = setInterval(() => reload(), 30000)
+    return () => clearInterval(iv)
+  }, [reload])
+
   const sorted = [...connections]
     .filter(c => sort === 'invested' ? c.myInvestment > 0 : true)
     .sort((a, b) => {
