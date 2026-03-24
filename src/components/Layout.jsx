@@ -10,7 +10,8 @@ import { useTheme } from '../context/ThemeContext'
 
 const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
-  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove'       },
+  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove',      extra: '💼', extraTo: '/jobs' },
+  { to: '/jobs',      icon: '💼',  fullLabel: 'Jobs'        },
   { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },
   { to: '/groups',    icon: '☘️',  fullLabel: 'Groups',     extra: '🎮', extraTo: '/games' },
@@ -28,6 +29,7 @@ const mobileNavItems = [
 ]
 
 const moreItems = [
+  { to: '/jobs',     icon: '💼', label: 'Jobs'        },
   { to: '/friends',  icon: '🌿', label: 'Connections' },
   { to: '/groups',   icon: '☘️', label: 'Groups'      },
   { to: '/games',    icon: '🎮', label: 'Games'       },

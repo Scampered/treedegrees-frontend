@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [friendNotes, setFriendNotes]   = useState([])
 
   useEffect(() => {
+    jobsApi.my().then(r => setMyJob(r.data.job)).catch(() => {})
     Promise.all([
       friendsApi.list(),
       friendsApi.requests(),
@@ -97,7 +98,14 @@ export default function DashboardPage() {
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-forest-200 font-medium">Today's note 📝</p>
-          {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}h</span>}
+          <div className="flex items-center gap-2">
+            {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}h</span>}
+            <Link to="/jobs"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-800 border border-forest-700
+                         hover:border-forest-600 hover:bg-forest-750 transition-colors text-xs text-forest-300">
+              {myJob ? `💼 ${myJob.role === 'seed_broker' ? 'Broker' : myJob.role.charAt(0).toUpperCase() + myJob.role.slice(1).replace('_',' ')}` : '💼 Get a job'}
+            </Link>
+          </div>
         </div>
         {/* Mood picker */}
         <div className="mb-3">

@@ -20,6 +20,7 @@ import GrovePage from './pages/GrovePage'
 import GamesPage from './pages/GamesPage'
 import TrumpCardGame from './pages/TrumpCardGame'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import JobsPage from './pages/JobsPage'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
 import Layout from './components/Layout'
@@ -99,7 +100,8 @@ export default function App() {
             <Route path="/map" element={<MaintenanceGuard pageKey="map"><MapPage /></MaintenanceGuard>} />
             <Route path="/friends" element={<MaintenanceGuard pageKey="friends"><FriendsPage /></MaintenanceGuard>} />
             <Route path="/grove" element={<GrovePage />} />
-          <Route path="/games" element={<GamesPage />} />
+          <Route path="/jobs" element={<JobsPage />} />
+                <Route path="/games" element={<GamesPage />} />
             <Route path="/games/trump-card/:id" element={<TrumpCardGame />} />
             <Route path="/feed" element={<MaintenanceGuard pageKey="feed"><FeedPage /></MaintenanceGuard>} />
             <Route path="/letters" element={<MaintenanceGuard pageKey="letters"><LettersPage /></MaintenanceGuard>} />

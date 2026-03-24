@@ -144,6 +144,15 @@ export const gamesApi = {
 }
 
 // ── Grove (Seeds / Stocks) ────────────────────────────────────────────────────
+export const jobsApi = {
+  listings:   ()                        => api.get('/api/jobs/listings'),
+  my:         ()                        => api.get('/api/jobs/my'),
+  register:   (role, bio, hourlyRate)   => api.post('/api/jobs/register', { role, bio, hourlyRate }),
+  update:     (bio, hourlyRate)         => api.patch('/api/jobs/my', { bio, hourlyRate }),
+  unregister: ()                        => api.delete('/api/jobs/my'),
+  rate:       (jobId, rating, review)   => api.post(`/api/jobs/${jobId}/rate`, { rating, review }),
+}
+
 export const marketApi = {
   state:      ()                  => api.get('/api/market/state'),
   history:    (market, window)    => api.get(`/api/market/history/${market}?window=${window}`),
