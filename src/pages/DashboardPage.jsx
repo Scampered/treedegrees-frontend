@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [noteLoading, setNoteLoading] = useState(false)
   const [hoursLeft, setHoursLeft]     = useState(null)
   const [loading, setLoading]         = useState(true)
+  const [myJob, setMyJob]           = useState(null)
   const [friendNotes, setFriendNotes]   = useState([])
 
   useEffect(() => {
@@ -44,11 +45,18 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user?.dailyNoteUpdatedAt) {
       const hrs = (Date.now() - new Date(user.dailyNoteUpdatedAt).getTime()) / 36e5
-      setHoursLeft(hrs < 24 ? (24 - hrs).toFixed(1) : null)
+      const remaining = 24 - hrs
+      if (remaining > 0) {
+        const h = Math.floor(remaining)
+        const m = Math.round((remaining - h) * 60)
+        setHoursLeft(h > 0 && m > 0 ? `${h}h ${m}m` : h > 0 ? `${h}h` : `${m}m`)
+      } else {
+        setHoursLeft(null)
+      }
     }
   }, [user])
 
-  const canPost = !hoursLeft || parseFloat(hoursLeft) <= 0
+  const canPost = !hoursLeft
 
   const postNote = async () => {
     if (!note.trim()) return
@@ -99,11 +107,11 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-forest-200 font-medium">Today's note 📝</p>
           <div className="flex items-center gap-2">
-            {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}h</span>}
+            {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}</span>}
             <Link to="/jobs"
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-800 border border-forest-700
                          hover:border-forest-600 hover:bg-forest-750 transition-colors text-xs text-forest-300">
-              {myJob ? `💼 ${myJob.role === 'seed_broker' ? 'Broker' : myJob.role.charAt(0).toUpperCase() + myJob.role.slice(1).replace('_',' ')}` : '💼 Get a job'}
+              {myJob ? `💼 ${({'courier':'Courier','writer':'Writer','seed_broker':'Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'})[myJob.role] || myJob.role}` : '💼 Get a job'}
             </Link>
           </div>
         </div>

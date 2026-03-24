@@ -10,7 +10,7 @@ import { useTheme } from '../context/ThemeContext'
 
 const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
-  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove',      extra: '💼', extraTo: '/jobs' },
+  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove'       },
   { to: '/jobs',      icon: '💼',  fullLabel: 'Jobs'        },
   { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },

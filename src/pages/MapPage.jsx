@@ -23,6 +23,12 @@ const LINE_STYLES = {
 }
 const PRIVATE_LINE = { color: '#555', weight: 1, opacity: 0.35, dashArray: '2 6' }
 
+
+const JOB_EMOJIS = {
+  courier: '🚚', writer: '✍️', seed_broker: '🌱',
+  accountant: '📊', steward: '🔔', forecaster: '📡', farmer: '🌾',
+}
+
 // Vehicle emojis — radio uses 🗼 (tower) with ✉️ envelope for instant delivery
 const VEHICLE_EMOJI = {
   car:       '🚗',
@@ -42,7 +48,7 @@ const CUSTOM_LABELS = [
 
 // ── Leaflet icon builders ─────────────────────────────────────────────────────
 
-function buildNodeIcon(degree, hasNote, isHidden, mood, seeds) {
+function buildNodeIcon(degree, hasNote, isHidden, mood, seeds, jobRole) {
   if (isHidden) {
     return L.divIcon({
       className: '',
@@ -60,6 +66,10 @@ function buildNodeIcon(degree, hasNote, isHidden, mood, seeds) {
     ? `<div style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;
         border-radius:50%;background:white;border:2px solid #0d2b0d;
         box-shadow:0 0 4px rgba(0,0,0,0.6);z-index:10;"></div>`
+    : ''
+  const jobEmoji = jobRole && JOB_EMOJIS[jobRole]
+    ? `<div style="position:absolute;bottom:-4px;right:-4px;font-size:9px;line-height:1;
+        background:rgba(0,0,0,0.75);border-radius:50%;padding:1px;z-index:10;">${JOB_EMOJIS[jobRole]}</div>`
     : ''
   // Seeds pill below node
   const seedsPill = (seeds !== null && seeds !== undefined)
@@ -86,6 +96,7 @@ function buildNodeIcon(degree, hasNote, isHidden, mood, seeds) {
           ${mood}
         </div>
         ${badge}
+        ${jobEmoji}
         ${seedsPill}
       </div>`,
     })
@@ -101,6 +112,7 @@ function buildNodeIcon(degree, hasNote, isHidden, mood, seeds) {
         background:${bg};border:${degree === 0 ? 3 : 2}px solid ${border};
         box-shadow:0 0 ${degree === 0 ? 10 : 5}px ${bg}88;"></div>
       ${badge}
+      ${jobEmoji}
       ${seedsPill}
     </div>`,
   })
@@ -522,7 +534,8 @@ export default function MapPage() {
             const hasNote = !me && (node.hasNote || false)
             const nodeMood = (node.degree === 0 || node.degree === 1) ? (node.mood || null) : null
             const nodeSeeds = (node.degree === 0 || node.degree === 1) ? node.seeds : null
-            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds)
+            const nodeJob = (node.degree === 0 || node.degree === 1) ? (node.jobRole || null) : null
+            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, nodeJob)
 
             return (
               <Marker key={node.id} position={[node.latitude, node.longitude]}
