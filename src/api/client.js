@@ -40,10 +40,12 @@ api.interceptors.response.use(
 export default api
 
 export const authApi = {
-  signup:        (data)     => api.post('/api/auth/signup', data),
-  login:         (data)     => api.post('/api/auth/login', data),
-  me:            ()         => api.get('/api/auth/me'),
-  deleteAccount: (password) => api.delete('/api/auth/account', { data: { password } }),
+  signup:        (data)              => api.post('/api/auth/signup', data),
+  login:         (data)              => api.post('/api/auth/login', data),
+  me:            ()                  => api.get('/api/auth/me'),
+  deleteAccount: (password)          => api.delete('/api/auth/account', { data: { password } }),
+  forgotPassword:(email)             => api.post('/api/auth/forgot-password', { email }),
+  resetPassword: (token, email, p)   => api.post('/api/auth/reset-password', { token, email, newPassword: p }),
 }
 
 export const friendsApi = {
