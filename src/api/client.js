@@ -153,6 +153,7 @@ export const marketApi = {
 }
 
 export const groveApi = {
+  seeds:       ()                       => api.get('/api/grove/seeds'),
   me:          ()                    => api.get('/api/grove/me'),
   connections: ()                    => api.get('/api/grove/connections'),
   leaderboard: ()                    => api.get('/api/grove/leaderboard'),

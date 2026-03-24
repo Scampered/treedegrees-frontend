@@ -3,7 +3,7 @@ import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-do
 import { useEffect, useState } from 'react'
 import { registerSW } from '../utils/notifications'
 import NotificationPrompt from './NotificationPrompt'
-import { lettersApi } from '../api/client'
+import { lettersApi, groveApi } from '../api/client'
 import PopupSystem from './PopupSystem'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -66,6 +66,15 @@ export default function Layout() {
       const iv = setInterval(checkUnread, 30000)
       window.addEventListener('letter-read', checkUnread)
 
+      // Poll seeds balance every 20s so sender sees their balance update
+      // after their letter arrives, regardless of which page they're on
+      const seedsIv = setInterval(async () => {
+        try {
+          const r = await groveApi.seeds()
+          window.dispatchEvent(new CustomEvent('seeds-balance', { detail: r.data.seeds }))
+        } catch {}
+      }, 20000)
+
       import('../api/client').then(({ lettersApi: la }) => {
         la.streaks().then(r => {
           // Only warn about streaks where YOU haven't sent yet today
@@ -124,6 +133,7 @@ export default function Layout() {
 
       return () => {
         clearInterval(iv)
+        clearInterval(seedsIv)
         window.removeEventListener('letter-read', checkUnread)
       }
     }

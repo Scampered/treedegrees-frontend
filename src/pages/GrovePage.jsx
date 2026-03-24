@@ -760,18 +760,28 @@ export default function GrovePage() {
 
   useEffect(() => { reload() }, [reload])
 
-  // Refresh when server poller awards seeds (fired from LettersPage)
+  // Refresh when seeds change (from poller or letter arrival)
   useEffect(() => {
     const onUpdate = () => reload()
+    const onBalance = (e) => setMe(prev => prev ? { ...prev, seeds: e.detail } : prev)
     window.addEventListener('seeds-updated', onUpdate)
-    return () => window.removeEventListener('seeds-updated', onUpdate)
+    window.addEventListener('seeds-balance', onBalance)
+    return () => {
+      window.removeEventListener('seeds-updated', onUpdate)
+      window.removeEventListener('seeds-balance', onBalance)
+    }
   }, [reload])
 
-  // Auto-refresh seeds balance every 30s so sender sees update without manual refresh
+  // Poll just the seeds balance every 15s — cheap single query, updates header
   useEffect(() => {
-    const iv = setInterval(() => reload(), 30000)
+    const iv = setInterval(async () => {
+      try {
+        const r = await groveApi.seeds()
+        setMe(prev => prev ? { ...prev, seeds: r.data.seeds } : prev)
+      } catch {}
+    }, 15000)
     return () => clearInterval(iv)
-  }, [reload])
+  }, [])
 
   const sorted = [...connections]
     .filter(c => sort === 'invested' ? c.myInvestment > 0 : true)
