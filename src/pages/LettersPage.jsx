@@ -373,45 +373,36 @@ export default function LettersPage() {
 
   // Track which letters we've already called /arrived on this session
   // Persist which letters we've already processed across page refreshes
-  const getCalledIds = () => {
-    try { return new Set(JSON.parse(localStorage.getItem('td_arrived_ids') || '[]')) }
-    catch { return new Set() }
-  }
-  const addCalledId = (id) => {
-    try {
-      const ids = getCalledIds()
-      ids.add(id)
-      // Keep only last 200 IDs to avoid unbounded growth
-      const arr = [...ids].slice(-200)
-      localStorage.setItem('td_arrived_ids', JSON.stringify(arr))
-    } catch {}
-  }
-
   const triggerArrived = React.useCallback(async (letterList) => {
-    const calledIds = getCalledIds()
+    // Filter: inbox letters that have arrived but seeds not yet awarded by server
     const due = letterList.filter(l =>
-      l.isInbox &&                           // only recipient triggers this
-      !l.seedsAwarded &&                     // server says seeds not yet awarded
-      new Date(l.arrivesAt) <= new Date() && // letter has arrived
-      !calledIds.has(l.id)                   // not already processed (persists across refreshes)
+      l.isInbox &&
+      !l.seedsAwarded &&
+      new Date(l.arrivesAt) <= new Date()
     )
+    console.log(`[arrived] checking ${letterList.length} letters → ${due.length} need /arrived`)
+    if (due.length === 0) return
+
     let anyAwarded = false
     for (const l of due) {
-      addCalledId(l.id) // mark before call to prevent race
+      console.log(`[arrived] calling /arrived for ${l.id} (from ${l.senderName}, arrivesAt=${l.arrivesAt})`)
       try {
         const res = await lettersApi.arrived(l.id)
-        console.log('[Letters] /arrived →', l.id, res?.data)
+        console.log(`[arrived] SUCCESS → seeds sender=${res.data?.seedsSender} receiver=${res.data?.seedsReceiver}`)
         anyAwarded = true
       } catch (e) {
-        if (e?.response?.status !== 404) console.warn('[Letters] arrived err:', e?.message)
+        const status = e?.response?.status
+        const msg    = e?.response?.data?.error || e?.message
+        console.warn(`[arrived] FAILED status=${status} msg=${msg}`)
       }
     }
-    if (due.length > 0) reload()
-    // Notify other parts of the app that seeds changed
-    if (anyAwarded) window.dispatchEvent(new Event('seeds-updated'))
+    if (anyAwarded) {
+      reload()
+      window.dispatchEvent(new Event('seeds-updated'))
+    }
   }, [reload])
 
-  // Check on every letters update
+  // Run whenever letters list changes
   useEffect(() => {
     if (letters.length > 0) triggerArrived(letters)
   }, [letters, triggerArrived])
