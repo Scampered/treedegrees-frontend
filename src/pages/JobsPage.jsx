@@ -254,16 +254,32 @@ function RateModal({ job, meta, onClose, onDone }) {
 
 // ── Register Modal — opens directly for a specific job ────────────────────────
 function RegisterModal({ role, meta, detail, onClose, onDone }) {
-  const [bio, setBio]   = useState('')
-  const [rate, setRate] = useState(meta.baseRate)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr]   = useState('')
+  const [bio, setBio]     = useState('')
+  const [rate, setRate]   = useState(meta.baseRate)
+  const [busy, setBusy]   = useState(false)
+  const [err, setErr]     = useState('')
+  const [done, setDone]   = useState(false)
 
   const submit = async () => {
     setBusy(true); setErr('')
-    try { await jobsApi.register(role, bio, rate); onDone() }
+    try { await jobsApi.register(role, bio, rate); setDone(true) }
     catch (e) { setErr(e.response?.data?.error || 'Failed'); setBusy(false) }
   }
+
+  if (done) return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+      <div className="w-full max-w-sm rounded-2xl bg-forest-950 border border-forest-700 p-6 text-center">
+        <div className="text-5xl mb-3">{meta.icon}</div>
+        <p className="text-forest-100 font-display text-xl mb-1">You're registered!</p>
+        <p className="text-forest-300 text-sm mb-1">You are now listed as a <strong>{meta.label}</strong>.</p>
+        <p className="text-forest-500 text-xs mb-4">Full job workspace is coming soon. Clients can already find and rate you in For Hire.</p>
+        <button onClick={onDone}
+          className="w-full py-2.5 bg-forest-600 hover:bg-forest-500 text-white rounded-xl font-medium text-sm transition-colors">
+          Go to My Job →
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">

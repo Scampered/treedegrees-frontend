@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { friendsApi, usersApi, lettersApi } from '../api/client'
+import { friendsApi, usersApi, lettersApi, jobsApi } from '../api/client'
 import InstallAppCard from '../components/InstallAppCard'
 import QRCodeCard from '../components/QRCodeCard'
 import MoodPicker from '../components/MoodPicker'

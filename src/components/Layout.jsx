@@ -10,8 +10,7 @@ import { useTheme } from '../context/ThemeContext'
 
 const sidebarItems = [
   { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
-  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove'       },
-  { to: '/jobs',      icon: '💼',  fullLabel: 'Jobs'        },
+  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove',      extra: '💼', extraLabel: 'Jobs', extraTo: '/jobs' },
   { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },
   { to: '/groups',    icon: '☘️',  fullLabel: 'Groups',     extra: '🎮', extraTo: '/games' },
@@ -171,7 +170,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {sidebarItems.map(({ to, icon, fullLabel, extra, extraTo }) => (
+          {sidebarItems.map(({ to, icon, fullLabel, extra, extraTo, extraLabel }) => (
             <div key={to} className="flex items-center gap-1">
               <NavLink to={to}
                 className={({ isActive }) =>
@@ -187,12 +186,13 @@ export default function Layout() {
                 )}
               </NavLink>
               {extra && extraTo && (
-                <NavLink to={extraTo} title="Games"
+                <NavLink to={extraTo} title={extraLabel || extra}
                   className={({ isActive }) =>
-                    `w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors flex-shrink-0
+                    `flex items-center gap-1.5 px-2 h-8 rounded-lg text-sm transition-colors flex-shrink-0
                      ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-600 hover:text-forest-300 hover:bg-forest-900'}`
                   }>
-                  {extra}
+                  <span>{extra}</span>
+                  {extraLabel && <span className="text-xs font-medium">{extraLabel}</span>}
                 </NavLink>
               )}
             </div>
