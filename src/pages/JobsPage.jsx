@@ -34,8 +34,8 @@ const JOB_WORKSPACE = {
 
 // ── COURIER WORKSPACE ────────────────────────────────────────────────────────
 function CourierWorkspace({ job }) {
-  const [data, setData]   = useState(null)
-  const [busy, setBusy]   = useState({})
+  const [data, setData] = useState(null)
+  const [busy, setBusy] = useState({})
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.courierQueue(); setData(r.data) } catch {}
   }, [])
@@ -47,41 +47,40 @@ function CourierWorkspace({ job }) {
     catch (e) { alert(e.response?.data?.error || 'Failed') }
     finally { setBusy(b => ({ ...b, [id]: false })) }
   }
-
   const v = data?.vehicle
   const tier = data?.tiers?.[v?.tier]
   const nextTier = Object.entries(data?.tiers || {}).find(([,t]) => t.minDeliveries > (v?.deliveries || 0))
 
   return (
     <div className="space-y-3">
-      {/* Vehicle status */}
       {v && (
         <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 flex items-center justify-between">
           <div>
             <p className="text-forest-200 text-sm font-medium">{tier?.emoji} {tier?.label}</p>
             <p className="text-forest-600 text-xs">{v.deliveries} deliveries · {tier?.speedMult}× speed</p>
           </div>
-          {nextTier && (
-            <p className="text-forest-600 text-xs text-right">Next: {nextTier[1].emoji} {nextTier[1].label}<br/>at {nextTier[1].minDeliveries} deliveries</p>
-          )}
+          {nextTier && <p className="text-forest-600 text-xs text-right">Next: {nextTier[1].emoji} {nextTier[1].label} at {nextTier[1].minDeliveries}</p>}
         </div>
       )}
-      {/* Queue */}
       <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
         <p className="text-forest-300 text-sm font-medium mb-2">📬 Delivery Queue</p>
         {!data && <p className="text-forest-600 text-xs">Loading…</p>}
         {data?.queue?.length === 0 && <p className="text-forest-600 text-xs">No pending requests.</p>}
         {data?.queue?.map(req => (
           <div key={req.id} className="mb-2 p-3 rounded-lg bg-forest-800/60 border border-forest-700">
-            <p className="text-forest-200 text-xs font-medium">From: {req.sender_name}</p>
-            <p className="text-forest-500 text-xs">{req.from_country} → {req.to_country} · ~{req.est_hours}h · 🌱{req.fee_seeds}</p>
+            <div className="flex items-center justify-between mb-0.5">
+              <p className="text-forest-200 text-xs font-medium">From: {req.sender_name}</p>
+              <span className="text-forest-400 text-xs font-mono">🌱{req.fee_seeds}</span>
+            </div>
+            <p className="text-forest-500 text-xs">{req.from_country} → {req.to_country}</p>
+            <p className="text-forest-700 text-xs">Est. {parseFloat(req.est_hours).toFixed(1)}h delivery</p>
             <div className="flex gap-2 mt-2">
               <button onClick={() => respond(req.id, 'accept')} disabled={busy[req.id]}
-                className="flex-1 py-1 rounded-lg bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs disabled:opacity-40 transition-colors">
-                Accept 🌱{req.fee_seeds}
+                className="flex-1 py-1.5 rounded-lg bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs disabled:opacity-40 transition-colors font-medium">
+                ✓ Accept 🌱{req.fee_seeds}
               </button>
               <button onClick={() => respond(req.id, 'decline')} disabled={busy[req.id]}
-                className="flex-1 py-1 rounded-lg border border-forest-700 text-forest-500 text-xs disabled:opacity-40 hover:border-forest-500 transition-colors">
+                className="flex-1 py-1.5 rounded-lg border border-forest-700 text-forest-500 text-xs disabled:opacity-40 hover:border-forest-500 transition-colors">
                 Decline
               </button>
             </div>
@@ -98,7 +97,7 @@ function WriterWorkspace({ job }) {
   const [active, setActive] = useState(null)
   const [content, setContent] = useState('')
   const [busy, setBusy] = useState(false)
-  const [msg, setMsg]   = useState('')
+  const [msg, setMsg] = useState('')
 
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.writerCommissions(); setCommissions(r.data.commissions) } catch {}
@@ -106,33 +105,35 @@ function WriterWorkspace({ job }) {
   useEffect(() => { load() }, [load])
 
   const submit = async () => {
-    if (!content.trim() || content.length < 50) return setMsg('Write at least 50 characters')
+    if (content.length < 50) return setMsg('Write at least 50 characters')
     setBusy(true); setMsg('')
-    try {
-      await jobActionsApi.submitCommission(active.id, content)
-      setMsg('Submitted!'); setActive(null); setContent(''); load()
-    } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    try { await jobActionsApi.submitCommission(active.id, content); setMsg('Submitted!'); setActive(null); setContent(''); load() }
+    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(false) }
   }
+
+  const statusColor = { pending: 'text-forest-400', submitted: 'text-yellow-400', accepted: 'text-green-400', rejected: 'text-red-400' }
 
   return (
     <div className="space-y-3">
       {active ? (
         <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-forest-300 text-sm font-medium">✍️ Writing commission</p>
+            <p className="text-forest-300 text-sm font-medium">✍️ Writing for {active.client_name}</p>
             <button onClick={() => setActive(null)} className="text-forest-600 text-xs hover:text-forest-300">Cancel</button>
           </div>
-          <div className="rounded-lg bg-forest-800/60 px-3 py-2">
-            <p className="text-forest-400 text-xs">Prompt: <span className="text-forest-200">{active.prompt}</span></p>
-            <p className="text-forest-600 text-xs">Fee: 🌱{active.fee_seeds} · from {active.client_name}</p>
+          <div className="rounded-lg bg-forest-800/60 px-3 py-2 border-l-2 border-forest-600">
+            <p className="text-forest-300 text-xs font-medium">Prompt: "{active.prompt}"</p>
+            <p className="text-forest-600 text-xs mt-0.5">Fee: 🌱{active.fee_seeds} — content hidden until accepted</p>
           </div>
           <textarea value={content} onChange={e => setContent(e.target.value)}
-            placeholder="Write the letter here... (min 50 characters)"
+            placeholder="Write the commissioned letter here... (min 50 chars)"
             className="w-full bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-sm
                        text-forest-100 placeholder-forest-600 resize-none outline-none h-36"/>
-          <p className="text-forest-700 text-xs">{content.length} chars</p>
-          {msg && <p className={`text-xs ${msg === 'Submitted!' ? 'text-green-400' : 'text-red-400'}`}>{msg}</p>}
+          <div className="flex items-center justify-between">
+            <span className={`text-xs ${content.length >= 50 ? 'text-forest-500' : 'text-red-400/70'}`}>{content.length} / 50+ chars</span>
+            {msg && <span className={`text-xs ${msg === 'Submitted!' ? 'text-green-400' : 'text-red-400'}`}>{msg}</span>}
+          </div>
           <button onClick={submit} disabled={busy || content.length < 50}
             className="w-full py-2 bg-forest-700 hover:bg-forest-600 disabled:opacity-40 text-forest-100 text-sm rounded-xl transition-colors">
             {busy ? 'Submitting…' : 'Submit to client'}
@@ -141,15 +142,18 @@ function WriterWorkspace({ job }) {
       ) : (
         <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
           <p className="text-forest-300 text-sm font-medium mb-2">📝 Commission Inbox</p>
-          {commissions.length === 0 && <p className="text-forest-600 text-xs">No commissions yet.</p>}
+          {commissions.length === 0 && <p className="text-forest-600 text-xs">No commissions yet. Clients hire you from For Hire.</p>}
           {commissions.map(c => (
             <div key={c.id} className="mb-2 p-3 rounded-lg bg-forest-800/60 border border-forest-700">
-              <p className="text-forest-200 text-xs font-medium">"{c.prompt}"</p>
-              <p className="text-forest-500 text-xs">From {c.client_name} · 🌱{c.fee_seeds} · {c.status}</p>
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-forest-200 text-xs font-medium">"{c.prompt}"</p>
+                <span className={`text-xs ${statusColor[c.status] || 'text-forest-500'}`}>{c.status}</span>
+              </div>
+              <p className="text-forest-600 text-xs">From {c.client_name} · 🌱{c.fee_seeds}</p>
               {c.status === 'pending' && (
                 <button onClick={() => { setActive(c); setContent('') }}
-                  className="mt-1.5 w-full py-1 rounded-lg bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs transition-colors">
-                  Write this
+                  className="mt-2 w-full py-1.5 rounded-lg bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs transition-colors font-medium">
+                  ✍️ Write this
                 </button>
               )}
             </div>
@@ -162,87 +166,117 @@ function WriterWorkspace({ job }) {
 
 // ── BROKER WORKSPACE ──────────────────────────────────────────────────────────
 function BrokerWorkspace({ job }) {
-  const [data, setData]     = useState(null)
-  const [busy, setBusy]     = useState(false)
-  const [msg, setMsg]       = useState('')
+  const [data, setData]   = useState(null)
+  const [busy, setBusy]   = useState(false)
+  const [msg, setMsg]     = useState('')
+  const [chartWin, setChartWin] = useState('1d')
 
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.brokerSession(); setData(r.data) } catch {}
   }, [])
   useEffect(() => { load() }, [load])
 
-  const activeSession = data?.sessions?.[0]
+  const sess = data?.sessions?.[0]
 
   const invest = async (targetId, targetType) => {
-    if (!activeSession) return
+    if (!sess) return
     setBusy(true); setMsg('')
-    try {
-      await jobActionsApi.brokerInvest(activeSession.id, targetId, targetType)
-      setMsg('Invested!'); load()
-    } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    try { await jobActionsApi.brokerInvest(sess.id, targetId, targetType); setMsg('Position set!'); load() }
+    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(false) }
   }
 
   const close = async () => {
-    if (!activeSession) return
     setBusy(true)
     try {
-      const r = await jobActionsApi.closeBrokerSession(activeSession.id)
-      setMsg(`Closed. Client gets 🌱${r.data.clientGet}, you earn 🌱${r.data.brokerCut}`); load()
+      const r = await jobActionsApi.closeBrokerSession(sess.id)
+      setMsg(`Done! Client: 🌱${r.data.clientGet} · You: 🌱${r.data.brokerCut}`); load()
     } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(false) }
   }
 
+  const closeAt = sess ? new Date(sess.closes_at) : null
+  const msLeft = closeAt ? closeAt - Date.now() : 0
+  const timeLeft = msLeft > 0 ? (() => { const h=Math.floor(msLeft/3600000); const m=Math.floor((msLeft%3600000)/60000); return h>0?`${h}h ${m}m`:`${m}m` })() : 'Expired'
+
+  // Calculate current return preview for active session
+  const baseline = sess ? Math.max(1, parseFloat(sess.price_at_invest || 1)) : 1
+  const currentVal = sess?.target_seeds || baseline
+  const mult = sess?.price_at_invest ? Math.min(10, Math.max(0, currentVal / baseline)) : null
+
   return (
     <div className="space-y-3">
-      {!data && <p className="text-forest-600 text-xs">Loading…</p>}
-      {activeSession ? (
-        <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-forest-300 text-sm font-medium">Active Session</p>
-            <span className="text-forest-400 text-xs">Client: {activeSession.client_name}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-lg bg-forest-800/60 p-2">
-              <p className="text-forest-500">Escrow</p>
-              <p className="text-forest-200 font-mono">🌱 {activeSession.escrow_seeds}</p>
+      {!data && <p className="text-forest-600 text-xs text-center py-4">Loading…</p>}
+      {sess ? (
+        <>
+          {/* Session header */}
+          <div className="rounded-xl bg-forest-900/50 border border-forest-700 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-forest-200 text-sm font-medium">Active Session</p>
+              <span className={`text-xs font-mono ${msLeft <= 0 ? 'text-red-400' : 'text-forest-400'}`}>⏱ {timeLeft}</span>
             </div>
-            <div className="rounded-lg bg-forest-800/60 p-2">
-              <p className="text-forest-500">Target</p>
-              <p className="text-forest-200">{activeSession.target_type || 'Not set'}</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded-lg bg-forest-800/60 p-2 text-center">
+                <p className="text-forest-500 mb-0.5">Client</p>
+                <p className="text-forest-200 font-medium truncate">{sess.client_name}</p>
+              </div>
+              <div className="rounded-lg bg-forest-800/60 p-2 text-center">
+                <p className="text-forest-500 mb-0.5">Escrow</p>
+                <p className="text-forest-200 font-mono">🌱{sess.escrow_seeds}</p>
+              </div>
+              <div className="rounded-lg bg-forest-800/60 p-2 text-center">
+                <p className="text-forest-500 mb-0.5">Return</p>
+                {mult !== null
+                  ? <p className={`font-mono ${mult >= 1 ? 'text-green-400' : 'text-red-400'}`}>×{mult.toFixed(2)}</p>
+                  : <p className="text-forest-500">—</p>}
+              </div>
+            </div>
+            <p className="text-forest-700 text-xs mt-1.5">100% active · 5% fee · you earn 10% of profits</p>
+          </div>
+
+          {/* Investment target selector */}
+          <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
+            <p className="text-forest-300 text-xs font-medium mb-2">Invest client escrow in:</p>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {data?.connections?.map(c => {
+                const isActive = sess.target_type === 'grove' && sess.target_user_id === c.id
+                return (
+                  <button key={c.id} onClick={() => invest(c.id, 'grove')} disabled={busy}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors disabled:opacity-40
+                      ${isActive ? 'bg-forest-700 border border-forest-600' : 'bg-forest-800/60 hover:bg-forest-700'}`}>
+                    <span className="text-forest-200">{c.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-forest-400 font-mono">🌱{c.seeds}</span>
+                      {isActive && <span className="text-green-400 text-[10px]">● Active</span>}
+                    </div>
+                  </button>
+                )
+              })}
+              {[['canopy','🌳 The Canopy','amber'],['crude','🛢️ Crude Oil','orange']].map(([m,label,col]) => {
+                const isActive = sess.target_type === m
+                return (
+                  <button key={m} onClick={() => invest(null, m)} disabled={busy}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors disabled:opacity-40
+                      ${isActive ? `bg-${col}-950/60 border border-${col}-800/60` : `bg-${col}-950/20 hover:bg-${col}-950/40`}`}>
+                    <span className={`text-${col}-300`}>{label}</span>
+                    {isActive && <span className={`text-${col}-400 text-[10px]`}>● Active</span>}
+                  </button>
+                )
+              })}
             </div>
           </div>
-          <p className="text-forest-600 text-xs">100% active · 5% fee · 10% profit cut</p>
-          <p className="text-forest-300 text-xs font-medium mt-1">Invest in:</p>
-          <div className="space-y-1 max-h-32 overflow-y-auto">
-            {data?.connections?.map(c => (
-              <button key={c.id} onClick={() => invest(c.id, 'grove')} disabled={busy}
-                className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg bg-forest-800/60
-                           hover:bg-forest-700 text-xs transition-colors disabled:opacity-40">
-                <span className="text-forest-200">{c.name}</span>
-                <span className="text-forest-400 font-mono">🌱{c.seeds}</span>
-              </button>
-            ))}
-            <button onClick={() => invest(null, 'canopy')} disabled={busy}
-              className="w-full px-2 py-1.5 rounded-lg bg-amber-950/40 border border-amber-900/40 text-amber-300 text-xs hover:bg-amber-950/60 disabled:opacity-40 transition-colors">
-              🌳 Invest in Canopy
-            </button>
-            <button onClick={() => invest(null, 'crude')} disabled={busy}
-              className="w-full px-2 py-1.5 rounded-lg bg-orange-950/40 border border-orange-900/40 text-orange-300 text-xs hover:bg-orange-950/60 disabled:opacity-40 transition-colors">
-              🛢️ Invest in Crude
-            </button>
-          </div>
-          {msg && <p className="text-xs text-green-400">{msg}</p>}
+
+          {msg && <p className={`text-xs text-center ${msg.includes('Done') ? 'text-green-400' : msg.includes('!') ? 'text-forest-300' : 'text-red-400'}`}>{msg}</p>}
           <button onClick={close} disabled={busy}
             className="w-full py-2 rounded-xl border border-red-900/50 text-red-400/80 text-sm hover:border-red-700 hover:text-red-300 transition-colors disabled:opacity-40">
-            Close & distribute returns
+            Close session & pay out
           </button>
-        </div>
+        </>
       ) : (
-        <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
-          <p className="text-forest-300 text-sm font-medium mb-1">🌱 Broker Dashboard</p>
+        <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-4 text-center">
+          <p className="text-forest-300 text-sm font-medium mb-1">🌱 Seed Broker</p>
           <p className="text-forest-600 text-xs">No active session. Clients hire you from For Hire.</p>
-          <p className="text-forest-700 text-xs mt-1">One client at a time · 100% active · 5% fee · 10% profit</p>
+          <p className="text-forest-700 text-xs mt-1">One client at a time · 100% active exposure · 5% withdrawal fee · 10% of profits</p>
         </div>
       )}
     </div>
@@ -251,14 +285,14 @@ function BrokerWorkspace({ job }) {
 
 // ── ACCOUNTANT WORKSPACE ──────────────────────────────────────────────────────
 function AccountantWorkspace({ job }) {
-  const [data, setData]   = useState(null)
+  const [data, setData]     = useState(null)
   const [active, setActive] = useState(null)
   const [action, setAction] = useState('hold')
-  const [note, setNote]   = useState('')
-  const [amt, setAmt]     = useState(0)
-  const [idx, setIdx]     = useState(0)
-  const [busy, setBusy]   = useState(false)
-  const [msg, setMsg]     = useState('')
+  const [note, setNote]     = useState('')
+  const [amt, setAmt]       = useState(0)
+  const [idx, setIdx]       = useState(0)
+  const [busy, setBusy]     = useState(false)
+  const [msg, setMsg]       = useState('')
 
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.accountantClients(); setData(r.data) } catch {}
@@ -267,79 +301,130 @@ function AccountantWorkspace({ job }) {
 
   const sendAdvice = async () => {
     setBusy(true); setMsg('')
-    try {
-      await jobActionsApi.sendAdvice(active.session_id, action, amt, note, idx)
-      setMsg('Advice sent!'); setActive(null); load()
-    } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    try { await jobActionsApi.sendAdvice(active.session_id, action, amt, note, idx); setMsg('Advice sent!'); setActive(null); load() }
+    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(false) }
   }
 
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '—'
+
   return (
     <div className="space-y-3">
-      {!data && <p className="text-forest-600 text-xs">Loading…</p>}
+      {!data && <p className="text-forest-600 text-xs text-center py-4">Loading…</p>}
       {active ? (
-        <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-forest-300 text-sm font-medium">📊 Send Advice to {active.client_name}</p>
-            <button onClick={() => setActive(null)} className="text-forest-600 text-xs">Cancel</button>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <p className="text-forest-300 text-sm font-medium">📊 {active.client_name}'s Portfolio</p>
+            <button onClick={() => { setActive(null); setMsg('') }} className="text-forest-600 text-xs hover:text-forest-300">← Back</button>
           </div>
-          {/* Client investments (anonymised by index) */}
-          <div className="space-y-1 max-h-28 overflow-y-auto">
-            {active.investments?.map((inv, i) => {
-              const mult = inv.current_seeds / Math.max(1, inv.seeds_at_invest)
-              const profit = Math.floor(inv.amount * mult) - inv.amount
-              return (
-                <button key={inv.id} onClick={() => setIdx(i)}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors
-                    ${idx === i ? 'bg-forest-700' : 'bg-forest-800/60 hover:bg-forest-700'}`}>
-                  <span className="text-forest-400">Investment #{i + 1}</span>
-                  <span className={profit >= 0 ? 'text-green-400' : 'text-red-400'}>
-                    ×{mult.toFixed(2)} ({profit >= 0 ? '+' : ''}{profit} 🌱)
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-          <div className="flex gap-1">
-            {['buy','hold','sell'].map(a => (
-              <button key={a} onClick={() => setAction(a)}
-                className={`flex-1 py-1 rounded-lg text-xs font-medium transition-colors
-                  ${action === a ? 'bg-forest-700 text-forest-100' : 'text-forest-500 border border-forest-800 hover:border-forest-600'}`}>
-                {a === 'buy' ? '📈 Buy' : a === 'hold' ? '⏸ Hold' : '📉 Sell'}
-              </button>
-            ))}
-          </div>
-          {action !== 'hold' && (
-            <input type="number" value={amt} onChange={e => setAmt(parseInt(e.target.value) || 0)}
-              placeholder="Amount (seeds)" className="input text-xs w-full"/>
+
+          {/* Grove investments */}
+          {active.investments?.length > 0 && (
+            <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
+              <p className="text-forest-400 text-xs font-medium mb-2">Grove Investments</p>
+              {active.investments.map((inv, i) => {
+                const mult   = inv.current_seeds / Math.max(1, inv.seeds_at_invest)
+                const profit = Math.floor(inv.amount * mult) - inv.amount
+                return (
+                  <button key={inv.id} onClick={() => setIdx(i)}
+                    className={`w-full p-2.5 rounded-lg mb-1.5 text-left transition-colors border
+                      ${idx === i ? 'bg-forest-700 border-forest-600' : 'bg-forest-800/60 border-forest-700 hover:bg-forest-700'}`}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-forest-300 text-xs font-medium">Investment #{i + 1}</span>
+                      <span className={`text-xs font-mono font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {profit >= 0 ? '+' : ''}{profit} 🌱
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-forest-500">
+                      <span>🌱{inv.amount} staked · ×{mult.toFixed(2)}</span>
+                      <span>since {fmtDate(inv.invested_at)}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           )}
-          <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Your analysis..."
-            maxLength={200}
-            className="w-full bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-xs
-                       text-forest-100 placeholder-forest-600 resize-none outline-none h-16"/>
-          {msg && <p className={`text-xs ${msg.includes('sent') ? 'text-green-400' : 'text-red-400'}`}>{msg}</p>}
-          <button onClick={sendAdvice} disabled={busy}
-            className="w-full py-2 bg-forest-700 hover:bg-forest-600 disabled:opacity-40 text-forest-100 text-sm rounded-xl transition-colors">
-            {busy ? 'Sending…' : `Send advice · 🌱${active.fee_seeds} fee`}
-          </button>
+
+          {/* Market positions */}
+          {active.marketPositions?.length > 0 && (
+            <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
+              <p className="text-forest-400 text-xs font-medium mb-2">Market Positions</p>
+              {active.marketPositions.map((mp, i) => {
+                const mult   = parseFloat(mp.current_price) / Math.max(1, parseFloat(mp.price_at_invest))
+                const profit = Math.floor(mp.amount * mult) - mp.amount
+                const col    = mp.market === 'canopy' ? 'text-yellow-400' : 'text-orange-400'
+                return (
+                  <div key={i} className="p-2.5 rounded-lg mb-1.5 bg-forest-800/60 border border-forest-700">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className={`text-xs font-medium ${col}`}>{mp.market === 'canopy' ? '🌳 Canopy' : '🛢️ Crude'}</span>
+                      <span className={`text-xs font-mono font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {profit >= 0 ? '+' : ''}{profit} 🌱
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-forest-500">
+                      <span>🌱{mp.amount} · ×{mult.toFixed(2)}</span>
+                      <span>since {fmtDate(mp.invested_at)}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Advice panel */}
+          <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-2">
+            <p className="text-forest-300 text-xs font-medium">Send Advice (once per 24h · 🌱{active.fee_seeds} fee)</p>
+            {active.last_report_at && (
+              <p className="text-forest-600 text-xs">Last advice: {fmtDate(active.last_report_at)}</p>
+            )}
+            <p className="text-forest-500 text-xs">Advising on Investment #{idx + 1}</p>
+            <div className="flex gap-1">
+              {['buy','hold','sell'].map(a => (
+                <button key={a} onClick={() => setAction(a)}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors
+                    ${action === a ? 'bg-forest-700 text-forest-100' : 'text-forest-500 border border-forest-800 hover:border-forest-600'}`}>
+                  {a === 'buy' ? '📈 Buy' : a === 'hold' ? '⏸ Hold' : '📉 Sell'}
+                </button>
+              ))}
+            </div>
+            {action !== 'hold' && (
+              <input type="number" value={amt} onChange={e => setAmt(parseInt(e.target.value) || 0)}
+                placeholder="Amount (seeds)" className="input text-xs w-full"/>
+            )}
+            <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Your analysis and reasoning..."
+              maxLength={200}
+              className="w-full bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-xs
+                         text-forest-100 placeholder-forest-600 resize-none outline-none h-16"/>
+            {msg && <p className={`text-xs ${msg.includes('sent') ? 'text-green-400' : 'text-red-400'}`}>{msg}</p>}
+            <button onClick={sendAdvice} disabled={busy}
+              className="w-full py-2 bg-forest-700 hover:bg-forest-600 disabled:opacity-40 text-forest-100 text-sm rounded-xl transition-colors">
+              {busy ? 'Sending…' : `Send advice · 🌱${active.fee_seeds}`}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
-          <p className="text-forest-300 text-sm font-medium mb-2">📊 Clients</p>
-          {data?.clients?.length === 0 && <p className="text-forest-600 text-xs">No active clients.</p>}
-          {data?.clients?.map(c => (
-            <div key={c.session_id} className="mb-2 p-2 rounded-lg bg-forest-800/60 border border-forest-700">
-              <div className="flex items-center justify-between">
-                <p className="text-forest-200 text-xs font-medium">{c.client_name}</p>
-                <p className="text-forest-500 text-xs">🌱{c.client_seeds}</p>
+          <p className="text-forest-300 text-sm font-medium mb-2">📊 Client Portfolios</p>
+          {data?.clients?.length === 0 && <p className="text-forest-600 text-xs">No active clients. Users hire you from For Hire.</p>}
+          {data?.clients?.map(c => {
+            const totalInv = (c.investments?.length || 0) + (c.marketPositions?.length || 0)
+            return (
+              <div key={c.session_id} className="mb-2 p-3 rounded-lg bg-forest-800/60 border border-forest-700">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-forest-200 text-sm font-medium">{c.client_name}</p>
+                  <p className="text-forest-400 font-mono text-xs">🌱{c.client_seeds}</p>
+                </div>
+                <p className="text-forest-600 text-xs">{totalInv} position{totalInv !== 1 ? 's' : ''} · fee 🌱{c.fee_seeds}/advice</p>
+                {c.pendingAdvice?.length > 0 && (
+                  <p className="text-yellow-400/60 text-xs mt-0.5">{c.pendingAdvice.length} advice pending</p>
+                )}
+                <button onClick={() => { setActive(c); setIdx(0) }}
+                  className="mt-2 w-full py-1.5 rounded-lg bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs transition-colors font-medium">
+                  View portfolio & advise →
+                </button>
               </div>
-              <p className="text-forest-600 text-xs">{c.investments?.length || 0} investments · fee 🌱{c.fee_seeds}</p>
-              <button onClick={() => setActive(c)}
-                className="mt-1.5 w-full py-1 rounded-lg bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs transition-colors">
-                View & advise
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
@@ -348,8 +433,8 @@ function AccountantWorkspace({ job }) {
 
 // ── STEWARD WORKSPACE ─────────────────────────────────────────────────────────
 function StewardWorkspace({ job }) {
-  const [data, setData]   = useState(null)
-  const [busy, setBusy]   = useState({})
+  const [data, setData] = useState(null)
+  const [busy, setBusy] = useState({})
 
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.stewardDashboard(); setData(r.data) } catch {}
@@ -358,7 +443,7 @@ function StewardWorkspace({ job }) {
 
   const nudge = async (clientId) => {
     setBusy(b => ({ ...b, [clientId]: true }))
-    try { await jobActionsApi.stewardNudge(clientId); alert('Nudge sent!') }
+    try { await jobActionsApi.stewardNudge(clientId); load() }
     catch (e) { alert(e.response?.data?.error || 'Failed') }
     finally { setBusy(b => ({ ...b, [clientId]: false })) }
   }
@@ -366,31 +451,38 @@ function StewardWorkspace({ job }) {
   return (
     <div className="space-y-3">
       <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
-        <p className="text-forest-300 text-sm font-medium mb-2">🔔 Streak Dashboard</p>
+        <p className="text-forest-300 text-sm font-medium mb-2">🔔 Client Streaks</p>
         {!data && <p className="text-forest-600 text-xs">Loading…</p>}
-        {data?.clients?.length === 0 && <p className="text-forest-600 text-xs">No active clients.</p>}
-        {data?.clients?.map(c => (
-          <div key={c.steward_client_id} className="mb-2 p-2 rounded-lg bg-forest-800/60 border border-forest-700">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-forest-300 text-xs font-medium">Client #{c.client_id.slice(-4)}</p>
-              <p className="text-forest-500 text-xs">🌱{c.client_seeds}</p>
-            </div>
-            {c.streaks?.length === 0 && <p className="text-forest-700 text-xs">No active streaks</p>}
-            {c.streaks?.map((s, i) => (
-              <div key={i} className={`flex items-center justify-between text-xs mt-0.5 px-1 py-0.5 rounded
-                ${s.fuel <= 1 ? 'bg-amber-950/40 border border-amber-900/40' : ''}`}>
-                <span className="text-forest-400">Streak #{i+1}: 🔥{s.streak_days}d</span>
-                <span className={`font-mono ${s.fuel <= 1 ? 'text-amber-400' : 'text-forest-400'}`}>⛽{s.fuel}/3</span>
+        {data?.clients?.length === 0 && <p className="text-forest-600 text-xs">No active clients. Users hire you from For Hire.</p>}
+        {data?.clients?.map(c => {
+          // Only show streaks with streak_days > 0
+          const activeStreaks = (c.streaks || []).filter(s => s.streak_days > 0)
+          const atRisk = activeStreaks.filter(s => s.fuel <= 1)
+          return (
+            <div key={c.steward_client_id} className="mb-3 p-3 rounded-lg bg-forest-800/60 border border-forest-700">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-forest-200 text-sm font-medium">{c.client_name}</p>
+                <span className="text-forest-500 text-xs">🌱{c.client_seeds}</span>
               </div>
-            ))}
-            {c.streaks?.some(s => s.fuel <= 1) && (
-              <button onClick={() => nudge(c.client_id)} disabled={busy[c.client_id]}
-                className="mt-1.5 w-full py-1 rounded-lg bg-amber-900/40 hover:bg-amber-900/60 border border-amber-800/50 text-amber-300 text-xs disabled:opacity-40 transition-colors">
-                ⚠️ Send streak nudge
-              </button>
-            )}
-          </div>
-        ))}
+              {activeStreaks.length === 0
+                ? <p className="text-forest-700 text-xs">No active streaks</p>
+                : activeStreaks.map((s, i) => (
+                  <div key={i} className={`flex items-center justify-between text-xs py-1 px-2 rounded mb-0.5
+                    ${s.fuel <= 1 ? 'bg-amber-950/40 border border-amber-900/40' : 'bg-forest-900/40'}`}>
+                    <span className="text-forest-300">🔥 {s.streak_days}d streak</span>
+                    <span className={`font-mono ${s.fuel <= 1 ? 'text-amber-400 font-bold' : 'text-forest-500'}`}>⛽{s.fuel}/3</span>
+                  </div>
+                ))
+              }
+              {atRisk.length > 0 && (
+                <button onClick={() => nudge(c.client_id)} disabled={busy[c.client_id]}
+                  className="mt-2 w-full py-1.5 rounded-lg bg-amber-900/40 hover:bg-amber-900/60 border border-amber-800/50 text-amber-300 text-xs disabled:opacity-40 transition-colors font-medium">
+                  {busy[c.client_id] ? 'Sending…' : `⚠️ Nudge ${c.client_name}`}
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -398,28 +490,22 @@ function StewardWorkspace({ job }) {
 
 // ── FORECASTER WORKSPACE ──────────────────────────────────────────────────────
 function ForecasterWorkspace({ job }) {
-  const [posts, setPosts]   = useState([])
-  const [subCount, setSub]  = useState(0)
+  const [posts, setPosts]     = useState([])
+  const [subCount, setSub]    = useState(0)
   const [content, setContent] = useState('')
-  const [busy, setBusy]     = useState(false)
-  const [msg, setMsg]       = useState('')
+  const [busy, setBusy]       = useState(false)
+  const [msg, setMsg]         = useState('')
 
   const load = useCallback(async () => {
-    try {
-      const r = await jobActionsApi.forecasterPosts(job.user_id)
-      setPosts(r.data.posts); setSub(r.data.subscriberCount)
-    } catch {}
+    try { const r = await jobActionsApi.forecasterPosts(job.user_id); setPosts(r.data.posts); setSub(r.data.subscriberCount) } catch {}
   }, [job.user_id])
   useEffect(() => { load() }, [load])
 
   const post = async () => {
-    if (!content.trim() || content.length < 10) return setMsg('Write at least 10 characters')
+    if (content.length < 10) return setMsg('Write at least 10 characters')
     setBusy(true); setMsg('')
-    try {
-      const r = await jobActionsApi.forecasterPost(content)
-      setMsg(`Posted! Notified ${r.data.notified} subscriber(s).`)
-      setContent(''); load()
-    } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    try { const r = await jobActionsApi.forecasterPost(content); setMsg(`Posted! Notified ${r.data.notified} subscriber(s).`); setContent(''); load() }
+    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(false) }
   }
 
@@ -427,27 +513,27 @@ function ForecasterWorkspace({ job }) {
     <div className="space-y-3">
       <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-forest-300 text-sm font-medium">📡 Post Analysis</p>
-          <span className="text-forest-500 text-xs">{subCount} subscriber{subCount !== 1 ? 's' : ''}</span>
+          <p className="text-forest-300 text-sm font-medium">📡 Post Forecast</p>
+          <span className="text-forest-400 text-xs">{subCount} subscriber{subCount !== 1 ? 's' : ''}</span>
         </div>
         <textarea value={content} onChange={e => setContent(e.target.value)}
-          placeholder="Share your market or social forecast..."
+          placeholder="Share your market or social analysis..."
           maxLength={500}
           className="w-full bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-sm
-                     text-forest-100 placeholder-forest-600 resize-none outline-none h-20 mb-2"/>
+                     text-forest-100 placeholder-forest-600 resize-none outline-none h-24 mb-2"/>
         {msg && <p className={`text-xs mb-2 ${msg.includes('Posted') ? 'text-green-400' : 'text-red-400'}`}>{msg}</p>}
         <button onClick={post} disabled={busy || !content.trim()}
-          className="w-full py-2 bg-forest-700 hover:bg-forest-600 disabled:opacity-40 text-forest-100 text-sm rounded-xl transition-colors">
+          className="w-full py-2 bg-forest-700 hover:bg-forest-600 disabled:opacity-40 text-forest-100 text-sm rounded-xl transition-colors font-medium">
           {busy ? 'Posting…' : 'Post to subscribers'}
         </button>
       </div>
       {posts.length > 0 && (
         <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
-          <p className="text-forest-400 text-xs font-medium mb-2">Recent posts</p>
+          <p className="text-forest-400 text-xs font-medium mb-2">Your recent posts</p>
           {posts.slice(0, 5).map(p => (
-            <div key={p.id} className="mb-2 p-2 rounded-lg bg-forest-800/60 border border-forest-700">
-              <p className="text-forest-200 text-xs">{p.content}</p>
-              <p className="text-forest-700 text-xs mt-1">{new Date(p.created_at).toLocaleDateString()}</p>
+            <div key={p.id} className="mb-2 p-2.5 rounded-lg bg-forest-800/60 border border-forest-700">
+              <p className="text-forest-200 text-xs leading-relaxed">{p.content}</p>
+              <p className="text-forest-700 text-xs mt-1">{new Date(p.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</p>
             </div>
           ))}
         </div>
@@ -457,14 +543,14 @@ function ForecasterWorkspace({ job }) {
 }
 
 // ── FARMER WORKSPACE ──────────────────────────────────────────────────────────
-const HARVEST_OUTCOMES = { rotten: '🪲', poor: '🥀', normal: '🌱', good: '✨', great: '🌟', bumper: '💫' }
+const HARVEST_OUTCOMES = { rotten: { emoji: '🪲', col: 'text-red-400' }, poor: { emoji: '🥀', col: 'text-orange-400' }, normal: { emoji: '🌱', col: 'text-forest-300' }, good: { emoji: '✨', col: 'text-green-300' }, great: { emoji: '🌟', col: 'text-yellow-300' }, bumper: { emoji: '💫', col: 'text-yellow-400' } }
 
 function FarmerWorkspace({ job }) {
-  const [slots, setSlots]   = useState([])
-  const [planting, setPlanting] = useState(null) // slot index
-  const [seeds, setSeeds]   = useState(10)
-  const [busy, setBusy]     = useState({})
-  const [msg, setMsg]       = useState('')
+  const [slots, setSlots]       = useState([])
+  const [planting, setPlanting] = useState(null)
+  const [seeds, setSeeds]       = useState(10)
+  const [busy, setBusy]         = useState({})
+  const [msg, setMsg]           = useState('')
 
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.farmerPlot(); setSlots(r.data.slots) } catch {}
@@ -474,8 +560,9 @@ function FarmerWorkspace({ job }) {
   const doPlant = async (slotIndex) => {
     setBusy(b => ({ ...b, [slotIndex]: true })); setMsg('')
     try {
-      await jobActionsApi.farmerPlant(slotIndex, seeds)
-      setMsg(`Planted 🌱${seeds} in slot ${slotIndex + 1}`); setPlanting(null); load()
+      const r = await jobActionsApi.farmerPlant(slotIndex, seeds)
+      setMsg(r.data.fromDeposit ? `Planted client deposit in slot ${slotIndex + 1}!` : `Planted 🌱${seeds} in slot ${slotIndex + 1}`)
+      setPlanting(null); load()
     } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(b => ({ ...b, [slotIndex]: false })) }
   }
@@ -485,7 +572,8 @@ function FarmerWorkspace({ job }) {
     try {
       const r = await jobActionsApi.farmerHarvest(slotId)
       const { outcome, result } = r.data
-      setMsg(`${HARVEST_OUTCOMES[outcome]} ${outcome.charAt(0).toUpperCase()+outcome.slice(1)} harvest! Got 🌱${result}`)
+      const o = HARVEST_OUTCOMES[outcome]
+      setMsg(`${o.emoji} ${outcome.charAt(0).toUpperCase()+outcome.slice(1)} harvest! 🌱${result}`)
       load()
     } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(b => ({ ...b, [slotIndex]: false })) }
@@ -494,64 +582,104 @@ function FarmerWorkspace({ job }) {
   const timeLeft = (harvestAt) => {
     const ms = new Date(harvestAt) - Date.now()
     if (ms <= 0) return 'Ready!'
-    const h = Math.floor(ms / 3600000)
-    const m = Math.floor((ms % 3600000) / 60000)
+    const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000)
     return h > 0 ? `${h}h ${m}m` : `${m}m`
+  }
+  const refundTimeLeft = (plantedAt) => {
+    const deadline = new Date(plantedAt).getTime() + 3600000
+    const ms = deadline - Date.now()
+    if (ms <= 0) return null
+    const m = Math.floor(ms / 60000)
+    return `${m}m to plant`
   }
 
   return (
     <div className="space-y-3">
-      {msg && <p className="text-center text-sm font-medium" style={{ color: msg.includes('Failed') ? '#f87171' : '#4ade80' }}>{msg}</p>}
-      {/* Plot grid */}
-      <div className="rounded-xl bg-amber-950/30 border border-amber-900/40 p-3">
-        <p className="text-amber-300 text-sm font-medium mb-3">🌾 Your Plot</p>
-        <div className="grid grid-cols-5 gap-1.5">
+      {msg && (
+        <p className={`text-center text-sm font-medium py-1 rounded-lg ${msg.includes('Failed') ? 'text-red-400 bg-red-950/20' : 'text-green-400 bg-green-950/20'}`}>
+          {msg}
+        </p>
+      )}
+      <div className="rounded-2xl bg-amber-950/30 border border-amber-900/40 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-amber-300 text-sm font-medium">🌾 Your Plot</p>
+          <p className="text-amber-700 text-xs">{slots.filter(s => s.status === 'planted').length}/{slots.length} planted</p>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
           {slots.map(slot => {
-            const isReady    = slot.status === 'ready'
-            const isPlanted  = slot.status === 'planted'
-            const isEmpty    = slot.status === 'empty'
-            const isPlanting = planting === slot.slot_index
+            const isReady     = slot.status === 'ready'
+            const isPlanted   = slot.status === 'planted'
+            const isDeposited = slot.status === 'deposited'
+            const isEmpty     = slot.status === 'empty'
+            const isSelecting = planting === slot.slot_index && isEmpty
+            const refund      = isDeposited ? refundTimeLeft(slot.planted_at) : null
+
             return (
-              <div key={slot.slot_index} className="flex flex-col items-center">
+              <div key={slot.slot_index} className="relative flex flex-col items-center gap-1">
                 <button
                   onClick={() => {
-                    if (isReady)   doHarvest(slot.id, slot.slot_index)
-                    if (isEmpty)   setPlanting(planting === slot.slot_index ? null : slot.slot_index)
+                    if (isReady)      doHarvest(slot.id, slot.slot_index)
+                    if (isDeposited)  doPlant(slot.slot_index)
+                    if (isEmpty)      setPlanting(planting === slot.slot_index ? null : slot.slot_index)
                   }}
                   disabled={busy[slot.slot_index] || isPlanted}
-                  className={`aspect-square w-full rounded-lg flex flex-col items-center justify-center text-xs
-                    transition-all border disabled:opacity-60
-                    ${isReady    ? 'bg-green-950/60 border-green-800/60 hover:bg-green-900/60 cursor-pointer' : ''}
-                    ${isPlanted  ? 'bg-amber-950/60 border-amber-900/40 cursor-default' : ''}
-                    ${isEmpty    ? 'bg-amber-950/20 border-amber-900/30 hover:bg-amber-950/40 cursor-pointer' : ''}
-                    ${isPlanting ? 'ring-1 ring-forest-500' : ''}
+                  className={`w-full aspect-square rounded-xl flex flex-col items-center justify-center text-xs
+                    transition-all border-2 disabled:opacity-60
+                    ${isReady     ? 'bg-green-950/60 border-green-700/60 hover:bg-green-900/60 cursor-pointer shadow-lg shadow-green-900/30' : ''}
+                    ${isPlanted   ? 'bg-amber-950/50 border-amber-900/30 cursor-default' : ''}
+                    ${isDeposited ? 'bg-blue-950/50 border-blue-800/50 hover:bg-blue-900/50 cursor-pointer' : ''}
+                    ${isEmpty     ? 'bg-amber-950/20 border-amber-900/20 hover:bg-amber-950/40 cursor-pointer' : ''}
+                    ${isSelecting ? 'ring-2 ring-forest-500 border-forest-600' : ''}
                   `}>
-                  <span className="text-base">{isReady ? '🌾' : isPlanted ? '🌱' : '🪨'}</span>
-                  {isPlanted && <span className="text-[9px] text-amber-600 mt-0.5">{timeLeft(slot.harvest_at)}</span>}
-                  {isReady    && <span className="text-[9px] text-green-400 mt-0.5">Harvest!</span>}
-                  {isEmpty    && <span className="text-[9px] text-amber-800 mt-0.5">Empty</span>}
+                  <span className="text-xl">
+                    {isReady ? '🌾' : isPlanted ? '🌱' : isDeposited ? '💰' : '🪨'}
+                  </span>
+                  <span className={`text-[9px] mt-0.5 font-medium
+                    ${isReady ? 'text-green-400' : isPlanted ? 'text-amber-500' : isDeposited ? 'text-blue-400' : 'text-amber-800'}`}>
+                    {isReady     ? 'Harvest!' :
+                     isPlanted   ? (slot.harvest_at ? timeLeft(slot.harvest_at) : '…') :
+                     isDeposited ? 'Plant!' :
+                     'Empty'}
+                  </span>
                 </button>
-                {isPlanting && !isReady && !isPlanted && (
-                  <div className="absolute mt-1 z-10 bg-forest-950 border border-forest-700 rounded-xl p-2 shadow-xl" style={{ width: 140 }}>
-                    <p className="text-forest-300 text-xs mb-1">Plant your seeds</p>
-                    <input type="number" value={seeds} onChange={e => setSeeds(Math.max(1, parseInt(e.target.value)||1))}
-                      className="input text-xs w-full mb-1" min={1}/>
-                    <button onClick={() => doPlant(slot.slot_index)} disabled={busy[slot.slot_index]}
-                      className="w-full py-1 bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs rounded-lg disabled:opacity-40 transition-colors">
-                      Plant 🌱{seeds}
-                    </button>
-                  </div>
+                {isDeposited && refund && (
+                  <span className="text-[8px] text-blue-500 text-center leading-tight">{refund}</span>
+                )}
+                {isDeposited && !refund && (
+                  <span className="text-[8px] text-red-400 text-center">Refund soon</span>
+                )}
+                {isDeposited && slot.depositor_name && (
+                  <span className="text-[8px] text-blue-400/60 truncate w-full text-center">{slot.depositor_name}</span>
                 )}
               </div>
             )
           })}
         </div>
-        <p className="text-amber-800 text-xs mt-2 text-center">Click empty slot to plant your own seeds · Clients can also deposit</p>
+
+        {/* Plant own seeds panel */}
+        {planting !== null && (
+          <div className="mt-3 p-3 rounded-xl bg-forest-900/60 border border-forest-700">
+            <p className="text-forest-300 text-xs font-medium mb-2">Plant your own seeds in slot {(planting ?? 0) + 1}</p>
+            <div className="flex gap-2">
+              <input type="number" value={seeds} onChange={e => setSeeds(Math.max(1, parseInt(e.target.value)||1))}
+                className="input text-sm flex-1" min={1}/>
+              <button onClick={() => doPlant(planting)} disabled={busy[planting]}
+                className="px-4 py-2 bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm rounded-xl disabled:opacity-40 transition-colors font-medium">
+                Plant 🌱{seeds}
+              </button>
+              <button onClick={() => setPlanting(null)} className="px-3 py-2 text-forest-500 text-sm hover:text-forest-300">✕</button>
+            </div>
+          </div>
+        )}
       </div>
-      {/* Slot details */}
-      <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
-        <p className="text-forest-400 text-xs font-medium mb-1">Harvest rate: 24h · Fee: 10% of deposit</p>
-        <p className="text-forest-600 text-xs">Outcomes: 5% bumper (×2.5) · 15% great (×1.8) · 25% good (×1.4) · 33% normal (×1.1) · 14% poor (×0.5) · 8% rotten (×0)</p>
+
+      <div className="rounded-xl bg-forest-900/30 border border-forest-800 p-3">
+        <p className="text-forest-500 text-xs font-medium mb-1">Harvest odds · 24h grow time</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+          {[['bumper','×2.5','5%','text-yellow-400'],['great','×1.8','15%','text-green-300'],['good','×1.4','25%','text-green-400'],['normal','×1.1','33%','text-forest-300'],['poor','×0.5','14%','text-orange-400'],['rotten','×0','8%','text-red-400']].map(([n,m,p,c]) => (
+            <span key={n} className={`text-xs ${c}`}>{HARVEST_OUTCOMES[n].emoji} {n} {m} <span className="text-forest-700">({p})</span></span>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -577,7 +705,8 @@ function StarRating({ value, max = 5, onChange }) {
 
 // ── Job listing card ──────────────────────────────────────────────────────────
 function JobCard({ job, meta, onRate, onHire }) {
-  const avg  = job.rating_count > 0 ? (job.rating_sum / job.rating_count) : 0
+  const avg     = job.rating_count > 0 ? (job.rating_sum / job.rating_count) : 0
+  const canRate = job.has_hired && !job.has_rated
   return (
     <div className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-700 transition-colors overflow-hidden">
       <div className="p-4">
@@ -602,25 +731,32 @@ function JobCard({ job, meta, onRate, onHire }) {
           </div>
         </div>
         {job.bio && <p className="mt-2 text-forest-400 text-xs leading-relaxed line-clamp-2">{job.bio}</p>}
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-1.5">
-            <StarRating value={avg} />
-            <span className="text-forest-500 text-xs">
-              {job.rating_count > 0 ? `${avg.toFixed(1)} (${job.rating_count})` : 'No ratings yet'}
-            </span>
-          </div>
-          <div className="flex gap-1.5">
-            <button onClick={() => onHire(job)}
-              className="text-xs px-3 py-1 rounded-full bg-forest-700 hover:bg-forest-600 text-forest-100 transition-colors">
-              Hire
+
+        {/* Rating row */}
+        <div className="flex items-center gap-1.5 mt-2.5">
+          <StarRating value={avg} />
+          <span className="text-forest-500 text-xs flex-1">
+            {job.rating_count > 0 ? `${avg.toFixed(1)} (${job.rating_count})` : 'No ratings yet'}
+          </span>
+          {/* Star rate button — only if hired and not yet rated */}
+          {canRate && (
+            <button onClick={() => onRate(job)} title="Leave a rating"
+              className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-950/50 border border-yellow-800/50
+                         text-yellow-400 text-xs hover:bg-yellow-900/50 transition-colors">
+              ★ Rate
             </button>
-            <button onClick={() => onRate(job)}
-              className="text-xs px-3 py-1 rounded-full border border-forest-700 text-forest-400
-                         hover:border-forest-500 hover:text-forest-200 transition-colors">
-              Rate
-            </button>
-          </div>
+          )}
+          {job.has_rated && (
+            <span className="text-yellow-600/60 text-xs">★ Rated</span>
+          )}
         </div>
+
+        {/* Hire button — full width, more prominent */}
+        <button onClick={() => onHire(job)}
+          className="mt-3 w-full py-2 rounded-xl bg-forest-700 hover:bg-forest-600
+                     text-forest-100 text-sm font-medium transition-colors">
+          {job.has_hired ? `Hire again` : 'Hire'}
+        </button>
       </div>
     </div>
   )
@@ -668,6 +804,74 @@ function RateModal({ job, meta, onClose, onDone }) {
 }
 
 
+
+// ── My Commission Card (client view of hired writer) ─────────────────────────
+function MyCommissionCard({ commission: c, onRefresh }) {
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const resolve = async (action) => {
+    setBusy(true)
+    try { await jobActionsApi.resolveCommission(c.id, action); onRefresh() }
+    catch (e) { alert(e.response?.data?.error || 'Failed') }
+    finally { setBusy(false) }
+  }
+
+  const copy = () => {
+    navigator.clipboard.writeText(c.content || '').then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+  }
+
+  const statusColor = { pending: 'text-forest-500', submitted: 'text-yellow-400', accepted: 'text-green-400', rejected: 'text-red-400' }
+
+  return (
+    <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-4">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div>
+          <p className="text-forest-200 text-sm font-medium">"{c.prompt}"</p>
+          <p className="text-forest-500 text-xs">By {c.writer_name} · 🌱{c.fee_seeds}</p>
+        </div>
+        <span className={`text-xs font-medium flex-shrink-0 ${statusColor[c.status]}`}>{c.status}</span>
+      </div>
+
+      {c.status === 'submitted' && c.content && (
+        <>
+          <div className="rounded-xl bg-forest-950/60 border border-forest-700 p-3 mb-2">
+            <p className="text-forest-300 text-sm leading-relaxed select-none"
+              style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
+              {c.content}
+            </p>
+          </div>
+          <p className="text-forest-600 text-xs mb-2">Accept to copy · Reject returns seeds (15% kill fee to writer)</p>
+          <div className="flex gap-2">
+            <button onClick={() => resolve('accept')} disabled={busy}
+              className="flex-1 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm font-medium disabled:opacity-40 transition-colors">
+              ✓ Accept
+            </button>
+            <button onClick={() => resolve('reject')} disabled={busy}
+              className="flex-1 py-2 rounded-xl border border-red-900/50 text-red-400/80 text-sm hover:border-red-700 hover:text-red-300 disabled:opacity-40 transition-colors">
+              ✗ Reject
+            </button>
+          </div>
+        </>
+      )}
+
+      {c.status === 'accepted' && c.content && (
+        <div className="rounded-xl bg-forest-950/60 border border-green-900/40 p-3">
+          <p className="text-forest-200 text-sm leading-relaxed mb-2">{c.content}</p>
+          <button onClick={copy}
+            className="w-full py-1.5 rounded-lg bg-green-950/40 border border-green-900/50 text-green-400 text-xs font-medium hover:bg-green-900/40 transition-colors">
+            {copied ? '✓ Copied!' : '📋 Copy letter'}
+          </button>
+        </div>
+      )}
+
+      {c.status === 'pending' && (
+        <p className="text-forest-600 text-xs">Waiting for writer to complete…</p>
+      )}
+    </div>
+  )
+}
+
 // ── Hire Modal ────────────────────────────────────────────────────────────────
 function HireModal({ job, role, meta, onClose, onDone }) {
   const [busy, setBusy]   = useState(false)
@@ -683,7 +887,7 @@ function HireModal({ job, role, meta, onClose, onDone }) {
       if (role === 'accountant')  await jobActionsApi.hireAccountant(job.user_id)
       if (role === 'steward')     await jobActionsApi.hireSteward(job.user_id, extra.days)
       if (role === 'forecaster')  await jobActionsApi.forecasterSub(job.user_id, 'subscribe')
-      if (role === 'farmer')      {} // deposit handled separately in farmer plot
+      if (role === 'farmer')      await jobActionsApi.farmerDeposit(job.user_id, extra.seeds)
       onDone()
     } catch (e) { setErr(e.response?.data?.error || 'Failed'); setBusy(false) }
   }
@@ -763,15 +967,18 @@ function HireModal({ job, role, meta, onClose, onDone }) {
             <p className="text-forest-400 text-xs">Grant {job.name} read-only access to your investment portfolio. They charge 🌱{job.hourly_rate} per report.</p>
           )}
           {role === 'farmer' && (
-            <p className="text-forest-400 text-xs">To deposit seeds, visit the farmer's plot directly. Ask them to share their slot availability.</p>
+            <div>
+              <label className="text-forest-400 text-xs block mb-1">Seeds to deposit</label>
+              <input type="number" value={extra.seeds} onChange={e => setExtra(x => ({...x, seeds: Math.max(1, parseInt(e.target.value)||1)}))}
+                className="input text-sm w-full" min={1}/>
+              <p className="text-forest-600 text-xs mt-1">Farmer has 1h to plant. If unplanted, full refund.</p>
+            </div>
           )}
           {err && <p className="text-red-400 text-xs">{err}</p>}
-          {role !== 'farmer' && (
-            <button onClick={hire} disabled={busy}
+          <button onClick={hire} disabled={busy}
               className="w-full py-2.5 bg-forest-600 hover:bg-forest-500 disabled:opacity-40 text-white rounded-xl font-medium text-sm transition-colors">
-              {busy ? 'Hiring…' : role === 'forecaster' ? 'Subscribe (free)' : `Hire for 🌱${role === 'steward' ? job.hourly_rate : role === 'writer' ? extra.fee : role === 'seed_broker' ? extra.seeds : job.hourly_rate}`}
-            </button>
-          )}
+            {busy ? 'Hiring…' : role === 'forecaster' ? 'Subscribe (free)' : role === 'farmer' ? `Deposit 🌱${extra.seeds}` : `Hire for 🌱${role === 'steward' ? job.hourly_rate : role === 'writer' ? extra.fee : role === 'seed_broker' ? extra.seeds : job.hourly_rate}`}
+          </button>
         </div>
       </div>
     </div>
@@ -860,14 +1067,17 @@ export default function JobsPage() {
   const [loading, setLoading]   = useState(true)
   const [rateTarget, setRateTarget]     = useState(null)
   const [hireTarget, setHireTarget]       = useState(null)
+  const [myCommissions, setMyCommissions]   = useState([])
+  const [showMyHires, setShowMyHires]       = useState(false)
   const [registerRole, setRegisterRole] = useState(null)
   const [roleFilter, setRoleFilter]     = useState('all')
 
   const reload = useCallback(async () => {
     try {
-      const [listRes, myRes] = await Promise.all([jobsApi.listings(), jobsApi.my()])
+      const [listRes, myRes, commRes] = await Promise.all([jobsApi.listings(), jobsApi.my(), jobActionsApi.myCommissions().catch(()=>({data:{commissions:[]}}))])
       setListings(listRes.data.listings || {})
       setMyJob(myRes.data.job)
+      setMyCommissions(commRes.data.commissions || [])
     } catch {} finally { setLoading(false) }
   }, [])
 
@@ -922,6 +1132,23 @@ export default function JobsPage() {
         {/* ── FOR HIRE ── */}
         {tab === 'hire' && (
           <div className="p-4 space-y-4">
+            {/* My hires toggle */}
+            {myCommissions.length > 0 && (
+              <button onClick={() => setShowMyHires(s => !s)}
+                className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors mb-1
+                  ${showMyHires ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
+                {showMyHires ? '← Back to listings' : `📬 My hired services (${myCommissions.length})`}
+              </button>
+            )}
+
+            {showMyHires ? (
+              <div className="space-y-2">
+                {myCommissions.map(c => (
+                  <MyCommissionCard key={c.id} commission={c} onRefresh={reload} />
+                ))}
+              </div>
+            ) : (<>
+
             {/* Role filter */}
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               <button onClick={() => setRoleFilter('all')}

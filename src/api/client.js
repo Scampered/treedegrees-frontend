@@ -177,7 +177,8 @@ export const jobActionsApi = {
   // Farmer
   farmerPlot:        ()                         => api.get('/api/job-actions/farmer/plot'),
   farmerPlant:       (slot, seeds)              => api.post('/api/job-actions/farmer/plant', { slotIndex: slot, seeds }),
-  farmerDeposit:     (farmerId, slot, seeds)    => api.post('/api/job-actions/farmer/deposit', { farmerId, slotIndex: slot, seeds }),
+  farmerDeposit:     (farmerId, seeds)           => api.post('/api/job-actions/farmer/deposit', { farmerId, seeds }),
+  myFarmerDeposits:  ()                         => api.get('/api/job-actions/farmer/my-deposits'),
   farmerHarvest:     (slotId)                   => api.post('/api/job-actions/farmer/harvest', { slotId }),
 }
 
