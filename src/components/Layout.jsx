@@ -171,29 +171,52 @@ export default function Layout() {
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {sidebarItems.map(({ to, icon, fullLabel, extra, extraTo, extraLabel }) => (
-            <div key={to} className="flex items-center gap-1">
-              <NavLink to={to}
-                className={({ isActive }) =>
-                  `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
-                   ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
-                }>
-                <span className="text-base">{icon}</span>
-                <span className="flex-1">{fullLabel}</span>
-                {badgeFor(to) > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
-                    {badgeFor(to) > 9 ? '9+' : badgeFor(to)}
-                  </span>
-                )}
-              </NavLink>
-              {extra && extraTo && (
-                <NavLink to={extraTo} title={extraLabel || extra}
-                  className={({ isActive }) =>
-                    `flex items-center gap-1.5 px-2 h-8 rounded-lg text-sm transition-colors flex-shrink-0
-                     ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-600 hover:text-forest-300 hover:bg-forest-900'}`
-                  }>
-                  <span>{extra}</span>
-                  {extraLabel && <span className="text-xs font-medium">{extraLabel}</span>}
-                </NavLink>
+            <div key={to} className={extra && extraLabel ? "flex items-center gap-1" : "flex items-center gap-1"}>
+              {extra && extraLabel ? (
+                // Grove + Jobs: two equal 50/50 buttons side by side
+                <div className="flex-1 flex gap-1">
+                  <NavLink to={to}
+                    className={({ isActive }) =>
+                      `flex-1 flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                       ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
+                    }>
+                    <span className="text-base">{icon}</span>
+                    <span>{fullLabel}</span>
+                  </NavLink>
+                  <NavLink to={extraTo}
+                    className={({ isActive }) =>
+                      `flex-1 flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                       ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
+                    }>
+                    <span className="text-base">{extra}</span>
+                    <span>{extraLabel}</span>
+                  </NavLink>
+                </div>
+              ) : (
+                <>
+                  <NavLink to={to}
+                    className={({ isActive }) =>
+                      `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                       ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
+                    }>
+                    <span className="text-base">{icon}</span>
+                    <span className="flex-1">{fullLabel}</span>
+                    {badgeFor(to) > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
+                        {badgeFor(to) > 9 ? '9+' : badgeFor(to)}
+                      </span>
+                    )}
+                  </NavLink>
+                  {extra && extraTo && !extraLabel && (
+                    <NavLink to={extraTo} title={extra}
+                      className={({ isActive }) =>
+                        `w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors flex-shrink-0
+                         ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-600 hover:text-forest-300 hover:bg-forest-900'}`
+                      }>
+                      {extra}
+                    </NavLink>
+                  )}
+                </>
               )}
             </div>
           ))}

@@ -103,16 +103,20 @@ export default function DashboardPage() {
       )}
 
       {/* 1. TODAY'S NOTE — first */}
+      {/* Job button above the note box */}
+      <div className="flex items-center justify-between px-1 -mb-1">
+        <span className="text-forest-500 text-xs font-medium uppercase tracking-wide">Today's note 📝</span>
+        <Link to="/jobs"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest-800 border border-forest-700
+                     hover:border-forest-500 hover:bg-forest-750 transition-colors text-sm font-medium text-forest-200">
+          {myJob ? `💼 ${{'courier':'Courier','writer':'Writer','seed_broker':'Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'}[myJob.role] || myJob.role}` : '💼 Get a job'}
+        </Link>
+      </div>
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-forest-200 font-medium">Today's note 📝</p>
           <div className="flex items-center gap-2">
             {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}</span>}
-            <Link to="/jobs"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-800 border border-forest-700
-                         hover:border-forest-600 hover:bg-forest-750 transition-colors text-xs text-forest-300">
-              {myJob ? `💼 ${({'courier':'Courier','writer':'Writer','seed_broker':'Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'})[myJob.role] || myJob.role}` : '💼 Get a job'}
-            </Link>
           </div>
         </div>
         {/* Mood picker */}

@@ -516,14 +516,29 @@ export default function JobsPage() {
                     </div>
                   </div>
 
+                  {/* Registered notice */}
+                  <div className="rounded-2xl bg-forest-900/30 border border-forest-800 p-4 text-center">
+                    <p className="text-forest-200 text-sm font-medium mb-0.5">
+                      You are registered as a <span className="text-forest-100">{JOB_META[myJob.role]?.label}</span> {JOB_META[myJob.role]?.icon}
+                    </p>
+                    <p className="text-forest-600 text-xs">Full job workspace coming soon. Clients can already find you in For Hire.</p>
+                  </div>
+
                   {/* Workspace */}
                   {WorkspaceComp && <WorkspaceComp job={myJob} />}
 
-                  <button onClick={doUnregister}
-                    className="w-full py-2 rounded-xl border border-red-900/50 text-red-400/70
-                               hover:border-red-700 hover:text-red-300 text-sm transition-colors mt-2">
-                    Unregister from job
-                  </button>
+                  {/* Resign button */}
+                  <div className="rounded-xl border border-red-900/30 bg-red-950/10 p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-red-400/80 text-sm font-medium">Resign from job</p>
+                      <p className="text-red-900/60 text-xs">You can re-register at any time</p>
+                    </div>
+                    <button onClick={doUnregister}
+                      className="px-4 py-1.5 rounded-lg border border-red-900/50 text-red-400/70
+                                 hover:border-red-700 hover:text-red-300 hover:bg-red-950/20 text-sm transition-colors">
+                      Resign
+                    </button>
+                  </div>
                 </>
               )
             })()}
