@@ -20,6 +20,8 @@ import GrovePage from './pages/GrovePage'
 import GamesPage from './pages/GamesPage'
 import TrumpCardGame from './pages/TrumpCardGame'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import JobsPage from './pages/JobsPage'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
@@ -101,6 +103,8 @@ export default function App() {
             <Route path="/friends" element={<MaintenanceGuard pageKey="friends"><FriendsPage /></MaintenanceGuard>} />
             <Route path="/grove" element={<GrovePage />} />
           <Route path="/jobs" element={<JobsPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/games" element={<GamesPage />} />
             <Route path="/games/trump-card/:id" element={<TrumpCardGame />} />
             <Route path="/feed" element={<MaintenanceGuard pageKey="feed"><FeedPage /></MaintenanceGuard>} />

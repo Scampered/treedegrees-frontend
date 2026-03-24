@@ -805,6 +805,93 @@ function RateModal({ job, meta, onClose, onDone }) {
 
 
 
+
+// ── My Advice Panel (client sees accountant advice) ──────────────────────────
+function MyAdvicePanel({ advice }) {
+  const actionColor = { buy: 'text-green-400', hold: 'text-forest-300', sell: 'text-red-400' }
+  const actionIcon  = { buy: '📈', hold: '⏸', sell: '📉' }
+
+  const fmtDate = d => new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+
+  if (advice.advice?.length === 0) return (
+    <div className="rounded-xl bg-forest-900/40 border border-forest-800 p-4 text-center">
+      <p className="text-forest-600 text-sm">No accountant advice yet.</p>
+      <p className="text-forest-700 text-xs mt-1">Hire an Accountant from For Hire to get portfolio advice.</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-3">
+      {/* Client's investments for reference */}
+      {advice.investments?.length > 0 && (
+        <div className="rounded-xl bg-forest-900/40 border border-forest-800 p-3">
+          <p className="text-forest-400 text-xs font-medium mb-2">Your Grove Investments</p>
+          {advice.investments.map(inv => {
+            const mult = inv.current_seeds / Math.max(1, inv.seeds_at_invest)
+            const profit = Math.floor(inv.amount * mult) - inv.amount
+            return (
+              <div key={inv.id} className="flex items-center justify-between py-1.5 border-b border-forest-800/50 last:border-0 text-xs">
+                <span className="text-forest-300 font-medium">{inv.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-forest-500">🌱{inv.amount}</span>
+                  <span className={profit >= 0 ? 'text-green-400' : 'text-red-400'}>×{mult.toFixed(2)} ({profit>=0?'+':''}{profit})</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Markets */}
+      {advice.markets?.length > 0 && (
+        <div className="rounded-xl bg-forest-900/40 border border-forest-800 p-3">
+          <p className="text-forest-400 text-xs font-medium mb-2">Your Market Positions</p>
+          {advice.markets.map((m, i) => {
+            const mult = parseFloat(m.current_price) / Math.max(1, parseFloat(m.price_at_invest))
+            const profit = Math.floor(m.amount * mult) - m.amount
+            return (
+              <div key={i} className="flex items-center justify-between py-1.5 text-xs">
+                <span className={m.market === 'canopy' ? 'text-yellow-400' : 'text-orange-400'}>
+                  {m.market === 'canopy' ? '🌳 Canopy' : '🛢️ Crude'}
+                </span>
+                <span className={profit >= 0 ? 'text-green-400' : 'text-red-400'}>×{mult.toFixed(2)} ({profit>=0?'+':''}{profit})</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Advice items */}
+      <div className="space-y-2">
+        <p className="text-forest-400 text-xs font-medium px-1">Accountant's advice</p>
+        {advice.advice?.map(a => {
+          const inv = advice.investments?.find(i => i.idx === a.investment_idx)
+          return (
+            <div key={a.id} className={`rounded-xl border p-3 ${!a.read_at ? 'bg-forest-800/60 border-forest-600' : 'bg-forest-900/30 border-forest-800'}`}>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{actionIcon[a.action]}</span>
+                  <span className={`text-sm font-bold ${actionColor[a.action]}`}>{a.action.toUpperCase()}</span>
+                  {a.amount > 0 && <span className="text-forest-400 text-xs">🌱{a.amount}</span>}
+                </div>
+                <span className="text-forest-600 text-xs">{fmtDate(a.created_at)}</span>
+              </div>
+              {inv && (
+                <p className="text-forest-500 text-xs mb-1">
+                  Re: {inv.name} (Investment #{a.investment_idx + 1})
+                </p>
+              )}
+              {a.note && <p className="text-forest-300 text-xs leading-relaxed italic">"{a.note}"</p>}
+              <p className="text-forest-600 text-xs mt-1">From {a.accountant_name}</p>
+              {!a.read_at && <span className="text-[10px] text-forest-400 bg-forest-700 px-1.5 py-0.5 rounded-full">New</span>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── My Commission Card (client view of hired writer) ─────────────────────────
 function MyCommissionCard({ commission: c, onRefresh }) {
   const [busy, setBusy] = useState(false)
@@ -1068,7 +1155,9 @@ export default function JobsPage() {
   const [rateTarget, setRateTarget]     = useState(null)
   const [hireTarget, setHireTarget]       = useState(null)
   const [myCommissions, setMyCommissions]   = useState([])
+  const [myAdvice, setMyAdvice]             = useState(null)
   const [showMyHires, setShowMyHires]       = useState(false)
+  const [myHiresTab, setMyHiresTab]         = useState('writer')
   const [registerRole, setRegisterRole] = useState(null)
   const [roleFilter, setRoleFilter]     = useState('all')
 
@@ -1078,6 +1167,8 @@ export default function JobsPage() {
       setListings(listRes.data.listings || {})
       setMyJob(myRes.data.job)
       setMyCommissions(commRes.data.commissions || [])
+      // Also load accountant advice
+      jobActionsApi.myAdvice().then(r => setMyAdvice(r.data)).catch(() => {})
     } catch {} finally { setLoading(false) }
   }, [])
 
@@ -1137,15 +1228,30 @@ export default function JobsPage() {
               <button onClick={() => setShowMyHires(s => !s)}
                 className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors mb-1
                   ${showMyHires ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
-                {showMyHires ? '← Back to listings' : `📬 My hired services (${myCommissions.length})`}
+                {showMyHires ? '← Back to listings' : `📬 My hired services (${myCommissions.length + (myAdvice?.advice?.length || 0)})`}
               </button>
             )}
 
             {showMyHires ? (
-              <div className="space-y-2">
-                {myCommissions.map(c => (
-                  <MyCommissionCard key={c.id} commission={c} onRefresh={reload} />
-                ))}
+              <div className="space-y-3">
+                {/* Tab switcher */}
+                <div className="flex rounded-xl bg-forest-900 border border-forest-800 p-0.5 gap-0.5">
+                  {[['writer','✍️ Letters'], ['accountant','📊 Advice']].map(([k,l]) => (
+                    <button key={k} onClick={() => setMyHiresTab(k)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all
+                        ${myHiresTab===k ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300'}`}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                {myHiresTab === 'writer' && (
+                  myCommissions.length === 0
+                    ? <p className="text-forest-600 text-sm text-center py-4">No commissioned letters yet.</p>
+                    : myCommissions.map(c => <MyCommissionCard key={c.id} commission={c} onRefresh={reload} />)
+                )}
+                {myHiresTab === 'accountant' && myAdvice && (
+                  <MyAdvicePanel advice={myAdvice} />
+                )}
               </div>
             ) : (<>
 

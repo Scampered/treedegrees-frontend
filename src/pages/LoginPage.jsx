@@ -83,6 +83,10 @@ export default function LoginPage() {
 
         <p className="text-center text-forest-500 text-sm mt-6">
           No account yet?{' '}
+          <Link to="/forgot-password" className="text-forest-600 hover:text-forest-400 underline underline-offset-2 text-sm">Forgot password?</Link>
+          </p>
+          <p className="text-forest-500 text-sm mt-1 text-center">
+            New here?{" "}
           <Link to="/signup" className="text-forest-300 hover:text-forest-100 underline underline-offset-2">
             Create one
           </Link>
