@@ -1223,18 +1223,19 @@ export default function JobsPage() {
         {/* ── FOR HIRE ── */}
         {tab === 'hire' && (
           <div className="p-4 space-y-4">
+
             {/* My hires toggle */}
-            {myCommissions.length > 0 && (
+            {(myCommissions.length > 0 || (myAdvice?.advice?.length > 0)) && (
               <button onClick={() => setShowMyHires(s => !s)}
-                className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors mb-1
+                className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors
                   ${showMyHires ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
                 {showMyHires ? '← Back to listings' : `📬 My hired services (${myCommissions.length + (myAdvice?.advice?.length || 0)})`}
               </button>
             )}
 
-            {showMyHires ? (
+            {/* My Hires panel */}
+            {showMyHires && (
               <div className="space-y-3">
-                {/* Tab switcher */}
                 <div className="flex rounded-xl bg-forest-900 border border-forest-800 p-0.5 gap-0.5">
                   {[['writer','✍️ Letters'], ['accountant','📊 Advice']].map(([k,l]) => (
                     <button key={k} onClick={() => setMyHiresTab(k)}
@@ -1253,55 +1254,60 @@ export default function JobsPage() {
                   <MyAdvicePanel advice={myAdvice} />
                 )}
               </div>
-            ) : (<>
-
-            {/* Role filter */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              <button onClick={() => setRoleFilter('all')}
-                className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors
-                  ${roleFilter === 'all' ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-800 text-forest-500 hover:border-forest-600'}`}>
-                All
-              </button>
-              {allRoles.map(r => (
-                <button key={r} onClick={() => setRoleFilter(r)}
-                  className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors
-                    ${roleFilter === r ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-800 text-forest-500 hover:border-forest-600'}`}>
-                  {JOB_META[r].icon} {JOB_META[r].label}
-                </button>
-              ))}
-            </div>
-
-            {loading && <p className="text-forest-600 text-sm text-center py-12">Loading…</p>}
-
-            {!loading && filtered.length === 0 && (
-              <div className="text-center py-16">
-                <p className="text-5xl mb-4">💼</p>
-                <p className="text-forest-300 font-medium">No workers listed yet</p>
-                <p className="text-forest-600 text-sm mt-1">Be the first — register a job on My Job tab</p>
-                <button onClick={() => setTab('my')}
-                  className="mt-4 px-4 py-2 bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm rounded-xl transition-colors">
-                  Register a job →
-                </button>
-              </div>
             )}
 
-            {filtered.map(([role, workers]) => (
-              <div key={role}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{JOB_META[role].icon}</span>
-                  <p className="text-forest-300 font-medium text-sm">{JOB_META[role].label}</p>
-                  <span className="text-forest-700 text-xs">({workers.length})</span>
-                  <p className="text-forest-600 text-xs ml-auto">{JOB_META[role].tagline}</p>
-                </div>
-                <div className="space-y-2">
-                  {workers.map(job => (
-                    <JobCard key={job.id} job={job} meta={JOB_META[role]}
-                      onRate={j => setRateTarget({ job: j, role })}
-                      onHire={j => setHireTarget({ job: j, role })} />
+            {/* Listings (hidden when my hires panel is open) */}
+            {!showMyHires && (
+              <>
+                {/* Role filter */}
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  <button onClick={() => setRoleFilter('all')}
+                    className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors
+                      ${roleFilter === 'all' ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-800 text-forest-500 hover:border-forest-600'}`}>
+                    All
+                  </button>
+                  {allRoles.map(r => (
+                    <button key={r} onClick={() => setRoleFilter(r)}
+                      className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors
+                        ${roleFilter === r ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-800 text-forest-500 hover:border-forest-600'}`}>
+                      {JOB_META[r].icon} {JOB_META[r].label}
+                    </button>
                   ))}
                 </div>
-              </div>
-            ))}
+
+                {loading && <p className="text-forest-600 text-sm text-center py-12">Loading…</p>}
+
+                {!loading && filtered.length === 0 && (
+                  <div className="text-center py-16">
+                    <p className="text-5xl mb-4">💼</p>
+                    <p className="text-forest-300 font-medium">No workers listed yet</p>
+                    <p className="text-forest-600 text-sm mt-1">Be the first — register a job on My Job tab</p>
+                    <button onClick={() => setTab('my')}
+                      className="mt-4 px-4 py-2 bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm rounded-xl transition-colors">
+                      Register a job →
+                    </button>
+                  </div>
+                )}
+
+                {filtered.map(([role, workers]) => (
+                  <div key={role}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">{JOB_META[role].icon}</span>
+                      <p className="text-forest-300 font-medium text-sm">{JOB_META[role].label}</p>
+                      <span className="text-forest-700 text-xs">({workers.length})</span>
+                      <p className="text-forest-600 text-xs ml-auto">{JOB_META[role].tagline}</p>
+                    </div>
+                    <div className="space-y-2">
+                      {workers.map(job => (
+                        <JobCard key={job.id} job={job} meta={JOB_META[role]}
+                          onRate={j => setRateTarget({ job: j, role })}
+                          onHire={j => setHireTarget({ job: j, role })} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
 
