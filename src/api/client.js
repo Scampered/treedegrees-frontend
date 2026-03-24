@@ -144,6 +144,43 @@ export const gamesApi = {
 }
 
 // ── Grove (Seeds / Stocks) ────────────────────────────────────────────────────
+export const jobActionsApi = {
+  // Courier
+  courierQueue:      ()                         => api.get('/api/job-actions/courier/queue'),
+  courierRequest:    (courierId)                => api.post('/api/job-actions/courier/request', { courierId }),
+  courierRespond:    (id, action)               => api.patch(`/api/job-actions/courier/request/${id}`, { action }),
+  // Writer
+  writerCommissions: ()                         => api.get('/api/job-actions/writer/commissions'),
+  myCommissions:     ()                         => api.get('/api/job-actions/writer/my-commissions'),
+  hireWriter:        (writerId, prompt, fee)    => api.post('/api/job-actions/writer/commission', { writerId, prompt, feeSeeds: fee }),
+  submitCommission:  (id, content)              => api.patch(`/api/job-actions/writer/commission/${id}/submit`, { content }),
+  resolveCommission: (id, action)               => api.patch(`/api/job-actions/writer/commission/${id}/resolve`, { action }),
+  // Broker
+  brokerSession:     ()                         => api.get('/api/job-actions/broker/session'),
+  openBrokerSession: (brokerId, seeds, hours)   => api.post('/api/job-actions/broker/open', { brokerId, seeds, durationHours: hours }),
+  brokerInvest:      (sessionId, targetId, t)   => api.post('/api/job-actions/broker/invest', { sessionId, targetId, targetType: t }),
+  closeBrokerSession:(sessionId)                => api.post('/api/job-actions/broker/close', { sessionId }),
+  // Accountant
+  accountantClients: ()                         => api.get('/api/job-actions/accountant/clients'),
+  hireAccountant:    (accountantId)             => api.post('/api/job-actions/accountant/hire', { accountantId }),
+  sendAdvice:        (sId, action, amt, note, idx) => api.post('/api/job-actions/accountant/advice', { sessionId: sId, action, amount: amt, note, investmentIdx: idx }),
+  myAdvice:          ()                         => api.get('/api/job-actions/accountant/my-advice'),
+  // Steward
+  stewardDashboard:  ()                         => api.get('/api/job-actions/steward/dashboard'),
+  hireSteward:       (stewardId, days)          => api.post('/api/job-actions/steward/hire', { stewardId, retainerDays: days }),
+  stewardNudge:      (clientId)                 => api.post('/api/job-actions/steward/nudge', { clientId }),
+  // Forecaster
+  forecasterPosts:   (userId)                   => api.get(`/api/job-actions/forecaster/posts/${userId}`),
+  forecasterFeed:    ()                         => api.get('/api/job-actions/forecaster/feed'),
+  forecasterPost:    (content)                  => api.post('/api/job-actions/forecaster/post', { content }),
+  forecasterSub:     (id, action)               => api.post('/api/job-actions/forecaster/subscribe', { forecasterId: id, action }),
+  // Farmer
+  farmerPlot:        ()                         => api.get('/api/job-actions/farmer/plot'),
+  farmerPlant:       (slot, seeds)              => api.post('/api/job-actions/farmer/plant', { slotIndex: slot, seeds }),
+  farmerDeposit:     (farmerId, slot, seeds)    => api.post('/api/job-actions/farmer/deposit', { farmerId, slotIndex: slot, seeds }),
+  farmerHarvest:     (slotId)                   => api.post('/api/job-actions/farmer/harvest', { slotId }),
+}
+
 export const jobsApi = {
   listings:   ()                        => api.get('/api/jobs/listings'),
   my:         ()                        => api.get('/api/jobs/my'),
