@@ -13,6 +13,8 @@ const sections = [
   { id: 'vehicles',    emoji: '🚗',  label: 'Delivery Vehicles'    },
   { id: 'groups',     emoji: '☘️',  label: 'Groups'               },
   { id: 'grove',      emoji: '🪴',  label: 'The Grove'            },
+  { id: 'markets',    emoji: '📈',  label: 'Markets'              },
+  { id: 'jobs',       emoji: '💼',  label: 'Jobs'                 },
   { id: 'games',      emoji: '🎮',  label: 'Games & Activities'   },
 ]
 
@@ -420,6 +422,15 @@ function SectionNotes() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">😄 Mood</p>
+        <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
+          <p>Set one of 😄 😢 😡 😴 🤔 🥹 once every <span className="text-forest-200 font-medium">4 hours</span>. The emoji replaces your map node so your connections can see how you're feeling. Earns <span className="text-green-400 font-mono">+10 seeds</span> per set and expires after 24h.</p>
+          <p>To set a mood: click an emoji to stage it (it highlights), then click <span className="text-forest-200 font-medium">Set</span>. The button stays locked for 4 hours after each update.</p>
+          <p className="text-forest-600 italic">Forecaster posts also appear as your daily note with a 📡 prefix — subscribers will see it on the map.</p>
+        </div>
+      </Card>
     </div>
   )
 }
@@ -674,11 +685,21 @@ function SectionGrove() {
       <Card>
         <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">Investing in a connection</p>
         <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
-          <p>Go to The Grove and open a connection&apos;s stock card. Tap <span className="text-forest-200 font-medium">Invest</span> to spend seeds on them. Minimum: <span className="text-forest-200 font-mono">10 seeds</span>.</p>
+          <p>Go to The Grove and open a connection's stock card. Tap <span className="text-forest-200 font-medium">Invest</span> to spend seeds on them. Minimum: <span className="text-forest-200 font-mono">10 seeds</span>.</p>
           <p>They receive <span className="text-green-400 font-mono">+5%</span> of your investment as an instant score boost.</p>
-          <p>Withdraw any time — you get your seeds back minus a <span className="text-red-400 font-mono">10% fee</span>. The person you invested in keeps that fee.</p>
+          <p>Withdraw any time — you get your seeds back minus a fee (8–20% depending on amount). The person you invested in keeps that fee.</p>
           <p>Their score dips by <span className="text-red-400 font-mono">3%</span> of the withdrawn amount when you pull out.</p>
           <p className="text-forest-600 italic">You can only invest in direct connections (degree 1). You cannot invest in yourself.</p>
+        </div>
+      </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">📊 How to invest well</p>
+        <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
+          <p><span className="text-forest-200 font-medium">Unlike normal stocks, value here is driven by activity.</span> A connection who sends letters daily, posts notes, and keeps streaks alive will have a rising score. A quiet connection's score drifts down.</p>
+          <p>The classic rule applies: <span className="text-green-400 font-medium">invest when they're quiet</span> (low score, low cost), <span className="text-red-400 font-medium">withdraw when they're thriving</span> (high score, high return).</p>
+          <p>Watch the chart direction, not just the number. A rising chart on a low balance means they just became active — good time to invest.</p>
+          <p className="text-forest-600 italic">Tip: withdrawing costs a fee — don't invest what you can't afford to hold for a few days.</p>
         </div>
       </Card>
 
@@ -691,14 +712,117 @@ function SectionGrove() {
         </div>
       </Card>
 
+
+    </div>
+  )
+}
+
+function SectionMarkets() {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-display text-2xl text-forest-50 mb-1">📈 Markets</h2>
+        <p className="text-forest-400 text-sm">Two community-driven stocks. Canopy and Crude.</p>
+      </div>
+
       <Card>
-        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">😄 Mood &amp; Notes</p>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">🌳 The Canopy</p>
         <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
-          <p><span className="text-forest-200 font-medium">Daily Note:</span> One note per day, up to 280 characters. Visible to direct connections for 24h. Earns <span className="text-green-400 font-mono">+20 seeds</span>.</p>
-          <p><span className="text-forest-200 font-medium">Mood:</span> Set one of 😄 😢 😡 😴 🤔 🥹 once every <span className="text-forest-200 font-medium">4 hours</span>. The emoji replaces your map node so your connections can see how you&apos;re feeling. Earns <span className="text-green-400 font-mono">+10 seeds</span> per set. Expires after 24h.</p>
-          <p>To set a mood: click an emoji to stage it (it highlights), then click <span className="text-forest-200 font-medium">Set</span>. The button stays locked for 4 hours after each update.</p>
+          <p>The Canopy represents the health of the TreeDegrees community. Its price rises when the community is active and falls when things go quiet.</p>
+          <div className="space-y-1 mt-2">
+            {[
+              ['📈 Rises when', 'Letters sent, notes posted, streaks maintained, forecasters post, investments made, weekends'],
+              ['📉 Falls when', 'Streaks break, seeds withdrawn, Crude is high'],
+            ].map(([label, desc]) => (
+              <div key={label} className="flex gap-2 text-xs">
+                <span className="text-forest-300 font-medium w-24 flex-shrink-0">{label}</span>
+                <span className="text-forest-500">{desc}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">🛢️ Crude Oil</p>
+        <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
+          <p>Crude tracks physical activity in the app — letters travelling long distances, couriers working, stewards sending nudges. Think of it as the fuel burning behind the scenes.</p>
+          <div className="space-y-1 mt-2">
+            {[
+              ['📈 Rises when', 'Letters travel far (distance-scaled), couriers hired, stewards nudge clients'],
+              ['📉 Falls when', 'Daily drift, no delivery activity'],
+            ].map(([label, desc]) => (
+              <div key={label} className="flex gap-2 text-xs">
+                <span className="text-forest-300 font-medium w-24 flex-shrink-0">{label}</span>
+                <span className="text-forest-500">{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-3">How to invest in markets</p>
+        <div className="space-y-2 text-sm text-forest-400 leading-relaxed">
+          <p>Open The Grove and tap the <span className="text-forest-200 font-medium">Markets</span> tab. You'll see live charts for Canopy and Crude with current prices.</p>
+          <p>Tap a market card and choose how many seeds to invest. Your investment is split 50/50 between a safe portion (always returned) and an active portion (rises and falls with the price).</p>
+          <p>Withdraw any time — the same tiered fee applies as connection investments (8–20%).</p>
+          <p className="text-forest-600 italic">Tip: Canopy tends to rise on weekdays when people are active. Crude spikes when new long-distance letters are sent. Watch the patterns.</p>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function SectionJobs() {
+  const jobs = [
+    { icon: '🚚', name: 'Courier', what: 'Deliver letters on behalf of clients. Accept delivery requests and earn seeds per delivery. Your vehicle upgrades as you complete more deliveries.', client: 'Hire a courier to send a letter for you. Only your country is visible — the content and recipient stay private.', earn: 'Per delivery fee (set by you)' },
+    { icon: '✍️', name: 'Writer', what: 'Write commissioned letters for clients. They give you a prompt (e.g. "love letter"), you write it, they accept or reject. Kill fee applies on rejection.', client: 'Give the writer a prompt and a budget. Read the result and accept to unlock it for copying, or reject for a partial refund.', earn: 'Per commission (fixed rate you set)' },
+    { icon: '🌱', name: 'Seed Broker', what: 'Invest a client's seeds across multiple targets — connections, Canopy, or Crude. You allocate specific amounts to each. Earn 10% of any profits on close.', client: 'Allocate seeds to a broker for a set time (1h to 1 week). They invest on your behalf with 100% active exposure.', earn: '10% of profits + 5% management fee' },
+    { icon: '📊', name: 'Accountant', what: 'View a client's portfolio anonymously (you see Investment #1, #2 etc, not names) and send Buy/Hold/Sell advice with a note. One report per 24h.', client: 'Grant an accountant read access. They analyse your positions and send advice. You see their name and the full investment name.', earn: 'Per report fee (set by you)' },
+    { icon: '🔔', name: 'Steward', what: 'Monitor up to 3 clients' active streaks. Send push notifications and instant letters when their fuel drops to 1. You can see streak counts but not who the streaks are with.', client: 'Pay a retainer (3, 7, or 14 days, prorated). Your steward watches your streaks and nudges you before they break.', earn: 'Retainer fee per contract period' },
+    { icon: '📡', name: 'Forecaster', what: 'Post market and social analysis to your subscribers. Each post updates your daily note with 📡 prefix so all your connections see it. Free to subscribe.', client: 'Subscribe for free. Get push notifications for every post. Their forecasts appear as their daily note on the map.', earn: 'Market bonus — Canopy rises with each post' },
+    { icon: '🌾', name: 'Farmer', what: 'Grow seeds in plot slots. Plant your own seeds or client deposits. After 24h, harvest with randomised outcomes from rotten (×0) to bumper (×2.5). No fees on deposits.', client: 'Deposit seeds into a farmer's plot. The farmer plants them and after 24h the harvest goes back to you automatically.', earn: 'Profit from your own planted seeds' },
+  ]
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-display text-2xl text-forest-50 mb-1">💼 Jobs</h2>
+        <p className="text-forest-400 text-sm">Earn seeds by offering services to your connections.</p>
+      </div>
+
+      <Card>
+        <p className="text-forest-400 text-xs uppercase tracking-wide mb-2">How jobs work</p>
+        <div className="space-y-1.5 text-sm text-forest-400 leading-relaxed">
+          <p>Jobs are visible only to your <span className="text-forest-200 font-medium">direct connections</span>. Register for one job at a time from the For Hire tab. Set your rate and bio, and connections can hire you.</p>
+          <p>If you resign from a job, any open commissions or active sessions are automatically refunded to clients. Your ratings reset when you change jobs.</p>
+          <p>After hiring someone, you can <span className="text-forest-200 font-medium">rate them 1–5 stars</span>. Ratings are averaged and shown on their card.</p>
+        </div>
+      </Card>
+
+      {jobs.map(j => (
+        <Card key={j.name}>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">{j.icon}</span>
+            <p className="text-forest-200 font-medium">{j.name}</p>
+          </div>
+          <div className="space-y-2 text-xs text-forest-400">
+            <div>
+              <p className="text-forest-500 uppercase tracking-wide mb-0.5">As the worker</p>
+              <p className="leading-relaxed">{j.what}</p>
+            </div>
+            <div>
+              <p className="text-forest-500 uppercase tracking-wide mb-0.5">As the client</p>
+              <p className="leading-relaxed">{j.client}</p>
+            </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-forest-800">
+              <span className="text-green-400">Earns:</span>
+              <span>{j.earn}</span>
+            </div>
+          </div>
+        </Card>
+      ))}
     </div>
   )
 }
@@ -797,6 +921,8 @@ const sectionComponents = {
   vehicles:    SectionVehicles,
   groups:      SectionGroups,
   grove:       SectionGrove,
+  markets:     SectionMarkets,
+  jobs:        SectionJobs,
   games:       SectionGames,
 }
 
