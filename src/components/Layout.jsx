@@ -46,6 +46,8 @@ export default function Layout() {
   const [unreadLetters, setUnreadLetters] = useState(0)
   const [groupInvites, setGroupInvites]   = useState(0)
   const [showMore, setShowMore]           = useState(false)
+  const [showNotif, setShowNotif]         = useState(false)
+  const [unreadCount, setUnreadCount]     = useState(0)
 
   useEffect(() => {
     // Poll notification unread count
@@ -178,7 +180,7 @@ export default function Layout() {
               <button onClick={() => setShowNotif(s => !s)}
                 className="relative w-9 h-9 flex items-center justify-center rounded-xl
                            text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors">
-                🔔
+                <span>🔔</span>
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5
                                    bg-red-500 text-white text-[10px] font-bold rounded-full
@@ -187,7 +189,13 @@ export default function Layout() {
                   </span>
                 )}
               </button>
-              {showNotif && <NotificationPanel onClose={() => setShowNotif(false)} />}
+              {showNotif && (
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}>
+                  <div onClick={e => e.stopPropagation()} className="absolute top-16 right-4">
+                    <NotificationPanel onClose={() => setShowNotif(false)} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -283,7 +291,7 @@ export default function Layout() {
               <button onClick={() => setShowNotif(s => !s)}
                 className="relative w-9 h-9 flex items-center justify-center rounded-xl
                            text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors">
-                🔔
+                <span>🔔</span>
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5
                                    bg-red-500 text-white text-[10px] font-bold rounded-full
@@ -292,7 +300,13 @@ export default function Layout() {
                   </span>
                 )}
               </button>
-              {showNotif && <NotificationPanel onClose={() => setShowNotif(false)} />}
+              {showNotif && (
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}>
+                  <div onClick={e => e.stopPropagation()} className="absolute top-16 right-4">
+                    <NotificationPanel onClose={() => setShowNotif(false)} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
