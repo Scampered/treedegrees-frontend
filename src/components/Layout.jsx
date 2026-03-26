@@ -167,38 +167,15 @@ export default function Layout() {
     <div className="flex h-screen overflow-hidden bg-forest-950">
 
       <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 glass-dark border-r border-forest-800">
-        <div className="block p-6 border-b border-forest-800">
-          <div className="flex items-center justify-between">
-            <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <img src="/tree-icon.svg" alt="TreeDegrees" className="w-9 h-9 rounded-lg" />
-              <div>
-                <h1 className="font-display text-forest-100 text-lg leading-none">TreeDegrees</h1>
-                <p className="text-forest-500 text-xs mt-0.5">Social Graph</p>
-              </div>
-            </Link>
-            <div className="relative">
-              <button onClick={() => setShowNotif(s => !s)}
-                className="relative w-9 h-9 flex items-center justify-center rounded-xl
-                           text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors">
-                <span>🔔</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5
-                                   bg-red-500 text-white text-[10px] font-bold rounded-full
-                                   flex items-center justify-center leading-none">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-              {showNotif && (
-                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}>
-                  <div onClick={e => e.stopPropagation()} className="absolute top-16 right-4">
-                    <NotificationPanel onClose={() => setShowNotif(false)} />
-                  </div>
-                </div>
-              )}
+        <Link to="/dashboard" className="block p-6 border-b border-forest-800 hover:bg-forest-900/40 transition-colors">
+          <div className="flex items-center gap-3">
+            <img src="/tree-icon.svg" alt="TreeDegrees" className="w-9 h-9 rounded-lg" />
+            <div>
+              <h1 className="font-display text-forest-100 text-lg leading-none">TreeDegrees</h1>
+              <p className="text-forest-500 text-xs mt-0.5">Social Graph</p>
             </div>
           </div>
-        </div>
+        </Link>
 
         <div className="px-4 py-3 mx-4 mt-4 rounded-xl bg-forest-900/60 border border-forest-800">
           <p className="text-forest-200 font-medium text-sm truncate">{user?.nickname || user?.fullName}</p>
@@ -272,7 +249,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className={`flex-1 flex flex-col min-w-0 ${isMap ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className={`flex-1 flex flex-col min-w-0 relative ${isMap ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-forest-800 glass-dark flex-shrink-0 z-20">
           <Link to="/dashboard" className="flex items-center gap-2">
             <img src="/tree-icon.svg" alt="TreeDegrees" className="w-7 h-7 rounded-lg" />
@@ -310,6 +287,32 @@ export default function Layout() {
             </div>
           </div>
         </div>
+
+        {/* Desktop floating bell — top-right, hidden on map */}
+        {!isMap && (
+          <div className="hidden lg:block absolute top-4 right-4 z-30">
+            <button onClick={() => setShowNotif(s => !s)}
+              className="relative w-10 h-10 flex items-center justify-center rounded-xl
+                         bg-forest-900/80 border border-forest-700 backdrop-blur-sm
+                         text-forest-400 hover:text-forest-200 hover:border-forest-500 transition-colors shadow-lg">
+              <span className="text-lg">🔔</span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1
+                                 bg-red-500 text-white text-[10px] font-bold rounded-full
+                                 flex items-center justify-center leading-none">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {showNotif && (
+              <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}>
+                <div onClick={e => e.stopPropagation()} className="absolute top-16 right-4">
+                  <NotificationPanel onClose={() => setShowNotif(false)} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className={`flex-1 min-h-0 ${isMap ? 'overflow-hidden' : 'overflow-y-auto'} lg:pb-0 pb-16`}>
           <Outlet />
