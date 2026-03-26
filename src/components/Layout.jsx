@@ -2,6 +2,8 @@
 import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { registerSW } from '../utils/notifications'
+import NotificationPanel from './NotificationPanel'
+import { notificationsApi } from '../api/client'
 import NotificationPrompt from './NotificationPrompt'
 import { lettersApi, groveApi } from '../api/client'
 import PopupSystem from './PopupSystem'
@@ -44,6 +46,16 @@ export default function Layout() {
   const [unreadLetters, setUnreadLetters] = useState(0)
   const [groupInvites, setGroupInvites]   = useState(0)
   const [showMore, setShowMore]           = useState(false)
+
+  useEffect(() => {
+    // Poll notification unread count
+    const loadCount = () => {
+      notificationsApi.get().then(r => setUnreadCount(r.data.total_unread || 0)).catch(() => {})
+    }
+    loadCount()
+    const iv = setInterval(loadCount, 30000)
+    return () => clearInterval(iv)
+  }, [])
 
   useEffect(() => { registerSW() }, [])
   useEffect(() => { if (user) applyForUser(user) }, [user?.id, user?.city, user?.country]) // eslint-disable-line
@@ -153,15 +165,32 @@ export default function Layout() {
     <div className="flex h-screen overflow-hidden bg-forest-950">
 
       <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 glass-dark border-r border-forest-800">
-        <Link to="/dashboard" className="block p-6 border-b border-forest-800 hover:bg-forest-900/40 transition-colors">
-          <div className="flex items-center gap-3">
-            <img src="/tree-icon.svg" alt="TreeDegrees" className="w-9 h-9 rounded-lg" />
-            <div>
-              <h1 className="font-display text-forest-100 text-lg leading-none">TreeDegrees</h1>
-              <p className="text-forest-500 text-xs mt-0.5">Social Graph</p>
+        <div className="block p-6 border-b border-forest-800">
+          <div className="flex items-center justify-between">
+            <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <img src="/tree-icon.svg" alt="TreeDegrees" className="w-9 h-9 rounded-lg" />
+              <div>
+                <h1 className="font-display text-forest-100 text-lg leading-none">TreeDegrees</h1>
+                <p className="text-forest-500 text-xs mt-0.5">Social Graph</p>
+              </div>
+            </Link>
+            <div className="relative">
+              <button onClick={() => setShowNotif(s => !s)}
+                className="relative w-9 h-9 flex items-center justify-center rounded-xl
+                           text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors">
+                🔔
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5
+                                   bg-red-500 text-white text-[10px] font-bold rounded-full
+                                   flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotif && <NotificationPanel onClose={() => setShowNotif(false)} />}
             </div>
           </div>
-        </Link>
+        </div>
 
         <div className="px-4 py-3 mx-4 mt-4 rounded-xl bg-forest-900/60 border border-forest-800">
           <p className="text-forest-200 font-medium text-sm truncate">{user?.nickname || user?.fullName}</p>
@@ -241,14 +270,31 @@ export default function Layout() {
             <img src="/tree-icon.svg" alt="TreeDegrees" className="w-7 h-7 rounded-lg" />
             <span className="font-display text-forest-200 text-base">TreeDegrees</span>
           </Link>
-          <Link to="/feed"
-            className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl transition-colors
-              ${location.pathname === '/feed'
-                ? 'bg-forest-700 text-forest-100'
-                : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`}>
-            <span className="text-lg">📝</span>
-            <span className="text-sm font-medium">Notes</span>
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link to="/feed"
+              className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl transition-colors
+                ${location.pathname === '/feed'
+                  ? 'bg-forest-700 text-forest-100'
+                  : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`}>
+              <span className="text-lg">📝</span>
+              <span className="text-sm font-medium">Notes</span>
+            </Link>
+            <div className="relative">
+              <button onClick={() => setShowNotif(s => !s)}
+                className="relative w-9 h-9 flex items-center justify-center rounded-xl
+                           text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors">
+                🔔
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5
+                                   bg-red-500 text-white text-[10px] font-bold rounded-full
+                                   flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotif && <NotificationPanel onClose={() => setShowNotif(false)} />}
+            </div>
+          </div>
         </div>
 
         <div className={`flex-1 min-h-0 ${isMap ? 'overflow-hidden' : 'overflow-y-auto'} lg:pb-0 pb-16`}>

@@ -215,3 +215,9 @@ export const groveApi = {
   withdraw:    (targetId, amount)     => api.post('/api/grove/withdraw', { targetId, ...(amount !== undefined && { withdrawAmount: amount }) }),
   history:     (userId, window)      => api.get(`/api/grove/history/${userId}?window=${window}`),
 }
+
+export const notificationsApi = {
+  get:      () => api.get('/api/notifications'),
+  readAll:  () => api.patch('/api/notifications/read'),
+  readType: (type) => api.patch(`/api/notifications/read/${type}`),
+}
