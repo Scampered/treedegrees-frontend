@@ -223,23 +223,32 @@ function WriterWorkspace({ job }) {
 
 // ── BROKER WORKSPACE ──────────────────────────────────────────────────────────
 function BrokerWorkspace({ job }) {
-  const [data, setData]   = useState(null)
-  const [busy, setBusy]   = useState(false)
-  const [msg, setMsg]     = useState('')
-  const [chartWin, setChartWin] = useState('1d')
+  const [data, setData]       = useState(null)
+  const [allocData, setAlloc] = useState(null)
+  const [busy, setBusy]       = useState(false)
+  const [msg, setMsg]         = useState('')
+  const [investAmt, setInvestAmt] = useState(10)
 
   const load = useCallback(async () => {
-    try { const r = await jobActionsApi.brokerSession(); setData(r.data) } catch {}
+    try {
+      const r = await jobActionsApi.brokerSession(); setData(r.data)
+      const sess = r.data?.sessions?.[0]
+      if (sess) {
+        const a = await jobActionsApi.brokerAllocations(sess.id); setAlloc(a.data)
+      }
+    } catch {}
   }, [])
   useEffect(() => { load() }, [load])
 
   const sess = data?.sessions?.[0]
 
   const invest = async (targetId, targetType) => {
-    if (!sess) return
+    if (!sess || investAmt < 1) return
     setBusy(true); setMsg('')
-    try { await jobActionsApi.brokerInvest(sess.id, targetId, targetType); setMsg('Position set!'); load() }
-    catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    try {
+      const r = await jobActionsApi.brokerInvest(sess.id, targetId, targetType, investAmt)
+      setMsg(`Allocated 🌱${investAmt} · ${r.data.remaining} remaining`); load()
+    } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
     finally { setBusy(false) }
   }
 
@@ -253,79 +262,75 @@ function BrokerWorkspace({ job }) {
   }
 
   const closeAt = sess ? new Date(sess.closes_at) : null
-  const msLeft = closeAt ? closeAt - Date.now() : 0
+  const msLeft  = closeAt ? closeAt - Date.now() : 0
   const timeLeft = msLeft > 0 ? (() => { const h=Math.floor(msLeft/3600000); const m=Math.floor((msLeft%3600000)/60000); return h>0?`${h}h ${m}m`:`${m}m` })() : 'Expired'
-
-  // Calculate current return preview for active session
-  const baseline = sess ? Math.max(1, parseFloat(sess.price_at_invest || 1)) : 1
-  const currentVal = sess?.target_seeds || baseline
-  const mult = sess?.price_at_invest ? Math.min(10, Math.max(0, currentVal / baseline)) : null
+  const unallocated = allocData?.unallocated ?? sess?.escrow_seeds ?? 0
 
   return (
     <div className="space-y-3">
       {!data && <p className="text-forest-600 text-xs text-center py-4">Loading…</p>}
       {sess ? (
         <>
-          {/* Session header */}
           <div className="rounded-xl bg-forest-900/50 border border-forest-700 p-3">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-forest-200 text-sm font-medium">Active Session</p>
+              <p className="text-forest-200 text-sm font-medium">Active Session · {sess.client_name}</p>
               <span className={`text-xs font-mono ${msLeft <= 0 ? 'text-red-400' : 'text-forest-400'}`}>⏱ {timeLeft}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <div className="rounded-lg bg-forest-800/60 p-2 text-center">
-                <p className="text-forest-500 mb-0.5">Client</p>
-                <p className="text-forest-200 font-medium truncate">{sess.client_name}</p>
-              </div>
-              <div className="rounded-lg bg-forest-800/60 p-2 text-center">
-                <p className="text-forest-500 mb-0.5">Escrow</p>
+            <div className="flex gap-2 text-xs">
+              <div className="flex-1 rounded-lg bg-forest-800/60 p-2 text-center">
+                <p className="text-forest-500">Escrow</p>
                 <p className="text-forest-200 font-mono">🌱{sess.escrow_seeds}</p>
               </div>
-              <div className="rounded-lg bg-forest-800/60 p-2 text-center">
-                <p className="text-forest-500 mb-0.5">Return</p>
-                {mult !== null
-                  ? <p className={`font-mono ${mult >= 1 ? 'text-green-400' : 'text-red-400'}`}>×{mult.toFixed(2)}</p>
-                  : <p className="text-forest-500">—</p>}
+              <div className="flex-1 rounded-lg bg-forest-800/60 p-2 text-center">
+                <p className="text-forest-500">Unallocated</p>
+                <p className="text-green-400 font-mono">🌱{unallocated}</p>
               </div>
             </div>
-            <p className="text-forest-700 text-xs mt-1.5">100% active · 5% fee · you earn 10% of profits</p>
           </div>
 
-          {/* Investment target selector */}
-          <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
-            <p className="text-forest-300 text-xs font-medium mb-2">Invest client escrow in:</p>
-            <div className="space-y-1 max-h-40 overflow-y-auto">
-              {data?.connections?.map(c => {
-                const isActive = sess.target_type === 'grove' && sess.target_user_id === c.id
-                return (
-                  <button key={c.id} onClick={() => invest(c.id, 'grove')} disabled={busy}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors disabled:opacity-40
-                      ${isActive ? 'bg-forest-700 border border-forest-600' : 'bg-forest-800/60 hover:bg-forest-700'}`}>
-                    <span className="text-forest-200">{c.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-forest-400 font-mono">🌱{c.seeds}</span>
-                      {isActive && <span className="text-green-400 text-[10px]">● Active</span>}
-                    </div>
-                  </button>
-                )
-              })}
-              {[['canopy','🌳 The Canopy','amber'],['crude','🛢️ Crude Oil','orange']].map(([m,label,col]) => {
-                const isActive = sess.target_type === m
-                return (
-                  <button key={m} onClick={() => invest(null, m)} disabled={busy}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors disabled:opacity-40
-                      ${isActive ? `bg-${col}-950/60 border border-${col}-800/60` : `bg-${col}-950/20 hover:bg-${col}-950/40`}`}>
-                    <span className={`text-${col}-300`}>{label}</span>
-                    {isActive && <span className={`text-${col}-400 text-[10px]`}>● Active</span>}
-                  </button>
-                )
-              })}
+          {/* Current allocations */}
+          {allocData?.allocations?.length > 0 && (
+            <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
+              <p className="text-forest-400 text-xs font-medium mb-2">Allocations</p>
+              {allocData.allocations.map(a => (
+                <div key={a.id} className="flex items-center justify-between text-xs py-1 border-b border-forest-800/30 last:border-0">
+                  <span className="text-forest-300">{a.target_type === 'grove' ? (a.target_name || 'Unknown') : a.target_type === 'canopy' ? '🌳 Canopy' : '🛢️ Crude'}</span>
+                  <span className="text-forest-400 font-mono">🌱{a.amount}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Amount + invest target */}
+          <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <label className="text-forest-400 text-xs w-16">Amount</label>
+              <input type="number" value={investAmt} onChange={e => setInvestAmt(Math.max(1, parseInt(e.target.value)||1))}
+                min={1} max={unallocated}
+                className="input text-xs flex-1"/>
+              <span className="text-forest-600 text-xs">/ 🌱{unallocated}</span>
+            </div>
+            <p className="text-forest-400 text-xs font-medium">Invest in:</p>
+            <div className="space-y-1 max-h-36 overflow-y-auto">
+              {data?.connections?.map(c => (
+                <button key={c.id} onClick={() => invest(c.id, 'grove')} disabled={busy || unallocated < 1}
+                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-forest-800/60 hover:bg-forest-700 text-xs transition-colors disabled:opacity-40">
+                  <span className="text-forest-200">{c.name}</span>
+                  <span className="text-forest-400 font-mono">🌱{c.seeds}</span>
+                </button>
+              ))}
+              {[['canopy','🌳 The Canopy','amber'],['crude','🛢️ Crude Oil','orange']].map(([m,label,col]) => (
+                <button key={m} onClick={() => invest(null, m)} disabled={busy || unallocated < 1}
+                  className={`w-full px-3 py-1.5 rounded-lg text-xs transition-colors disabled:opacity-40 bg-${col}-950/20 hover:bg-${col}-950/40 text-${col}-300`}>
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {msg && <p className={`text-xs text-center ${msg.includes('Done') ? 'text-green-400' : msg.includes('!') ? 'text-forest-300' : 'text-red-400'}`}>{msg}</p>}
+          {msg && <p className={`text-xs text-center ${msg.includes('Done') || msg.includes('Allocated') ? 'text-green-400' : 'text-red-400'}`}>{msg}</p>}
           <button onClick={close} disabled={busy}
-            className="w-full py-2 rounded-xl border border-red-900/50 text-red-400/80 text-sm hover:border-red-700 hover:text-red-300 transition-colors disabled:opacity-40">
+            className="w-full py-2 rounded-xl border border-red-900/50 text-red-400/80 text-sm hover:border-red-700 transition-colors disabled:opacity-40">
             Close session & pay out
           </button>
         </>
@@ -333,7 +338,7 @@ function BrokerWorkspace({ job }) {
         <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-4 text-center">
           <p className="text-forest-300 text-sm font-medium mb-1">🌱 Seed Broker</p>
           <p className="text-forest-600 text-xs">No active session. Clients hire you from For Hire.</p>
-          <p className="text-forest-700 text-xs mt-1">One client at a time · 100% active exposure · 5% withdrawal fee · 10% of profits</p>
+          <p className="text-forest-700 text-xs mt-1">Allocate specific amounts across multiple targets · 5% fee · 10% of profits</p>
         </div>
       )}
     </div>
@@ -755,7 +760,7 @@ function FarmerWorkspace({ job }) {
         </div>
       )}
       <div className="rounded-xl bg-forest-900/30 border border-forest-800 p-3">
-        <p className="text-forest-500 text-xs font-medium mb-1">Harvest odds · 24h grow time</p>
+        <p className="text-forest-500 text-xs font-medium mb-1">Harvest odds · 24h grow time · No fees on deposits</p>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5">
           {[['bumper','×2.5','5%','text-yellow-400'],['great','×1.8','15%','text-green-300'],['good','×1.4','25%','text-green-400'],['normal','×1.1','33%','text-forest-300'],['poor','×0.5','14%','text-orange-400'],['rotten','×0','8%','text-red-400']].map(([n,m,p,c]) => (
             <span key={n} className={`text-xs ${c}`}>{HARVEST_OUTCOMES[n].emoji} {n} {m} <span className="text-forest-700">({p})</span></span>
@@ -1375,7 +1380,12 @@ export default function JobsPage() {
 
             {/* My hires toggle */}
             {(myCommissions.length > 0 || (myAdvice?.advice?.length > 0)) && (
-              <button onClick={() => setShowMyHires(s => !s)}
+              <button onClick={() => {
+                setShowMyHires(s => {
+                  if (!s) jobActionsApi.markServicesRead().catch(() => {})
+                  return !s
+                })
+              }}
                 className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors
                   ${showMyHires ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
                 {showMyHires ? '← Back to listings' : `📬 Service Responses (${myCommissions.length + (myAdvice?.advice?.length || 0) + myCourierReqs.length})`}

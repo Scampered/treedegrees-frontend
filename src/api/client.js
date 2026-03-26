@@ -161,7 +161,8 @@ export const jobActionsApi = {
   // Broker
   brokerSession:     ()                         => api.get('/api/job-actions/broker/session'),
   openBrokerSession: (brokerId, seeds, hours)   => api.post('/api/job-actions/broker/open', { brokerId, seeds, durationHours: hours }),
-  brokerInvest:      (sessionId, targetId, t)   => api.post('/api/job-actions/broker/invest', { sessionId, targetId, targetType: t }),
+  brokerInvest:      (sessionId, targetId, t, amount) => api.post('/api/job-actions/broker/invest', { sessionId, targetId, targetType: t, amount }),
+  brokerAllocations: (sessionId)               => api.get(`/api/job-actions/broker/allocations/${sessionId}`),
   closeBrokerSession:(sessionId)                => api.post('/api/job-actions/broker/close', { sessionId }),
   // Accountant
   accountantClients: ()                         => api.get('/api/job-actions/accountant/clients'),
@@ -182,6 +183,8 @@ export const jobActionsApi = {
   farmerPlant:       (slot, seeds)              => api.post('/api/job-actions/farmer/plant', { slotIndex: slot, seeds }),
   farmerDeposit:     (farmerId, seeds)           => api.post('/api/job-actions/farmer/deposit', { farmerId, seeds }),
   myFarmerDeposits:  ()                         => api.get('/api/job-actions/farmer/my-deposits'),
+  markServicesRead:  ()                         => api.post('/api/job-actions/services/mark-read'),
+  serviceUnreadCount:()                         => api.get('/api/job-actions/services/unread-count'),
   farmerHarvest:     (slotId)                   => api.post('/api/job-actions/farmer/harvest', { slotId }),
   farmerBuyPlot:     ()                         => api.post('/api/job-actions/farmer/buy-plot'),
 }
