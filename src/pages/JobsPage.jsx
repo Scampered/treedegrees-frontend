@@ -73,7 +73,10 @@ function CourierWorkspace({ job }) {
               <span className="text-forest-400 text-xs font-mono">🌱{req.fee_seeds}</span>
             </div>
             <p className="text-forest-500 text-xs">{req.from_country} → {req.to_country}</p>
-            <p className="text-forest-700 text-xs">Est. {parseFloat(req.est_hours).toFixed(1)}h delivery</p>
+            {req.recipient_label && req.recipient_label !== 'Not specified' && (
+              <p className="text-forest-600 text-xs">To: {req.recipient_label}</p>
+            )}
+            <p className="text-forest-700 text-xs">Est. {parseFloat(req.est_hours).toFixed(1)}h</p>
             <div className="flex gap-2 mt-2">
               <button onClick={() => respond(req.id, 'accept')} disabled={busy[req.id]}
                 className="flex-1 py-1.5 rounded-lg bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs disabled:opacity-40 transition-colors font-medium">
@@ -807,169 +810,198 @@ function RateModal({ job, meta, onClose, onDone }) {
 
 
 // ── My Advice Panel (client sees accountant advice) ──────────────────────────
-function MyAdvicePanel({ advice }) {
+// ── My Services Panel — all hired job responses in one place ────────────────
+function MyServicesPanel({ commissions, advice, onRefresh }) {
+  const [filter, setFilter] = useState('all')
+  const [busy, setBusy]     = useState({})
+  const [copied, setCopied] = useState({})
+
   const actionColor = { buy: 'text-green-400', hold: 'text-forest-300', sell: 'text-red-400' }
   const actionIcon  = { buy: '📈', hold: '⏸', sell: '📉' }
+  const statusColor = { pending: 'text-forest-500', submitted: 'text-yellow-400', accepted: 'text-green-400', rejected: 'text-red-400' }
+  const fmtDate     = d => new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
 
-  const fmtDate = d => new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+  const resolve = async (id, action) => {
+    setBusy(b => ({...b, [id]: true}))
+    try { await jobActionsApi.resolveCommission(id, action); onRefresh() }
+    catch (e) { alert(e.response?.data?.error || 'Failed') }
+    finally { setBusy(b => ({...b, [id]: false})) }
+  }
 
-  if (advice.advice?.length === 0) return (
-    <div className="rounded-xl bg-forest-900/40 border border-forest-800 p-4 text-center">
-      <p className="text-forest-600 text-sm">No accountant advice yet.</p>
-      <p className="text-forest-700 text-xs mt-1">Hire an Accountant from For Hire to get portfolio advice.</p>
+  const copy = (id, text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(b => ({...b, [id]: true}))
+      setTimeout(() => setCopied(b => ({...b, [id]: false})), 2000)
+    })
+  }
+
+  // Build unified item list sorted newest first
+  const items = [
+    ...(commissions || []).map(c => ({ ...c, _type: 'writer', _date: new Date(c.created_at) })),
+    ...(advice?.advice || []).map(a => ({ ...a, _type: 'accountant', _date: new Date(a.created_at) })),
+  ].sort((a, b) => b._date - a._date)
+
+  const filters = ['all', 'writer', 'accountant']
+  const filtered = filter === 'all' ? items : items.filter(i => i._type === filter)
+
+  if (items.length === 0) return (
+    <div className="text-center py-8">
+      <p className="text-forest-600 text-sm">No service responses yet.</p>
+      <p className="text-forest-700 text-xs mt-1">Hire workers from the For Hire listings.</p>
     </div>
   )
 
   return (
     <div className="space-y-3">
-      {/* Client's investments for reference */}
-      {advice.investments?.length > 0 && (
+      {/* Portfolio summary (for accountant tab) */}
+      {(advice?.investments?.length > 0 || advice?.markets?.length > 0) && (filter === 'all' || filter === 'accountant') && (
         <div className="rounded-xl bg-forest-900/40 border border-forest-800 p-3">
-          <p className="text-forest-400 text-xs font-medium mb-2">Your Grove Investments</p>
-          {advice.investments.map(inv => {
+          <p className="text-forest-400 text-xs font-medium mb-2">Your Portfolio</p>
+          {advice.investments?.map(inv => {
             const mult = inv.current_seeds / Math.max(1, inv.seeds_at_invest)
             const profit = Math.floor(inv.amount * mult) - inv.amount
             return (
-              <div key={inv.id} className="flex items-center justify-between py-1.5 border-b border-forest-800/50 last:border-0 text-xs">
-                <span className="text-forest-300 font-medium">{inv.name}</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-forest-500">🌱{inv.amount}</span>
-                  <span className={profit >= 0 ? 'text-green-400' : 'text-red-400'}>×{mult.toFixed(2)} ({profit>=0?'+':''}{profit})</span>
-                </div>
+              <div key={inv.id} className="flex items-center justify-between py-1 text-xs border-b border-forest-800/40 last:border-0">
+                <span className="text-forest-300">{inv.name}</span>
+                <span className={profit >= 0 ? 'text-green-400' : 'text-red-400'}>×{mult.toFixed(2)} ({profit>=0?'+':''}{profit} 🌱)</span>
               </div>
             )
           })}
-        </div>
-      )}
-
-      {/* Markets */}
-      {advice.markets?.length > 0 && (
-        <div className="rounded-xl bg-forest-900/40 border border-forest-800 p-3">
-          <p className="text-forest-400 text-xs font-medium mb-2">Your Market Positions</p>
-          {advice.markets.map((m, i) => {
+          {advice.markets?.map((m, i) => {
             const mult = parseFloat(m.current_price) / Math.max(1, parseFloat(m.price_at_invest))
             const profit = Math.floor(m.amount * mult) - m.amount
             return (
-              <div key={i} className="flex items-center justify-between py-1.5 text-xs">
-                <span className={m.market === 'canopy' ? 'text-yellow-400' : 'text-orange-400'}>
-                  {m.market === 'canopy' ? '🌳 Canopy' : '🛢️ Crude'}
-                </span>
-                <span className={profit >= 0 ? 'text-green-400' : 'text-red-400'}>×{mult.toFixed(2)} ({profit>=0?'+':''}{profit})</span>
+              <div key={i} className="flex items-center justify-between py-1 text-xs">
+                <span className={m.market === 'canopy' ? 'text-yellow-400' : 'text-orange-400'}>{m.market === 'canopy' ? '🌳 Canopy' : '🛢️ Crude'}</span>
+                <span className={profit >= 0 ? 'text-green-400' : 'text-red-400'}>×{mult.toFixed(2)} ({profit>=0?'+':''}{profit} 🌱)</span>
               </div>
             )
           })}
         </div>
       )}
 
-      {/* Advice items */}
-      <div className="space-y-2">
-        <p className="text-forest-400 text-xs font-medium px-1">Accountant's advice</p>
-        {advice.advice?.map(a => {
-          const inv = advice.investments?.find(i => i.idx === a.investment_idx)
+      {/* Filter pills */}
+      {items.length > 1 && (
+        <div className="flex gap-1.5">
+          {filters.map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors
+                ${filter===f ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-800 text-forest-500 hover:border-forest-600'}`}>
+              {f === 'all' ? 'All' : f === 'writer' ? '✍️ Letters' : '📊 Advice'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Items */}
+      {filtered.map(item => {
+        if (item._type === 'writer') {
+          const c = item
           return (
-            <div key={a.id} className={`rounded-xl border p-3 ${!a.read_at ? 'bg-forest-800/60 border-forest-600' : 'bg-forest-900/30 border-forest-800'}`}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{actionIcon[a.action]}</span>
-                  <span className={`text-sm font-bold ${actionColor[a.action]}`}>{a.action.toUpperCase()}</span>
-                  {a.amount > 0 && <span className="text-forest-400 text-xs">🌱{a.amount}</span>}
+            <div key={`w-${c.id}`} className="rounded-2xl bg-forest-900/40 border border-forest-800 p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div>
+                  <p className="text-forest-300 text-xs font-medium uppercase tracking-wide mb-0.5">✍️ Writer · {c.writer_name}</p>
+                  <p className="text-forest-200 text-sm font-medium">"{c.prompt}"</p>
+                  <p className="text-forest-600 text-xs">🌱{c.fee_seeds} · {fmtDate(c.created_at)}</p>
                 </div>
-                <span className="text-forest-600 text-xs">{fmtDate(a.created_at)}</span>
+                <span className={`text-xs font-medium flex-shrink-0 ${statusColor[c.status]}`}>{c.status}</span>
               </div>
-              {inv && (
-                <p className="text-forest-500 text-xs mb-1">
-                  Re: {inv.name} (Investment #{a.investment_idx + 1})
-                </p>
+
+              {c.status === 'submitted' && c.content && (
+                <>
+                  <div className="rounded-xl bg-forest-950/60 border border-forest-700 p-3 mb-2"
+                    onCopy={e => e.preventDefault()}>
+                    <p className="text-forest-300 text-sm leading-relaxed"
+                      style={{ userSelect:'none', WebkitUserSelect:'none', MozUserSelect:'none' }}>
+                      {c.content}
+                    </p>
+                  </div>
+                  <p className="text-forest-600 text-xs mb-2">Accept to unlock copy · 15% kill fee on reject</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => resolve(c.id, 'accept')} disabled={busy[c.id]}
+                      className="flex-1 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm font-medium disabled:opacity-40 transition-colors">
+                      ✓ Accept
+                    </button>
+                    <button onClick={() => resolve(c.id, 'reject')} disabled={busy[c.id]}
+                      className="flex-1 py-2 rounded-xl border border-red-900/50 text-red-400/80 text-sm hover:border-red-700 disabled:opacity-40 transition-colors">
+                      ✗ Reject
+                    </button>
+                  </div>
+                </>
               )}
-              {a.note && <p className="text-forest-300 text-xs leading-relaxed italic">"{a.note}"</p>}
-              <p className="text-forest-600 text-xs mt-1">From {a.accountant_name}</p>
-              {!a.read_at && <span className="text-[10px] text-forest-400 bg-forest-700 px-1.5 py-0.5 rounded-full">New</span>}
+              {c.status === 'accepted' && c.content && (
+                <div className="rounded-xl bg-green-950/20 border border-green-900/40 p-3">
+                  <p className="text-forest-200 text-sm leading-relaxed mb-2">{c.content}</p>
+                  <button onClick={() => copy(c.id, c.content)}
+                    className="w-full py-1.5 rounded-lg bg-green-950/40 border border-green-900/50 text-green-400 text-xs font-medium hover:bg-green-900/40 transition-colors">
+                    {copied[c.id] ? '✓ Copied!' : '📋 Copy letter'}
+                  </button>
+                </div>
+              )}
+              {c.status === 'pending' && <p className="text-forest-600 text-xs">Waiting for writer to complete…</p>}
+              {c.status === 'rejected' && <p className="text-red-400/60 text-xs">Rejected · partial refund sent</p>}
             </div>
           )
-        })}
-      </div>
-    </div>
-  )
-}
+        }
 
-// ── My Commission Card (client view of hired writer) ─────────────────────────
-function MyCommissionCard({ commission: c, onRefresh }) {
-  const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const resolve = async (action) => {
-    setBusy(true)
-    try { await jobActionsApi.resolveCommission(c.id, action); onRefresh() }
-    catch (e) { alert(e.response?.data?.error || 'Failed') }
-    finally { setBusy(false) }
-  }
-
-  const copy = () => {
-    navigator.clipboard.writeText(c.content || '').then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
-  }
-
-  const statusColor = { pending: 'text-forest-500', submitted: 'text-yellow-400', accepted: 'text-green-400', rejected: 'text-red-400' }
-
-  return (
-    <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-4">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div>
-          <p className="text-forest-200 text-sm font-medium">"{c.prompt}"</p>
-          <p className="text-forest-500 text-xs">By {c.writer_name} · 🌱{c.fee_seeds}</p>
-        </div>
-        <span className={`text-xs font-medium flex-shrink-0 ${statusColor[c.status]}`}>{c.status}</span>
-      </div>
-
-      {c.status === 'submitted' && c.content && (
-        <>
-          <div className="rounded-xl bg-forest-950/60 border border-forest-700 p-3 mb-2">
-            <p className="text-forest-300 text-sm leading-relaxed select-none"
-              style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
-              {c.content}
-            </p>
-          </div>
-          <p className="text-forest-600 text-xs mb-2">Accept to copy · Reject returns seeds (15% kill fee to writer)</p>
-          <div className="flex gap-2">
-            <button onClick={() => resolve('accept')} disabled={busy}
-              className="flex-1 py-2 rounded-xl bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm font-medium disabled:opacity-40 transition-colors">
-              ✓ Accept
-            </button>
-            <button onClick={() => resolve('reject')} disabled={busy}
-              className="flex-1 py-2 rounded-xl border border-red-900/50 text-red-400/80 text-sm hover:border-red-700 hover:text-red-300 disabled:opacity-40 transition-colors">
-              ✗ Reject
-            </button>
-          </div>
-        </>
-      )}
-
-      {c.status === 'accepted' && c.content && (
-        <div className="rounded-xl bg-forest-950/60 border border-green-900/40 p-3">
-          <p className="text-forest-200 text-sm leading-relaxed mb-2">{c.content}</p>
-          <button onClick={copy}
-            className="w-full py-1.5 rounded-lg bg-green-950/40 border border-green-900/50 text-green-400 text-xs font-medium hover:bg-green-900/40 transition-colors">
-            {copied ? '✓ Copied!' : '📋 Copy letter'}
-          </button>
-        </div>
-      )}
-
-      {c.status === 'pending' && (
-        <p className="text-forest-600 text-xs">Waiting for writer to complete…</p>
-      )}
+        if (item._type === 'accountant') {
+          const a = item
+          const inv = advice?.investments?.find(i => parseInt(i.idx) === a.investment_idx)
+          return (
+            <div key={`a-${a.id}`} className={`rounded-2xl border p-4 ${!a.read_at ? 'bg-forest-800/50 border-forest-600' : 'bg-forest-900/30 border-forest-800'}`}>
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div>
+                  <p className="text-forest-300 text-xs font-medium uppercase tracking-wide mb-0.5">📊 Accountant's Analysis · {a.accountant_name}</p>
+                  {inv && <p className="text-forest-500 text-xs">Re: {inv.name}</p>}
+                  <p className="text-forest-600 text-xs">{fmtDate(a.created_at)}</p>
+                </div>
+                {!a.read_at && <span className="text-[10px] text-forest-100 bg-forest-700 px-1.5 py-0.5 rounded-full flex-shrink-0">New</span>}
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">{actionIcon[a.action]}</span>
+                <div>
+                  <p className={`text-sm font-bold ${actionColor[a.action]}`}>
+                    {a.action === 'buy' ? 'Increase shares' : a.action === 'sell' ? 'Decrease shares' : 'Hold position'}
+                    {inv ? ` for ${inv.name}` : ''}
+                    {a.amount > 0 ? ` · 🌱${a.amount}` : ''}
+                  </p>
+                </div>
+              </div>
+              {a.note && (
+                <div className="rounded-lg bg-forest-900/60 px-3 py-2 border-l-2 border-forest-600">
+                  <p className="text-forest-300 text-xs italic leading-relaxed">"{a.note}"</p>
+                </div>
+              )}
+            </div>
+          )
+        }
+        return null
+      })}
     </div>
   )
 }
 
 // ── Hire Modal ────────────────────────────────────────────────────────────────
 function HireModal({ job, role, meta, onClose, onDone }) {
-  const [busy, setBusy]   = useState(false)
-  const [err, setErr]     = useState('')
-  const [extra, setExtra] = useState({ seeds: 50, hours: 24, days: 7, prompt: '', fee: job.hourly_rate })
+  const [busy, setBusy]         = useState(false)
+  const [err, setErr]           = useState('')
+  const [extra, setExtra]       = useState({ seeds: 50, hours: 24, days: 7, prompt: '', fee: job.hourly_rate, recipientId: '' })
+  const [connections, setConns] = useState([])
+
+  useEffect(() => {
+    if (role === 'courier') {
+      import('../api/client').then(({ friendsApi }) => {
+        friendsApi.list?.().then(r => setConns(r.data?.friends || r.data || [])).catch(() => {})
+      }).catch(() => {})
+    }
+  }, [role])
 
   const hire = async () => {
     setBusy(true); setErr('')
     try {
-      if (role === 'courier')     await jobActionsApi.courierRequest(job.user_id)
-      if (role === 'writer')      await jobActionsApi.hireWriter(job.user_id, extra.prompt, extra.fee)
+      if (role === 'courier')     await jobActionsApi.courierRequest(job.user_id, extra.recipientId)
+      if (role === 'writer')      await jobActionsApi.hireWriter(job.user_id, extra.prompt, job.hourly_rate)
       if (role === 'seed_broker') await jobActionsApi.openBrokerSession(job.user_id, extra.seeds, extra.hours)
       if (role === 'accountant')  await jobActionsApi.hireAccountant(job.user_id)
       if (role === 'steward')     await jobActionsApi.hireSteward(job.user_id, extra.days)
@@ -1000,10 +1032,9 @@ function HireModal({ job, role, meta, onClose, onDone }) {
                 <input value={extra.prompt} onChange={e => setExtra(x => ({...x, prompt: e.target.value}))}
                   placeholder="e.g. love letter, apology, thank you..." className="input text-sm w-full"/>
               </div>
-              <div>
-                <label className="text-forest-400 text-xs block mb-1">Fee (🌱 seeds)</label>
-                <input type="number" value={extra.fee} onChange={e => setExtra(x => ({...x, fee: parseInt(e.target.value)||5}))}
-                  className="input text-sm w-full" min={5}/>
+              <div className="rounded-lg bg-forest-800/60 px-3 py-2">
+                <p className="text-forest-400 text-xs">Commission fee</p>
+                <p className="text-forest-200 text-sm font-medium font-mono">🌱{job.hourly_rate} <span className="text-forest-500 font-normal text-xs">(fixed rate)</span></p>
               </div>
             </>
           )}
@@ -1048,7 +1079,19 @@ function HireModal({ job, role, meta, onClose, onDone }) {
             <p className="text-forest-400 text-xs">Subscribe for free. Get push notifications for every forecast post from {job.name}.</p>
           )}
           {role === 'courier' && (
-            <p className="text-forest-400 text-xs">Request a courier delivery. The courier sees your country and estimated route — not the content or recipient.</p>
+            <div>
+              <label className="text-forest-400 text-xs block mb-1">Who should receive this delivery?</label>
+              <select value={extra.recipientId} onChange={e => setExtra(x => ({...x, recipientId: e.target.value}))}
+                className="input text-sm w-full">
+                <option value="">Select a connection…</option>
+                {connections.map(c => (
+                  <option key={c.id || c.user_id} value={c.id || c.user_id}>
+                    {c.nickname || c.displayName || c.full_name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-forest-600 text-xs mt-1">The courier only sees your country → their country. Content stays private.</p>
+            </div>
           )}
           {role === 'accountant' && (
             <p className="text-forest-400 text-xs">Grant {job.name} read-only access to your investment portfolio. They charge 🌱{job.hourly_rate} per report.</p>
@@ -1229,31 +1272,16 @@ export default function JobsPage() {
               <button onClick={() => setShowMyHires(s => !s)}
                 className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors
                   ${showMyHires ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
-                {showMyHires ? '← Back to listings' : `📬 My hired services (${myCommissions.length + (myAdvice?.advice?.length || 0)})`}
+                {showMyHires ? '← Back to listings' : `📬 Service Responses (${myCommissions.length + (myAdvice?.advice?.length || 0)})`}
               </button>
             )}
 
-            {/* My Hires panel */}
             {showMyHires && (
-              <div className="space-y-3">
-                <div className="flex rounded-xl bg-forest-900 border border-forest-800 p-0.5 gap-0.5">
-                  {[['writer','✍️ Letters'], ['accountant','📊 Advice']].map(([k,l]) => (
-                    <button key={k} onClick={() => setMyHiresTab(k)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all
-                        ${myHiresTab===k ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300'}`}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-                {myHiresTab === 'writer' && (
-                  myCommissions.length === 0
-                    ? <p className="text-forest-600 text-sm text-center py-4">No commissioned letters yet.</p>
-                    : myCommissions.map(c => <MyCommissionCard key={c.id} commission={c} onRefresh={reload} />)
-                )}
-                {myHiresTab === 'accountant' && myAdvice && (
-                  <MyAdvicePanel advice={myAdvice} />
-                )}
-              </div>
+              <MyServicesPanel
+                commissions={myCommissions}
+                advice={myAdvice}
+                onRefresh={reload}
+              />
             )}
 
             {/* Listings (hidden when my hires panel is open) */}
@@ -1388,7 +1416,7 @@ export default function JobsPage() {
                     <p className="text-forest-200 text-sm font-medium mb-0.5">
                       You are registered as a <span className="text-forest-100">{JOB_META[myJob.role]?.label}</span> {JOB_META[myJob.role]?.icon}
                     </p>
-                    <p className="text-forest-600 text-xs">Full job workspace coming soon. Clients can already find you in For Hire.</p>
+
                   </div>
 
                   {/* Workspace */}

@@ -149,7 +149,7 @@ export const gamesApi = {
 export const jobActionsApi = {
   // Courier
   courierQueue:      ()                         => api.get('/api/job-actions/courier/queue'),
-  courierRequest:    (courierId)                => api.post('/api/job-actions/courier/request', { courierId }),
+  courierRequest:    (courierId, recipientId)   => api.post('/api/job-actions/courier/request', { courierId, recipientId }),
   courierRespond:    (id, action)               => api.patch(`/api/job-actions/courier/request/${id}`, { action }),
   // Writer
   writerCommissions: ()                         => api.get('/api/job-actions/writer/commissions'),
