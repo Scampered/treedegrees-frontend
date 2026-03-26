@@ -34,8 +34,31 @@ const JOB_WORKSPACE = {
 
 // ── COURIER WORKSPACE ────────────────────────────────────────────────────────
 function CourierWorkspace({ job }) {
-  const [data, setData] = useState(null)
-  const [busy, setBusy] = useState({})
+  const [data, setData]         = useState(null)
+  const [busy, setBusy]         = useState({})
+  const [showCompose, setCompose] = useState(false)
+  const [connections, setConns] = useState([])
+  const [recipient, setRecipient] = useState('')
+  const [letterText, setLetter]  = useState('')
+  const [sending, setSending]    = useState(false)
+  const [sendMsg, setSendMsg]    = useState('')
+
+  useEffect(() => {
+    import('../api/client').then(({ friendsApi }) => {
+      friendsApi.list?.().then(r => setConns(r.data?.friends || r.data || [])).catch(() => {})
+    }).catch(() => {})
+  }, [])
+
+  const sendLetter = async () => {
+    if (!recipient || !letterText.trim()) return setSendMsg('Select a recipient and write a message')
+    setSending(true); setSendMsg('')
+    try {
+      const { lettersApi } = await import('../api/client')
+      await lettersApi.send({ recipientId: recipient, content: letterText, senderLocalDate: new Date().toISOString().split('T')[0] })
+      setSendMsg('Letter sent! ✓'); setLetter(''); setRecipient(''); setCompose(false)
+    } catch (e) { setSendMsg(e.response?.data?.error || 'Failed to send') }
+    finally { setSending(false) }
+  }
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.courierQueue(); setData(r.data) } catch {}
   }, [])
@@ -62,6 +85,37 @@ function CourierWorkspace({ job }) {
           {nextTier && <p className="text-forest-600 text-xs text-right">Next: {nextTier[1].emoji} {nextTier[1].label} at {nextTier[1].minDeliveries}</p>}
         </div>
       )}
+
+      {/* Write a letter */}
+      <button onClick={() => setCompose(s => !s)}
+        className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors
+          ${showCompose ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
+        {showCompose ? '← Back to queue' : '✉️ Write a letter to a connection'}
+      </button>
+
+      {showCompose && (
+        <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3 space-y-2">
+          <p className="text-forest-300 text-sm font-medium">Write a letter</p>
+          <select value={recipient} onChange={e => setRecipient(e.target.value)} className="input text-sm w-full">
+            <option value="">Select connection…</option>
+            {connections.map(c => (
+              <option key={c.id || c.user_id} value={c.id || c.user_id}>
+                {c.nickname || c.displayName || c.full_name}
+              </option>
+            ))}
+          </select>
+          <textarea value={letterText} onChange={e => setLetter(e.target.value)}
+            placeholder="Write your letter…"
+            className="w-full bg-forest-950 border border-forest-700 rounded-xl px-3 py-2 text-sm
+                       text-forest-100 placeholder-forest-600 resize-none outline-none h-28"/>
+          {sendMsg && <p className={`text-xs ${sendMsg.includes('✓') ? 'text-green-400' : 'text-red-400'}`}>{sendMsg}</p>}
+          <button onClick={sendLetter} disabled={sending || !recipient || !letterText.trim()}
+            className="w-full py-2 bg-forest-700 hover:bg-forest-600 disabled:opacity-40 text-forest-100 text-sm rounded-xl font-medium transition-colors">
+            {sending ? 'Sending…' : 'Send letter ✉️'}
+          </button>
+        </div>
+      )}
+
       <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-3">
         <p className="text-forest-300 text-sm font-medium mb-2">📬 Delivery Queue</p>
         {!data && <p className="text-forest-600 text-xs">Loading…</p>}
@@ -554,6 +608,18 @@ function FarmerWorkspace({ job }) {
   const [seeds, setSeeds]       = useState(10)
   const [busy, setBusy]         = useState({})
   const [msg, setMsg]           = useState('')
+  const [buying, setBuying]     = useState(false)
+
+  const buyPlot = async () => {
+    setBuying(true); setMsg('')
+    try {
+      // Each plot costs 100 seeds — handled via plant with 0 seeds as purchase signal
+      // Call a special buy-plot endpoint
+      const r = await import('../api/client').then(m => m.jobActionsApi.farmerBuyPlot())
+      setMsg('Plot purchased! New slot unlocked.'); load()
+    } catch (e) { setMsg(e.response?.data?.error || 'Failed') }
+    finally { setBuying(false) }
+  }
 
   const load = useCallback(async () => {
     try { const r = await jobActionsApi.farmerPlot(); setSlots(r.data.slots) } catch {}
@@ -676,6 +742,18 @@ function FarmerWorkspace({ job }) {
         )}
       </div>
 
+      {slots.length < 5 && (
+        <div className="rounded-xl bg-forest-900/30 border border-forest-800 p-3 flex items-center justify-between">
+          <div>
+            <p className="text-amber-300 text-xs font-medium">Unlock new plot slot</p>
+            <p className="text-amber-800 text-xs">🌱100 seeds · {slots.length}/5 slots active</p>
+          </div>
+          <button onClick={buyPlot} disabled={buying}
+            className="px-3 py-1.5 rounded-lg bg-amber-900/40 border border-amber-800/50 text-amber-300 text-xs font-medium hover:bg-amber-900/60 disabled:opacity-40 transition-colors">
+            {buying ? '…' : '+ Buy plot'}
+          </button>
+        </div>
+      )}
       <div className="rounded-xl bg-forest-900/30 border border-forest-800 p-3">
         <p className="text-forest-500 text-xs font-medium mb-1">Harvest odds · 24h grow time</p>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -811,7 +889,7 @@ function RateModal({ job, meta, onClose, onDone }) {
 
 // ── My Advice Panel (client sees accountant advice) ──────────────────────────
 // ── My Services Panel — all hired job responses in one place ────────────────
-function MyServicesPanel({ commissions, advice, onRefresh }) {
+function MyServicesPanel({ commissions, courierRequests, advice, onRefresh }) {
   const [filter, setFilter] = useState('all')
   const [busy, setBusy]     = useState({})
   const [copied, setCopied] = useState({})
@@ -839,9 +917,10 @@ function MyServicesPanel({ commissions, advice, onRefresh }) {
   const items = [
     ...(commissions || []).map(c => ({ ...c, _type: 'writer', _date: new Date(c.created_at) })),
     ...(advice?.advice || []).map(a => ({ ...a, _type: 'accountant', _date: new Date(a.created_at) })),
+    ...(courierRequests || []).map(r => ({ ...r, _type: 'courier', _date: new Date(r.created_at) })),
   ].sort((a, b) => b._date - a._date)
 
-  const filters = ['all', 'writer', 'accountant']
+  const filters = ['all', 'courier', 'writer', 'accountant']
   const filtered = filter === 'all' ? items : items.filter(i => i._type === filter)
 
   if (items.length === 0) return (
@@ -887,7 +966,7 @@ function MyServicesPanel({ commissions, advice, onRefresh }) {
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors
                 ${filter===f ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-800 text-forest-500 hover:border-forest-600'}`}>
-              {f === 'all' ? 'All' : f === 'writer' ? '✍️ Letters' : '📊 Advice'}
+              {f === 'all' ? 'All' : f === 'courier' ? '🚐 Courier' : f === 'writer' ? '✍️ Letters' : '📊 Advice'}
             </button>
           ))}
         </div>
@@ -908,7 +987,7 @@ function MyServicesPanel({ commissions, advice, onRefresh }) {
                 <span className={`text-xs font-medium flex-shrink-0 ${statusColor[c.status]}`}>{c.status}</span>
               </div>
 
-              {c.status === 'submitted' && c.content && (
+              {c.status === 'submitted' && c.content && c.writer_name && (
                 <>
                   <div className="rounded-xl bg-forest-950/60 border border-forest-700 p-3 mb-2"
                     onCopy={e => e.preventDefault()}>
@@ -941,6 +1020,7 @@ function MyServicesPanel({ commissions, advice, onRefresh }) {
               )}
               {c.status === 'pending' && <p className="text-forest-600 text-xs">Waiting for writer to complete…</p>}
               {c.status === 'rejected' && <p className="text-red-400/60 text-xs">Rejected · partial refund sent</p>}
+              {c.status === 'refunded' && <div className="mt-1 rounded-lg bg-yellow-950/30 border border-yellow-900/40 px-3 py-1.5"><p className="text-yellow-400 text-xs">🌱{c.fee_seeds} refunded — writer resigned</p></div>}
             </div>
           )
         }
@@ -976,6 +1056,30 @@ function MyServicesPanel({ commissions, advice, onRefresh }) {
             </div>
           )
         }
+        if (item._type === 'courier') {
+          const r = item
+          const statusColor2 = { pending: 'text-forest-500', accepted: 'text-blue-400', declined: 'text-red-400', delivered: 'text-green-400', refunded: 'text-yellow-400', expired: 'text-forest-700' }
+          const statusLabel  = { pending: 'Awaiting courier', accepted: 'Courier accepted', declined: 'Declined', delivered: 'Delivered ✓', refunded: '🔄 Refunded', expired: 'Expired' }
+          return (
+            <div key={`c-${r.id}`} className="rounded-2xl bg-forest-900/40 border border-forest-800 p-4">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <p className="text-forest-300 text-xs font-medium uppercase tracking-wide">🚐 Courier · {r.courier_name}</p>
+                <span className={`text-xs font-medium flex-shrink-0 ${statusColor2[r.status]}`}>{statusLabel[r.status] || r.status}</span>
+              </div>
+              <p className="text-forest-200 text-sm">{r.from_country} → {r.to_country}</p>
+              {r.recipient_label && r.recipient_label !== 'Not specified' && (
+                <p className="text-forest-500 text-xs">To: {r.recipient_label}</p>
+              )}
+              <p className="text-forest-600 text-xs">{fmtDate(r.created_at)} · 🌱{r.fee_seeds}</p>
+              {r.status === 'refunded' && (
+                <div className="mt-2 rounded-lg bg-yellow-950/30 border border-yellow-900/40 px-3 py-1.5">
+                  <p className="text-yellow-400 text-xs">🌱{r.fee_seeds} refunded — courier resigned before completing delivery</p>
+                </div>
+              )}
+            </div>
+          )
+        }
+
         return null
       })}
     </div>
@@ -1198,6 +1302,7 @@ export default function JobsPage() {
   const [rateTarget, setRateTarget]     = useState(null)
   const [hireTarget, setHireTarget]       = useState(null)
   const [myCommissions, setMyCommissions]   = useState([])
+  const [myCourierReqs, setMyCourierReqs]   = useState([])
   const [myAdvice, setMyAdvice]             = useState(null)
   const [showMyHires, setShowMyHires]       = useState(false)
   const [myHiresTab, setMyHiresTab]         = useState('writer')
@@ -1212,6 +1317,7 @@ export default function JobsPage() {
       setMyCommissions(commRes.data.commissions || [])
       // Also load accountant advice
       jobActionsApi.myAdvice().then(r => setMyAdvice(r.data)).catch(() => {})
+      jobActionsApi.myCourierRequests().then(r => setMyCourierReqs(r.data.requests || [])).catch(() => {})
     } catch {} finally { setLoading(false) }
   }, [])
 
@@ -1272,13 +1378,14 @@ export default function JobsPage() {
               <button onClick={() => setShowMyHires(s => !s)}
                 className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors
                   ${showMyHires ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
-                {showMyHires ? '← Back to listings' : `📬 Service Responses (${myCommissions.length + (myAdvice?.advice?.length || 0)})`}
+                {showMyHires ? '← Back to listings' : `📬 Service Responses (${myCommissions.length + (myAdvice?.advice?.length || 0) + myCourierReqs.length})`}
               </button>
             )}
 
             {showMyHires && (
               <MyServicesPanel
                 commissions={myCommissions}
+                courierRequests={myCourierReqs}
                 advice={myAdvice}
                 onRefresh={reload}
               />
