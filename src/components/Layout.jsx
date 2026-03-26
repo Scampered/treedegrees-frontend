@@ -290,7 +290,7 @@ export default function Layout() {
 
         {/* Desktop floating bell — top-right, hidden on map */}
         {!isMap && (
-          <div className="hidden lg:block absolute top-4 right-4 z-30">
+          <div className="hidden lg:block absolute top-[72px] right-4 z-30">
             <button onClick={() => setShowNotif(s => !s)}
               className="relative w-10 h-10 flex items-center justify-center rounded-xl
                          bg-forest-900/80 border border-forest-700 backdrop-blur-sm
