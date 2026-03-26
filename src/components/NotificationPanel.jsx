@@ -4,19 +4,19 @@ import { useNavigate } from 'react-router-dom'
 import { notificationsApi } from '../api/client'
 
 const TYPE_META = {
-  letter_arrived:      { icon: '✉️',  label: 'Letters',            section: 'Letters'     },
-  letter_sent:         { icon: '📤',  label: 'Letter sent',        section: 'Letters'     },
-  seeds_earned:        { icon: '🌱',  label: 'Seeds',              section: 'Grove'       },
-  grove_invest:        { icon: '📈',  label: 'Grove',              section: 'Grove'       },
-  grove_withdraw:      { icon: '📉',  label: 'Grove',              section: 'Grove'       },
-  job_hired:           { icon: '💼',  label: 'Jobs',               section: 'Jobs'        },
-  job_advice:          { icon: '📊',  label: 'Advice',             section: 'Jobs'        },
-  job_commission:      { icon: '✍️',  label: 'Commission',         section: 'Jobs'        },
-  job_nudge:           { icon: '🔔',  label: 'Streak nudge',       section: 'Letters'     },
-  connection_request:  { icon: '🌿',  label: 'Connection request', section: 'Connections' },
-  connection_accepted: { icon: '✅',  label: 'Connected',          section: 'Connections' },
-  note_posted:         { icon: '📝',  label: 'Note',               section: 'Notes'       },
-  forecaster_post:     { icon: '📡',  label: 'Forecast',           section: 'Jobs'        },
+  letter_arrived:      { icon: '✉️',  label: 'Letter arrived',     link: '/letters',   section: 'Letters'     },
+  letter_sent:         { icon: '📤',  label: 'Letter sent',        link: '/letters',   section: 'Letters'     },
+  seeds_earned:        { icon: '🌱',  label: 'Seeds earned',       link: '/grove',     section: 'Grove'       },
+  grove_invest:        { icon: '📈',  label: 'Investment',         link: '/grove',     section: 'Grove'       },
+  grove_withdraw:      { icon: '📉',  label: 'Withdrawal',         link: '/grove',     section: 'Grove'       },
+  job_hired:           { icon: '💼',  label: 'Job activity',       link: '/jobs',      section: 'Jobs'        },
+  job_advice:          { icon: '📊',  label: 'Accountant advice',  link: '/jobs',      section: 'Jobs'        },
+  job_commission:      { icon: '✍️',  label: 'Commission ready',   link: '/jobs',      section: 'Jobs'        },
+  job_nudge:           { icon: '🔔',  label: 'Streak nudge',       link: '/letters',   section: 'Letters'     },
+  connection_request:  { icon: '🌿',  label: 'Connection request', link: '/friends',   section: 'Connections' },
+  connection_accepted: { icon: '✅',  label: 'Connected',          link: '/friends',   section: 'Connections' },
+  note_posted:         { icon: '📝',  label: 'Note posted',        link: '/feed',      section: 'Notes'       },
+  forecaster_post:     { icon: '📡',  label: 'Forecast update',    link: '/jobs',      section: 'Jobs'        },
 }
 
 const SECTION_ORDER = ['Letters', 'Connections', 'Grove', 'Jobs', 'Notes']
@@ -33,10 +33,10 @@ function fmtTime(d) {
 }
 
 export default function NotificationPanel({ onClose }) {
-  const [data, setData]     = useState(null)
+  const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
-  const navigate            = useNavigate()
-  const panelRef            = useRef(null)
+  const navigate              = useNavigate()
+  const panelRef              = useRef(null)
 
   const load = useCallback(async () => {
     try {
@@ -45,25 +45,33 @@ export default function NotificationPanel({ onClose }) {
     } catch {} finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load() }, [load])
-
-  // Mark all read when panel opens
   useEffect(() => {
+    load()
+    // Mark all read immediately when panel opens — clears the badge
     notificationsApi.readAll().catch(() => {})
-  }, [])
+  }, [load])
 
-  // Close on outside click
+  // Close on outside click — using mousedown so it fires before click events on other elements
   useEffect(() => {
     const handler = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) onClose()
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        onClose()
+      }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    // Small delay so the button click that opened the panel doesn't immediately close it
+    const timeout = setTimeout(() => {
+      document.addEventListener('mousedown', handler)
+    }, 50)
+    return () => {
+      clearTimeout(timeout)
+      document.removeEventListener('mousedown', handler)
+    }
   }, [onClose])
 
   const handleClick = (notif) => {
-    notificationsApi.readType(notif.type).catch(() => {})
-    navigate(notif.link || '/dashboard')
+    const meta = TYPE_META[notif.type]
+    const dest = meta?.link || notif.link || '/dashboard'
+    navigate(dest)
     onClose()
   }
 
@@ -83,15 +91,17 @@ export default function NotificationPanel({ onClose }) {
 
   return (
     <div ref={panelRef}
-      className="absolute right-0 top-10 z-50 w-80 max-h-[480px] overflow-y-auto
-                 bg-forest-950 border border-forest-700 rounded-2xl shadow-2xl
-                 flex flex-col">
+      className="absolute right-0 top-12 z-50 w-80 max-h-[480px] overflow-y-auto
+                 bg-forest-950 border border-forest-700 rounded-2xl shadow-2xl flex flex-col"
+      style={{ minWidth: 300 }}>
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-forest-800 flex-shrink-0">
         <p className="text-forest-100 font-medium text-sm">Notifications</p>
         <button onClick={onClose}
-          className="text-forest-600 hover:text-forest-300 text-lg leading-none">✕</button>
+          className="text-forest-600 hover:text-forest-300 text-lg leading-none w-7 h-7 flex items-center justify-center">
+          ✕
+        </button>
       </div>
 
       {loading && (
@@ -107,7 +117,6 @@ export default function NotificationPanel({ onClose }) {
         </div>
       )}
 
-      {/* Sections */}
       {sections.map(section => (
         <div key={section}>
           <p className="px-4 pt-3 pb-1 text-forest-600 text-[10px] font-medium uppercase tracking-wider">
@@ -138,7 +147,6 @@ export default function NotificationPanel({ onClose }) {
         </div>
       ))}
 
-      {/* Footer */}
       {sections.length > 0 && (
         <div className="border-t border-forest-800 px-4 py-2 flex-shrink-0">
           <button onClick={() => { notificationsApi.readAll(); load() }}

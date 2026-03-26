@@ -265,9 +265,9 @@ export default function Layout() {
               <span className="text-sm font-medium">Notes</span>
             </Link>
             <div className="relative">
-              <button onClick={() => setShowNotif(s => !s)}
-                className="relative w-9 h-9 flex items-center justify-center rounded-xl
-                           text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors">
+              <button className="relative w-9 h-9 flex items-center justify-center rounded-xl
+                           text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors"
+                onClick={() => { setShowNotif(s => !s); setUnreadCount(0) }}>
                 <span>🔔</span>
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5
@@ -278,11 +278,7 @@ export default function Layout() {
                 )}
               </button>
               {showNotif && (
-                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}>
-                  <div onClick={e => e.stopPropagation()} className="absolute top-16 right-4">
-                    <NotificationPanel onClose={() => setShowNotif(false)} />
-                  </div>
-                </div>
+                <NotificationPanel onClose={() => setShowNotif(false)} />
               )}
             </div>
           </div>
@@ -291,10 +287,10 @@ export default function Layout() {
         {/* Desktop floating bell — top-right, hidden on map */}
         {!isMap && (
           <div className="hidden lg:block absolute top-[72px] right-4 z-30">
-            <button onClick={() => setShowNotif(s => !s)}
-              className="relative w-10 h-10 flex items-center justify-center rounded-xl
+            <button className="relative w-10 h-10 flex items-center justify-center rounded-xl
                          bg-forest-900/80 border border-forest-700 backdrop-blur-sm
-                         text-forest-400 hover:text-forest-200 hover:border-forest-500 transition-colors shadow-lg">
+                         text-forest-400 hover:text-forest-200 hover:border-forest-500 transition-colors shadow-lg"
+              onClick={() => { setShowNotif(s => !s); setUnreadCount(0) }}>
               <span className="text-lg">🔔</span>
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1
