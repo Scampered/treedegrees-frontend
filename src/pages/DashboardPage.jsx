@@ -28,79 +28,138 @@ function weatherEmoji(theme) {
 }
 
 // ── Flip card for friend notes ────────────────────────────────────────────────
-function NoteCard({ note }) {
-  const [flipped, setFlipped] = useState(false)
-  const emoji  = note.noteEmoji || note.mood || '🌿'
+// ── Flip card for friend notes ────────────────────────────────────────────────
+function NoteCard({ note, isOwn, myReaction, onReact }) {
+  const [flipped, setFlipped]   = useState(false)
+  const [reacting, setReacting] = useState(false)
+  const emoji        = note.mood || '🌿'
   const isForecaster = note.note?.startsWith('📡')
   const displayEmoji = isForecaster ? '📡' : emoji
-  const timeStr = note.notePostedAt
-    ? new Date(note.notePostedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const timeStr      = note.notePostedAt
+    ? new Date(note.notePostedAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
     : ''
+  const likes = note.likes || []
+
+  // Theme-aware colours via CSS vars
+  const cardBack  = 'rgb(var(--f900) / 0.85)'
+  const cardFront = 'rgb(var(--f900) / 0.95)'
+  const border    = isOwn ? 'rgb(var(--f500) / 0.7)' : 'rgb(var(--f700) / 0.5)'
+  const textMain  = 'rgb(var(--f100))'
+  const textSub   = 'rgb(var(--f500))'
+
+  const handleHeartClick = (e) => {
+    e.stopPropagation()
+    if (isOwn) return
+    setReacting(r => !r)
+  }
 
   return (
     <div className="flex-shrink-0 w-32 cursor-pointer select-none"
-      style={{ perspective: 800 }}
-      onClick={() => setFlipped(f => !f)}>
+      style={{ perspective: 900 }}
+      onClick={() => { if (!reacting) setFlipped(f => !f) }}>
       <div style={{
-        position: 'relative', width: '100%', paddingBottom: '140%',
-        transition: 'transform 0.45s cubic-bezier(.4,0,.2,1)',
-        transformStyle: 'preserve-3d',
+        position:'relative', width:'100%', paddingBottom:'150%',
+        transition:'transform 0.45s cubic-bezier(.4,0,.2,1)',
+        transformStyle:'preserve-3d',
         transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
       }}>
-        {/* Back face (visible first) */}
+
+        {/* ── BACK FACE (shown by default) ── */}
         <div style={{
-          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
-          borderRadius: 16, overflow: 'hidden',
-          background: 'linear-gradient(135deg, #0d2b0d 0%, #1a3d1a 100%)',
-          border: '1px solid rgba(74,107,79,0.4)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '10px 8px',
+          position:'absolute', inset:0, backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
+          borderRadius:16, background: cardBack, border:`1.5px solid ${border}`,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+          padding:'10px 8px', overflow:'hidden',
         }}>
-          {/* Streak fire top-left */}
+          {/* Streak */}
           {note.streakDays > 0 && (
-            <div style={{
-              position: 'absolute', top: 8, left: 8,
-              background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: '2px 6px',
-              display: 'flex', alignItems: 'center', gap: 3,
-            }}>
-              <span style={{ fontSize: 10 }}>🔥</span>
-              <span style={{ color: '#e8c070', fontSize: 11, fontWeight: 700 }}>{note.streakDays}</span>
+            <div style={{ position:'absolute', top:7, left:7, background:'rgba(0,0,0,0.35)', borderRadius:8, padding:'2px 5px', display:'flex', alignItems:'center', gap:2 }}>
+              <span style={{ fontSize:9 }}>🔥</span>
+              <span style={{ color:'#e8c070', fontSize:10, fontWeight:700 }}>{note.streakDays}</span>
             </div>
           )}
+          {isOwn && <div style={{ position:'absolute', top:7, right:7, fontSize:8, color:'rgb(var(--f400))', fontWeight:700 }}>YOU</div>}
+
           {/* Big emoji */}
-          <span style={{ fontSize: 42, lineHeight: 1.1, marginBottom: 6 }}>{displayEmoji}</span>
-          {/* Tap hint */}
-          <span style={{ color: 'rgba(150,200,150,0.5)', fontSize: 9, letterSpacing: '0.05em' }}>tap to read</span>
-          {/* Nickname bottom-right */}
-          <div style={{
-            position: 'absolute', bottom: 8, right: 8,
-            color: 'rgba(180,220,180,0.7)', fontSize: 10, fontWeight: 500,
-            maxWidth: 70, textAlign: 'right', overflow: 'hidden',
-            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
+          <span style={{ fontSize:42, lineHeight:1.1 }}>{displayEmoji}</span>
+
+          {/* Heart / reaction button — centred below emoji */}
+          <button
+            onClick={handleHeartClick}
+            style={{
+              marginTop:8, background:'transparent', border:'none', cursor: isOwn ? 'default' : 'pointer',
+              fontSize:18, opacity: isOwn ? 0 : 0.55, transition:'opacity 0.15s',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>
+            {myReaction || '🤍'}
+          </button>
+
+          {/* Reaction picker */}
+          {reacting && (
+            <div onClick={e => e.stopPropagation()}
+              style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'center', marginTop:4 }}>
+              {['🌿','❤️','🔥','😂','👀','💯'].map(r => (
+                <button key={r} onClick={() => { onReact(note.userId, r); setReacting(false) }}
+                  style={{ fontSize:16, background:'transparent', border:'none', cursor:'pointer', padding:1 }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <span style={{ color: textSub, fontSize:8, marginTop: reacting ? 2 : 6, letterSpacing:'0.05em' }}>
+            {reacting ? 'pick a react' : 'tap to read'}
+          </span>
+
+          {/* Name */}
+          <div style={{ position:'absolute', bottom:7, right:7, color: textSub, fontSize:9, fontWeight:500, maxWidth:60, textAlign:'right', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {note.displayName}
           </div>
         </div>
 
-        {/* Front face (shown after flip) */}
+        {/* ── FRONT FACE (after flip) ── */}
         <div style={{
-          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
-          borderRadius: 16, overflow: 'hidden',
-          background: 'linear-gradient(135deg, #111811 0%, #1c381c 100%)',
-          border: '1px solid rgba(74,107,79,0.6)',
-          transform: 'rotateY(180deg)',
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-          padding: 10,
+          position:'absolute', inset:0, backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
+          borderRadius:16, background: cardFront, border:`1.5px solid ${border}`,
+          transform:'rotateY(180deg)',
+          display:'flex', flexDirection:'column', padding:10, overflow:'hidden',
         }}>
-          <div style={{ fontSize: 22, textAlign: 'center', marginBottom: 4 }}>{displayEmoji}</div>
-          <p style={{
-            color: '#c8dcc8', fontSize: 11, lineHeight: 1.5, flex: 1,
-            overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6,
-            WebkitBoxOrient: 'vertical',
-          }}>
+          <div style={{ fontSize:20, textAlign:'center', marginBottom:4 }}>{displayEmoji}</div>
+          <p style={{ color: textMain, fontSize:10, lineHeight:1.5, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:6, WebkitBoxOrient:'vertical' }}>
             {note.note}
           </p>
-          <div style={{ marginTop: 6, color: 'rgba(150,180,150,0.6)', fontSize: 9, display: 'flex', justifyContent: 'space-between' }}>
+
+          {/* For own note: show reactions from connections */}
+          {isOwn && likes.length > 0 && (
+            <div style={{ marginTop:6, display:'flex', flexWrap:'wrap', gap:3 }}>
+              {likes.slice(0,6).map((l, i) => (
+                <div key={i} style={{
+                  background:'rgba(240,220,100,0.12)', border:'1px solid rgba(240,220,100,0.22)',
+                  borderRadius:5, padding:'2px 5px', fontSize:9, color:'rgba(240,230,150,0.75)',
+                  display:'flex', gap:2, alignItems:'center',
+                }}>
+                  <span>{l.emoji}</span>
+                  <span>{l.likerName?.length > 7 ? l.likerName.slice(0,6)+'-' : l.likerName}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* For other notes: sticky notes of reactions */}
+          {!isOwn && likes.length > 0 && (
+            <div style={{ marginTop:5, display:'flex', flexWrap:'wrap', gap:2 }}>
+              {likes.slice(0,4).map((l, i) => (
+                <div key={i} style={{
+                  background:'rgba(240,220,100,0.12)', border:'1px solid rgba(240,220,100,0.22)',
+                  borderRadius:4, padding:'2px 4px', fontSize:8, color:'rgba(240,230,150,0.75)',
+                }}>
+                  {l.emoji} {l.likerName?.length > 7 ? l.likerName.slice(0,6)+'-' : l.likerName}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ marginTop:5, color: textSub, fontSize:8, display:'flex', justifyContent:'space-between' }}>
             <span>{note.displayName}</span>
             <span>{timeStr}</span>
           </div>
@@ -110,6 +169,7 @@ function NoteCard({ note }) {
   )
 }
 
+// ── Streak connection card
 // ── Streak connection card ────────────────────────────────────────────────────
 function ConnectionCard({ friend, myId, onSelect }) {
   const streak = friend.streak || {}
@@ -122,7 +182,7 @@ function ConnectionCard({ friend, myId, onSelect }) {
   return (
     <div onClick={() => onSelect(friend)}
       className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors cursor-pointer
-        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-[var(--card,rgba(13,43,13,0.4))] border-forest-800 hover:border-forest-600'}`}>
+        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-forest-900/40 border-forest-800 hover:border-forest-600'}`}>
       {/* Avatar */}
       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
         ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
