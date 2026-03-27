@@ -51,6 +51,7 @@ export default function Layout() {
   const [unreadLetters, setUnreadLetters] = useState(0)
   const [groupInvites, setGroupInvites]   = useState(0)
   const [showMore, setShowMore]           = useState(false)
+  const [showSideMore, setShowSideMore]   = useState(false)
   const [showNotif, setShowNotif]         = useState(false)
   const [unreadCount, setUnreadCount]     = useState(0)
 
@@ -241,19 +242,29 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* Desktop sidebar more items */}
-        <div className="px-3 pb-2 border-t border-forest-800/50 pt-2">
-          <p className="px-3 py-1 text-forest-700 text-[10px] uppercase tracking-wider">More</p>
-          {sidebarMoreItems.map(({ to, icon, fullLabel }) => (
-            <NavLink key={to} to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all
-                 ${isActive ? 'bg-forest-800 text-forest-200' : 'text-forest-600 hover:text-forest-400 hover:bg-forest-900/60'}`
-              }>
-              <span>{icon}</span>
-              <span>{fullLabel}</span>
-            </NavLink>
-          ))}
+        {/* Desktop sidebar More — collapsible with ☰ */}
+        <div className="px-3 pb-2 border-t border-forest-800/50 pt-1">
+          <button onClick={() => setShowSideMore(s => !s)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-forest-600
+                       hover:text-forest-400 hover:bg-forest-900/60 transition-colors text-xs font-medium">
+            <span className="text-base">☰</span>
+            <span className="uppercase tracking-wider text-[10px]">More</span>
+            <span className="ml-auto text-forest-700">{showSideMore ? '▲' : '▼'}</span>
+          </button>
+          {showSideMore && (
+            <div className="mt-0.5">
+              {sidebarMoreItems.map(({ to, icon, fullLabel }) => (
+                <NavLink key={to} to={to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all
+                     ${isActive ? 'bg-forest-800 text-forest-200' : 'text-forest-600 hover:text-forest-400 hover:bg-forest-900/60'}`
+                  }>
+                  <span>{icon}</span>
+                  <span>{fullLabel}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="p-4 border-t border-forest-800 flex items-center gap-2">

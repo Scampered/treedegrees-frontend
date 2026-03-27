@@ -247,7 +247,9 @@ export default function FriendsPage() {
       <h1 className="font-display text-3xl text-forest-50 mb-6">🌿 Connections</h1>
 
       {/* Your QR code */}
-      <QRCodeCard friendCode={user?.friendCode} />
+      <div className="mb-6">
+        <QRCodeCard friendCode={user?.friendCode} />
+      </div>
 
       {/* Add by friend code */}
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5 mb-6">

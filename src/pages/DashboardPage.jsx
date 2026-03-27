@@ -257,9 +257,12 @@ export default function DashboardPage() {
           </Link>
           {/* Job pill */}
           <Link to="/jobs"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-forest-900 border border-forest-700
-                       hover:border-forest-500 transition-colors text-xs text-forest-400">
-            {myJob ? `💼 ${({'courier':'Courier','writer':'Writer','seed_broker':'Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'})[myJob.role]}` : '💼'}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-forest-900 border border-forest-700
+                       hover:border-forest-500 transition-colors">
+            <span>💼</span>
+            <span className="text-forest-200 font-mono font-bold text-base">
+              {myJob ? ({'courier':'Courier','writer':'Writer','seed_broker':'Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'})[myJob.role] : 'Jobs'}
+            </span>
           </Link>
         </div>
       </div>
