@@ -39,6 +39,7 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
     ? new Date(note.notePostedAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
     : ''
   const likes = note.likes || []
+  const likeCount = note.likeCount || likes.length
 
   // Theme-aware colours via CSS vars
   const cardBack  = 'rgb(var(--f900) / 0.85)'
@@ -174,9 +175,9 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
 function ConnectionCard({ friend, myId, onSelect }) {
   const streak = friend.streak || {}
   const fuel   = streak.fuel ?? 3
-  const days   = streak.streak_days ?? 0
-  const iSent  = streak.user_id_1 === myId ? streak.user1_sent_today : streak.user2_sent_today
-  const theySent = streak.user_id_1 === myId ? streak.user2_sent_today : streak.user1_sent_today
+  const days   = streak.streakDays ?? 0
+  const iSent  = streak.iSentToday || false
+  const theySent = streak.theySentToday || false
   const atRisk = fuel <= 1 && days > 0
 
   return (
@@ -306,26 +307,23 @@ export default function DashboardPage() {
   } : null
 
   const notesWithStreaks = friendNotes.map(n => {
-    const streak = streaks.find(s =>
-      (s.user_id_1 === n.userId || s.user_id_2 === n.userId)
-    )
-    return { ...n, streakDays: streak?.streak_days || 0 }
+    const streak = streaks.find(s => s.friendId === n.userId || s.friendId === n.id)
+    return { ...n, streakDays: streak?.streakDays || 0 }
   })
 
   // Sort connections: at-risk first, then not-sent-today, then healthy
   const enrichedFriends = friends.map(f => {
-    const streak = streaks.find(s => s.user_id_1 === f.id || s.user_id_2 === f.id)
+    const streak = streaks.find(s => s.friendId === f.id)
     return { ...f, streak }
   }).sort((a, b) => {
-    const aRisk = (a.streak?.fuel ?? 3) <= 1 && (a.streak?.streak_days ?? 0) > 0
-    const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streak_days ?? 0) > 0
+    const aRisk = (a.streak?.fuel ?? 3) <= 1 && (a.streak?.streakDays ?? 0) > 0
+    const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streakDays ?? 0) > 0
     if (aRisk && !bRisk) return -1
     if (!aRisk && bRisk) return 1
-    // Sort by streak days descending
-    return (b.streak?.streak_days ?? 0) - (a.streak?.streak_days ?? 0)
+    return (b.streak?.streakDays ?? 0) - (a.streak?.streakDays ?? 0)
   })
 
-  const atRiskCount = enrichedFriends.filter(f => (f.streak?.fuel ?? 3) <= 1 && (f.streak?.streak_days ?? 0) > 0).length
+  const atRiskCount = enrichedFriends.filter(f => (f.streak?.fuel ?? 3) <= 1 && (f.streak?.streakDays ?? 0) > 0).length
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">

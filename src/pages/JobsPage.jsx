@@ -909,7 +909,7 @@ function RateModal({ job, meta, onClose, onDone }) {
 
 // ── My Advice Panel (client sees accountant advice) ──────────────────────────
 // ── My Services Panel — all hired job responses in one place ────────────────
-function MyServicesPanel({ commissions, courierRequests, advice, onRefresh }) {
+function MyServicesPanel({ commissions, courierRequests, advice, farmerDeposits, onRefresh }) {
   const [filter, setFilter] = useState('all')
   const [busy, setBusy]     = useState({})
   const [copied, setCopied] = useState({})
@@ -938,9 +938,10 @@ function MyServicesPanel({ commissions, courierRequests, advice, onRefresh }) {
     ...(commissions || []).map(c => ({ ...c, _type: 'writer', _date: new Date(c.created_at) })),
     ...(advice?.advice || []).map(a => ({ ...a, _type: 'accountant', _date: new Date(a.created_at) })),
     ...(courierRequests || []).map(r => ({ ...r, _type: 'courier', _date: new Date(r.created_at) })),
+    ...(farmerDeposits || []).map(p => ({ ...p, _type: 'farmer', _date: new Date(p.created_at || p.planted_at || Date.now()) })),
   ].sort((a, b) => b._date - a._date)
 
-  const filters = ['all', 'courier', 'writer', 'accountant']
+  const filters = ['all', 'courier', 'writer', 'accountant', 'farmer']
   const filtered = filter === 'all' ? items : items.filter(i => i._type === filter)
 
   if (items.length === 0) return (
@@ -1324,6 +1325,7 @@ export default function JobsPage() {
   const [myCommissions, setMyCommissions]   = useState([])
   const [myCourierReqs, setMyCourierReqs]   = useState([])
   const [myAdvice, setMyAdvice]             = useState(null)
+  const [myFarmerDeposits, setMyFarmerDeposits] = useState([])
   const [showMyHires, setShowMyHires]       = useState(false)
   const [myHiresTab, setMyHiresTab]         = useState('writer')
   const [registerRole, setRegisterRole] = useState(null)
@@ -1338,6 +1340,7 @@ export default function JobsPage() {
       // Also load accountant advice
       jobActionsApi.myAdvice().then(r => setMyAdvice(r.data)).catch(() => {})
       jobActionsApi.myCourierRequests().then(r => setMyCourierReqs(r.data.requests || [])).catch(() => {})
+      jobActionsApi.myFarmerDeposits?.().then(r => setMyFarmerDeposits(r.data.plots || [])).catch(() => {})
     } catch {} finally { setLoading(false) }
   }, [])
 
@@ -1403,12 +1406,13 @@ export default function JobsPage() {
               }}
                 className={`w-full py-2 rounded-xl text-sm font-medium border transition-colors
                   ${showMyHires ? 'bg-forest-700 border-forest-600 text-forest-100' : 'border-forest-700 text-forest-400 hover:border-forest-500'}`}>
-                {showMyHires ? '← Back to listings' : `📬 Service Responses (${myCommissions.length + (myAdvice?.advice?.length || 0) + myCourierReqs.length})`}
+                {showMyHires ? '← Back to listings' : `📬 Service Responses (${myCommissions.length + (myAdvice?.advice?.length || 0) + myCourierReqs.length + myFarmerDeposits.length})`}
               </button>
             )}
 
             {showMyHires && (
               <MyServicesPanel
+                farmerDeposits={myFarmerDeposits}
                 commissions={myCommissions}
                 courierRequests={myCourierReqs}
                 advice={myAdvice}
@@ -1459,7 +1463,7 @@ export default function JobsPage() {
                     </div>
                     <div className="space-y-2">
                       {workers.map(job => (
-                        <JobCard key={job.id} job={job} meta={JOB_META[role]}
+                        <JobCard key={job.id} job={job} meta={JOB_META[role]} role={role}
                           onRate={j => setRateTarget({ job: j, role })}
                           onHire={j => setHireTarget({ job: j, role })} />
                       ))}

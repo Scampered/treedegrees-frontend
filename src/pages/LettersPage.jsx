@@ -1,6 +1,6 @@
 // src/pages/LettersPage.jsx
 import React, { useEffect, useState, useCallback } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { lettersApi, friendsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -360,7 +360,8 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
 
 // ── Main Letters Page ─────────────────────────────────────────────────────────
 export default function LettersPage() {
-  const location = useLocation()
+  const location  = useLocation()
+  const navigate  = useNavigate()
   const initialFriendId   = location.state?.selectFriend?.id || null
   const initialFriendData = location.state?.selectFriend || null
   const { user } = useAuth()
@@ -371,7 +372,11 @@ export default function LettersPage() {
   const [tab, setTab]           = useState('received')
   const [showSend, setShowSend] = useState(false)
   useEffect(() => {
-    if (location.state?.selectFriend) setShowSend(true)
+    if (location.state?.selectFriend) {
+      setShowSend(true)
+      // Clear state so re-opening Write doesn't pre-select the same person
+      navigate(location.pathname, { replace: true, state: {} })
+    }
   // eslint-disable-next-line
   }, [])
 
