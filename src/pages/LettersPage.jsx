@@ -1,5 +1,6 @@
 // src/pages/LettersPage.jsx
 import React, { useEffect, useState, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { lettersApi, friendsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
