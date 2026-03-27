@@ -385,6 +385,16 @@ export default function SettingsPage() {
             </button>
             {gpsStatus && <p className={`text-xs mt-1 text-center ${gpsStatus.startsWith('✓') ? 'text-forest-400' : 'text-forest-600'}`}>{gpsStatus}</p>}
           </div>
+          {/* Location change warning */}
+          {(profile.city !== (user?.city || '') || profile.country !== (user?.country || '')) && (
+            <div className="rounded-xl bg-amber-950/30 border border-amber-900/50 px-3 py-2.5">
+              <p className="text-amber-400 text-xs font-medium">⚠️ Location change</p>
+              <p className="text-amber-600 text-xs mt-0.5">
+                Once saved, you cannot change your location again for 48 hours. Your map position will be locked until then.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-forest-400 text-xs uppercase tracking-wide mb-1.5">City</label>
