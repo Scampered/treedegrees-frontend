@@ -239,9 +239,18 @@ function StreakDropdown({ streaks }) {
   )
 }
 
-function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId }) {
-  const [step, setStep]       = useState(initialFriendId ? 2 : 1)
-  const [selected, setSelected] = useState(initialFriendId ? (friends.find(f => f.id === initialFriendId) || null) : null)
+function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId, initialFriendData }) {
+  const [step, setStep]       = useState(1)
+  const [selected, setSelected] = useState(null)
+
+  // Once friends load, pre-select the initial friend and jump to step 2
+  useEffect(() => {
+    if (initialFriendId && friends.length > 0) {
+      const f = friends.find(fr => fr.id === initialFriendId)
+      if (f) { setSelected(f); setStep(2) }
+    }
+  // eslint-disable-next-line
+  }, [friends, initialFriendId])
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError]     = useState('')
@@ -265,7 +274,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
       <div className="w-full max-w-md rounded-2xl bg-forest-950 border border-forest-700 shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-forest-800">
           <h2 className="font-display text-forest-100 text-xl">
-            {step === 1 ? '✉️ Send a Letter' : `Write to ${selected?.displayName}`}
+            {step === 1 ? '✉️ Send a Letter' : `Write to ${selected?.displayName || initialFriendData?.displayName || '...'}`}
           </h2>
           <button onClick={onClose} className="text-forest-500 hover:text-forest-300 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-forest-800">✕</button>
         </div>
@@ -348,7 +357,8 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
 // ── Main Letters Page ─────────────────────────────────────────────────────────
 export default function LettersPage() {
   const location = useLocation()
-  const initialFriendId = location.state?.selectFriend?.id || null
+  const initialFriendId   = location.state?.selectFriend?.id || null
+  const initialFriendData = location.state?.selectFriend || null
   const { user } = useAuth()
   const [letters, setLetters]   = useState([])
   const [streaks, setStreaks]   = useState([])
@@ -370,7 +380,14 @@ export default function LettersPage() {
       ])
       setLetters(l.data)
       setStreaks(s.data)
-      setFriends(f.data)
+      // Sort by streak descending
+      const streakData = s.data || []
+      const sorted = (f.data || []).sort((a, b) => {
+        const aStreak = streakData.find(st => st.friendId === a.id)?.streakDays || 0
+        const bStreak = streakData.find(st => st.friendId === b.id)?.streakDays || 0
+        return bStreak - aStreak
+      })
+      setFriends(sorted)
     } catch {} finally {
       setLoading(false)
     }
@@ -560,6 +577,7 @@ export default function LettersPage() {
           friends={friends} streaks={streaks} letters={letters}
           onSend={reload} onClose={() => setShowSend(false)}
           initialFriendId={initialFriendId}
+          initialFriendData={initialFriendData}
         />
       )}
     </div>
