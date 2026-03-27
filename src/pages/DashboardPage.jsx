@@ -2,16 +2,29 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { friendsApi, usersApi, lettersApi, jobsApi } from '../api/client'
 import MoodPicker from '../components/MoodPicker'
 import QRCodeCard from '../components/QRCodeCard'
 import InstallAppCard from '../components/InstallAppCard'
 
-function timeOfDay() {
+function weatherEmoji(theme) {
   const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
+  const isDay = h >= 6 && h < 20
+  switch (theme) {
+    case 'sunny':        return '☀️'
+    case 'partly-cloudy': return isDay ? '⛅' : '🌙'
+    case 'cloudy':       return '☁️'
+    case 'rain':         return '🌧️'
+    case 'storm':        return '⛈️'
+    case 'snow':         return '❄️'
+    case 'foggy':        return '🌫️'
+    case 'dust':         return '🌪️'
+    case 'ash':          return '🌋'
+    case 'cyclone':      return '🌀'
+    case 'night':        return '🌙'
+    default:             return isDay ? '🌤️' : '🌙'
+  }
 }
 
 // ── Flip card for friend notes ────────────────────────────────────────────────
@@ -148,6 +161,7 @@ function ConnectionCard({ friend, myId, onSelect }) {
 
 export default function DashboardPage() {
   const { user, updateUser } = useAuth()
+  const { active: weatherTheme } = useTheme()
   const navigate             = useNavigate()
   const [friends, setFriends]       = useState([])
   const [requests, setRequests]     = useState([])
@@ -241,11 +255,21 @@ export default function DashboardPage() {
 
       {/* ── Header ── */}
       <div className="px-5 pt-6 pb-4 flex items-start justify-between gap-3 flex-shrink-0">
-        <div>
-          <h1 className="font-display text-2xl text-forest-50 leading-none">
-            {timeOfDay()}, {user?.nickname || user?.fullName?.split(' ')[0]} 👋
-          </h1>
-          <p className="text-forest-600 text-xs mt-1">{user?.city}, {user?.country}</p>
+        {/* Weather emoji + name + location */}
+        <div className="flex items-center gap-4">
+          <Link to="/settings" state={{ scrollTo: 'theme' }}
+            className="flex-shrink-0 select-none leading-none hover:opacity-80 transition-opacity"
+            title="Change theme in Settings">
+            <span style={{ fontSize: 52, lineHeight: 1 }}>
+              {weatherEmoji(weatherTheme)}
+            </span>
+          </Link>
+          <div>
+            <h1 className="font-display text-2xl text-forest-50 leading-none">
+              {user?.nickname || user?.fullName?.split(' ')[0]}
+            </h1>
+            <p className="text-forest-500 text-xs mt-1">{user?.city}, {user?.country}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Seeds pill */}
