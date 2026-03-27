@@ -11,27 +11,32 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
 const sidebarItems = [
-  { to: '/dashboard', icon: '🌿', fullLabel: 'Dashboard'   },
-  { to: '/grove',     icon: '🪴',  fullLabel: 'Grove',      extra: '💼', extraLabel: 'Jobs', extraTo: '/jobs' },
-  { to: '/map',       icon: '🗺️',  fullLabel: 'Globe Map'   },
-  { to: '/friends',   icon: '🌱',  fullLabel: 'Connections' },
-  { to: '/groups',    icon: '☘️',  fullLabel: 'Groups',     extra: '🎮', extraTo: '/games' },
-  { to: '/letters',   icon: '✉️',   fullLabel: 'Letters'     },
-  { to: '/feed',      icon: '📝',  fullLabel: 'Notes'       },
-  { to: '/guide',     icon: '📖',  fullLabel: 'Guide'       },
+  { to: '/dashboard', icon: '🌳', fullLabel: 'Home'        },
+  { to: '/letters',   icon: '✉️',  fullLabel: 'Letters'     },
+  { to: '/map',       icon: '🗺️', fullLabel: 'Globe Map'   },
+  { to: '/grove',     icon: '🪴', fullLabel: 'Grove',      extra: '💼', extraLabel: 'Jobs', extraTo: '/jobs' },
+  { to: '/friends',   icon: '🌱', fullLabel: 'Connections' },
+  { to: '/feed',      icon: '📝', fullLabel: 'Notes'       },
+]
+
+const sidebarMoreItems = [
+  { to: '/groups',    icon: '☘️', fullLabel: 'Groups'      },
+  { to: '/games',     icon: '🎮', fullLabel: 'Games'       },
+  { to: '/guide',     icon: '📖', fullLabel: 'Guide'       },
 ]
 
 const mobileNavItems = [
-  { to: '/grove',     icon: '🪴', label: 'Grove'   },
+  { to: '/letters',   icon: '✉️',  label: 'Letters' },
   { to: '/map',       icon: '🗺️', label: 'Map'     },
   { to: '/dashboard', icon: '🌳', label: 'Home',   isCenter: true },
-  { to: '/letters',   icon: '✉️',  label: 'Letters' },
+  { to: '/grove',     icon: '🪴', label: 'Grove'   },
   { key: 'more',      icon: '☰',  label: 'More',   isMore: true },
 ]
 
 const moreItems = [
   { to: '/jobs',     icon: '💼', label: 'Jobs'        },
   { to: '/friends',  icon: '🌿', label: 'Connections' },
+  { to: '/feed',     icon: '📝', label: 'Notes'       },
   { to: '/groups',   icon: '☘️', label: 'Groups'      },
   { to: '/games',    icon: '🎮', label: 'Games'       },
   { to: '/guide',    icon: '📖', label: 'Guide'       },
@@ -235,6 +240,21 @@ export default function Layout() {
             </div>
           ))}
         </nav>
+
+        {/* Desktop sidebar more items */}
+        <div className="px-3 pb-2 border-t border-forest-800/50 pt-2">
+          <p className="px-3 py-1 text-forest-700 text-[10px] uppercase tracking-wider">More</p>
+          {sidebarMoreItems.map(({ to, icon, fullLabel }) => (
+            <NavLink key={to} to={to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all
+                 ${isActive ? 'bg-forest-800 text-forest-200' : 'text-forest-600 hover:text-forest-400 hover:bg-forest-900/60'}`
+              }>
+              <span>{icon}</span>
+              <span>{fullLabel}</span>
+            </NavLink>
+          ))}
+        </div>
 
         <div className="p-4 border-t border-forest-800 flex items-center gap-2">
           <NavLink to="/settings"

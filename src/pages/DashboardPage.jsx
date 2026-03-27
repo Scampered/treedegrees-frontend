@@ -1,11 +1,11 @@
 // src/pages/DashboardPage.jsx
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { friendsApi, usersApi, lettersApi, jobsApi } from '../api/client'
-import InstallAppCard from '../components/InstallAppCard'
-import QRCodeCard from '../components/QRCodeCard'
 import MoodPicker from '../components/MoodPicker'
+import QRCodeCard from '../components/QRCodeCard'
+import InstallAppCard from '../components/InstallAppCard'
 
 function timeOfDay() {
   const h = new Date().getHours()
@@ -14,18 +14,154 @@ function timeOfDay() {
   return 'Good evening'
 }
 
+// ── Flip card for friend notes ────────────────────────────────────────────────
+function NoteCard({ note }) {
+  const [flipped, setFlipped] = useState(false)
+  const emoji  = note.noteEmoji || (note.mood ? note.mood : '🌿')
+  const isForecaster = note.note?.startsWith('📡')
+  const displayEmoji = isForecaster ? '📡' : emoji
+  const timeStr = note.notePostedAt
+    ? new Date(note.notePostedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : ''
+
+  return (
+    <div className="flex-shrink-0 w-32 cursor-pointer select-none"
+      style={{ perspective: 800 }}
+      onClick={() => setFlipped(f => !f)}>
+      <div style={{
+        position: 'relative', width: '100%', paddingBottom: '140%',
+        transition: 'transform 0.45s cubic-bezier(.4,0,.2,1)',
+        transformStyle: 'preserve-3d',
+        transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+      }}>
+        {/* Back face (visible first) */}
+        <div style={{
+          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+          borderRadius: 16, overflow: 'hidden',
+          background: 'linear-gradient(135deg, #0d2b0d 0%, #1a3d1a 100%)',
+          border: '1px solid rgba(74,107,79,0.4)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '10px 8px',
+        }}>
+          {/* Streak top-left */}
+          {note.streakDays > 0 && (
+            <div style={{
+              position: 'absolute', top: 8, left: 8,
+              background: 'rgba(0,0,0,0.4)', borderRadius: 8, padding: '2px 6px',
+              display: 'flex', alignItems: 'center', gap: 3,
+            }}>
+              <span style={{ fontSize: 10 }}>🔥</span>
+              <span style={{ color: '#e8c070', fontSize: 11, fontWeight: 700 }}>{note.streakDays}</span>
+            </div>
+          )}
+          {/* Big emoji */}
+          <span style={{ fontSize: 42, lineHeight: 1.1, marginBottom: 6 }}>{displayEmoji}</span>
+          {/* Tap hint */}
+          <span style={{ color: 'rgba(150,200,150,0.5)', fontSize: 9, letterSpacing: '0.05em' }}>tap to read</span>
+          {/* Nickname bottom-right */}
+          <div style={{
+            position: 'absolute', bottom: 8, right: 8,
+            color: 'rgba(180,220,180,0.7)', fontSize: 10, fontWeight: 500,
+            maxWidth: 70, textAlign: 'right', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {note.displayName}
+          </div>
+        </div>
+
+        {/* Front face (shown after flip) */}
+        <div style={{
+          position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+          borderRadius: 16, overflow: 'hidden',
+          background: 'linear-gradient(135deg, #111811 0%, #1c381c 100%)',
+          border: '1px solid rgba(74,107,79,0.6)',
+          transform: 'rotateY(180deg)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          padding: 10,
+        }}>
+          <div style={{ fontSize: 22, textAlign: 'center', marginBottom: 4 }}>{displayEmoji}</div>
+          <p style={{
+            color: '#c8dcc8', fontSize: 11, lineHeight: 1.5, flex: 1,
+            overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6,
+            WebkitBoxOrient: 'vertical',
+          }}>
+            {note.note}
+          </p>
+          <div style={{ marginTop: 6, color: 'rgba(150,180,150,0.6)', fontSize: 9, display: 'flex', justifyContent: 'space-between' }}>
+            <span>{note.displayName}</span>
+            <span>{timeStr}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Streak connection card ────────────────────────────────────────────────────
+function ConnectionCard({ friend, myId }) {
+  const streak = friend.streak || {}
+  const fuel   = streak.fuel ?? 3
+  const days   = streak.streak_days ?? 0
+  const iSent  = streak.user_id_1 === myId ? streak.user1_sent_today : streak.user2_sent_today
+  const theySent = streak.user_id_1 === myId ? streak.user2_sent_today : streak.user1_sent_today
+  const atRisk = fuel <= 1 && days > 0
+
+  return (
+    <Link to="/letters"
+      className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors
+        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-forest-900/40 border-forest-800 hover:border-forest-600'}`}>
+      {/* Avatar */}
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
+        ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
+        {friend.mood || '🌿'}
+      </div>
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-forest-200 text-sm font-medium truncate">{friend.displayName}</p>
+          {days > 0 && (
+            <span className={`text-xs font-mono flex-shrink-0 ${atRisk ? 'text-amber-400' : 'text-forest-500'}`}>
+              🔥{days}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          {/* Fuel dots */}
+          <div className="flex gap-0.5">
+            {[0,1,2].map(i => (
+              <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < fuel ? (atRisk ? 'bg-amber-400' : 'bg-forest-500') : 'bg-forest-800'}`}/>
+            ))}
+          </div>
+          <span className="text-forest-600 text-xs">
+            {iSent && theySent ? '✓ Both sent today' :
+             iSent ? '✓ You sent' :
+             theySent ? 'They sent' :
+             days > 0 ? (atRisk ? '⚠️ At risk' : 'Not sent today') : 'No streak yet'}
+          </span>
+        </div>
+      </div>
+      {/* Send nudge */}
+      {!iSent && (
+        <span className="text-forest-600 text-lg flex-shrink-0">✉️</span>
+      )}
+    </Link>
+  )
+}
+
 export default function DashboardPage() {
   const { user, updateUser } = useAuth()
-  const [friends, setFriends]         = useState([])
-  const [requests, setRequests]       = useState([])
+  const navigate             = useNavigate()
+  const [friends, setFriends]       = useState([])
+  const [requests, setRequests]     = useState([])
   const [letterStats, setLetterStats] = useState(null)
-  const [note, setNote]               = useState('')
-  const [noteStatus, setNoteStatus]   = useState('')
+  const [friendNotes, setFriendNotes] = useState([])
+  const [streaks, setStreaks]        = useState([])
+  const [note, setNote]             = useState('')
+  const [noteStatus, setNoteStatus] = useState('')
   const [noteLoading, setNoteLoading] = useState(false)
-  const [hoursLeft, setHoursLeft]     = useState(null)
-  const [loading, setLoading]         = useState(true)
+  const [hoursLeft, setHoursLeft]   = useState(null)
+  const [loading, setLoading]       = useState(true)
   const [myJob, setMyJob]           = useState(null)
-  const [friendNotes, setFriendNotes]   = useState([])
 
   useEffect(() => {
     jobsApi.my().then(r => setMyJob(r.data.job)).catch(() => {})
@@ -34,11 +170,13 @@ export default function DashboardPage() {
       friendsApi.requests(),
       lettersApi.stats().catch(() => ({ data: null })),
       usersApi.feed().catch(() => ({ data: [] })),
-    ]).then(([f, r, s, feed]) => {
-      setFriends(f.data)
-      setRequests(r.data)
+      lettersApi.streaks().catch(() => ({ data: [] })),
+    ]).then(([f, r, s, feed, st]) => {
+      setFriends(f.data || [])
+      setRequests(r.data || [])
       setLetterStats(s.data)
       setFriendNotes(feed.data || [])
+      setStreaks(st.data || [])
     }).finally(() => setLoading(false))
   }, [])
 
@@ -47,12 +185,9 @@ export default function DashboardPage() {
       const hrs = (Date.now() - new Date(user.dailyNoteUpdatedAt).getTime()) / 36e5
       const remaining = 24 - hrs
       if (remaining > 0) {
-        const h = Math.floor(remaining)
-        const m = Math.round((remaining - h) * 60)
+        const h = Math.floor(remaining), m = Math.round((remaining - h) * 60)
         setHoursLeft(h > 0 && m > 0 ? `${h}h ${m}m` : h > 0 ? `${h}h` : `${m}m`)
-      } else {
-        setHoursLeft(null)
-      }
+      } else setHoursLeft(null)
     }
   }, [user])
 
@@ -60,233 +195,257 @@ export default function DashboardPage() {
 
   const postNote = async () => {
     if (!note.trim()) return
-    setNoteLoading(true)
-    setNoteStatus('')
+    setNoteLoading(true); setNoteStatus('')
     try {
       const { data } = await usersApi.postDailyNote(note)
       updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt })
-      setHoursLeft('24.0')
-      setNote('')
+      setHoursLeft('24.0'); setNote('')
       setNoteStatus('✓ Posted!')
     } catch (err) {
       setNoteStatus(err.response?.data?.error || 'Could not post note')
       if (err.response?.data?.hoursLeft) setHoursLeft(err.response.data.hoursLeft)
-    } finally {
-      setNoteLoading(false)
-    }
+    } finally { setNoteLoading(false) }
   }
 
-  return (
-    <div className="p-5 sm:p-8 max-w-2xl mx-auto flex flex-col gap-5">
+  // Enrich friend notes with streak data
+  const notesWithStreaks = friendNotes.map(n => {
+    const streak = streaks.find(s =>
+      (s.user_id_1 === n.userId || s.user_id_2 === n.userId)
+    )
+    return { ...n, streakDays: streak?.streak_days || 0 }
+  })
 
-      {/* Greeting */}
-      <div className="slide-up">
-        <h1 className="font-display text-3xl text-forest-50">
-          {timeOfDay()}, {user?.nickname || user?.fullName?.split(' ')[0]} 👋
-        </h1>
-        <p className="text-forest-500 text-sm mt-1">{user?.city}, {user?.country}</p>
+  // Sort connections: at-risk first, then not-sent-today, then healthy
+  const enrichedFriends = friends.map(f => {
+    const streak = streaks.find(s => s.user_id_1 === f.id || s.user_id_2 === f.id)
+    return { ...f, streak }
+  }).sort((a, b) => {
+    const aRisk = (a.streak?.fuel ?? 3) <= 1 && (a.streak?.streak_days ?? 0) > 0
+    const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streak_days ?? 0) > 0
+    if (aRisk && !bRisk) return -1
+    if (!aRisk && bRisk) return 1
+    return (b.streak?.streak_days ?? 0) - (a.streak?.streak_days ?? 0)
+  })
+
+  const atRiskCount = enrichedFriends.filter(f => (f.streak?.fuel ?? 3) <= 1 && (f.streak?.streak_days ?? 0) > 0).length
+
+  return (
+    <div className="flex flex-col h-full overflow-y-auto">
+
+      {/* ── Header ── */}
+      <div className="px-5 pt-6 pb-4 flex items-start justify-between gap-3 flex-shrink-0">
+        <div>
+          <h1 className="font-display text-2xl text-forest-50 leading-none">
+            {timeOfDay()}, {user?.nickname || user?.fullName?.split(' ')[0]} 👋
+          </h1>
+          <p className="text-forest-600 text-xs mt-1">{user?.city}, {user?.country}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Seeds pill */}
+          <Link to="/grove"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-forest-900 border border-forest-700
+                       hover:border-forest-500 transition-colors text-sm">
+            <span>🌱</span>
+            <span className="text-forest-200 font-mono font-medium">{user?.seeds ?? 0}</span>
+          </Link>
+          {/* Job pill */}
+          <Link to="/jobs"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-forest-900 border border-forest-700
+                       hover:border-forest-500 transition-colors text-xs text-forest-400">
+            {myJob ? `💼 ${({'courier':'Courier','writer':'Writer','seed_broker':'Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'})[myJob.role]}` : '💼'}
+          </Link>
+        </div>
       </div>
 
-      {/* Connection requests */}
+      {/* ── Connection requests banner ── */}
       {requests.length > 0 && (
-        <div className="rounded-2xl bg-forest-900/60 border border-forest-700 p-5">
-          <p className="text-forest-200 font-medium mb-3 flex items-center gap-2">
-            <span>👋</span>
-            {requests.length === 1
-              ? `${requests[0].user.displayName} wants to connect!`
-              : `${requests.length} people want to connect with you`}
-          </p>
-          <Link to="/friends" className="text-forest-400 text-sm hover:text-forest-200 underline underline-offset-2">
-            See requests →
+        <div className="mx-5 mb-3 rounded-xl bg-forest-800/60 border border-forest-700 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>🌿</span>
+            <p className="text-forest-200 text-sm">
+              {requests.length === 1
+                ? `${requests[0].user.displayName} wants to connect`
+                : `${requests.length} connection requests`}
+            </p>
+          </div>
+          <Link to="/friends" className="text-forest-400 text-xs hover:text-forest-200 underline">
+            See →
           </Link>
         </div>
       )}
 
-      {/* 1. TODAY'S NOTE — first */}
-      {/* Job button above the note box */}
-      <div className="flex items-center justify-between px-1 -mb-1">
-        <span className="text-forest-500 text-xs font-medium uppercase tracking-wide">Today's note 📝</span>
-        <Link to="/jobs"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest-800 border border-forest-700
-                     hover:border-forest-500 hover:bg-forest-750 transition-colors text-sm font-medium text-forest-200">
-          {myJob ? `💼 ${{'courier':'Courier','writer':'Writer','seed_broker':'Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'}[myJob.role] || myJob.role}` : '💼 Get a job'}
-        </Link>
-      </div>
-      <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-forest-200 font-medium">Today's note 📝</p>
+      {/* ── At-risk streak warning ── */}
+      {atRiskCount > 0 && (
+        <div className="mx-5 mb-3 rounded-xl bg-amber-950/40 border border-amber-900/60 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {!canPost && <span className="text-forest-600 text-xs">Come back in {hoursLeft}</span>}
+            <span>⚠️</span>
+            <p className="text-amber-300 text-sm">
+              {atRiskCount} streak{atRiskCount > 1 ? 's' : ''} at risk — send a letter today
+            </p>
           </div>
-        </div>
-        {/* Mood picker */}
-        <div className="mb-3">
-          <MoodPicker compact />
-        </div>
-        {user?.dailyNote && (
-          <div className="mb-3 py-2 px-3 rounded-xl bg-forest-800/60 border-l-2 border-forest-600">
-            <p className="text-forest-300 text-sm italic">"{user.dailyNote}"</p>
-          </div>
-        )}
-        {canPost ? (
-          <>
-            <textarea
-              className="w-full bg-forest-950/60 border border-forest-800 focus:border-forest-600 text-forest-100
-                         placeholder-forest-700 rounded-xl px-4 py-3 text-sm resize-none outline-none transition-colors"
-              rows={3}
-              placeholder={user?.dailyNote ? 'Write a new note for today…' : "What's on your mind? Share with your connections…"}
-              maxLength={280}
-              value={note}
-              onChange={e => setNote(e.target.value)}
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className={`text-xs ${noteStatus.startsWith('✓') ? 'text-forest-400' : 'text-red-400'}`}>
-                {noteStatus}
-              </span>
-              <div className="flex items-center gap-3">
-                <span className="text-forest-700 text-xs">{note.length}/280</span>
-                <button onClick={postNote} disabled={noteLoading || !note.trim()}
-                  className="bg-forest-600 hover:bg-forest-500 disabled:opacity-40 text-white text-sm px-5 py-1.5 rounded-full transition-colors">
-                  {noteLoading ? 'Posting…' : 'Post'}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="text-forest-600 text-sm">
-            {user?.dailyNote ? 'Posted today — see you tomorrow! 🌙' : 'You can post once every 24 hours.'}
-          </p>
-        )}
-      </div>
-
-      {/* 2. LETTERS — second */}
-      <div className="rounded-2xl bg-forest-900/40 border border-forest-800 overflow-hidden">
-        <div className="px-5 py-4 border-b border-forest-800 flex items-center justify-between">
-          <p className="text-forest-200 font-medium">✉️ Letters</p>
-          <Link to="/letters" className="text-forest-500 text-xs hover:text-forest-300 transition-colors">
-            Open mailbox →
+          <Link to="/letters" className="text-amber-400 text-xs hover:text-amber-200 underline">
+            Write →
           </Link>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-forest-800">
-          <div className="px-5 py-4">
-            <p className="text-forest-500 text-xs uppercase tracking-wide mb-2">Inbox</p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-forest-400 text-sm">Received</span>
-                <span className="text-forest-100 font-medium text-sm tabular-nums">
-                  {loading || !letterStats ? '—' : letterStats.received}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-forest-400 text-sm flex items-center gap-1">On the way ✈️</span>
-                <span className={`font-medium text-sm tabular-nums ${letterStats?.incoming > 0 ? 'text-forest-300' : 'text-forest-600'}`}>
-                  {loading || !letterStats ? '—' : letterStats.incoming}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="px-5 py-4">
-            <p className="text-forest-500 text-xs uppercase tracking-wide mb-2">Outbox</p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-forest-400 text-sm">Delivered</span>
-                <span className="text-forest-100 font-medium text-sm tabular-nums">
-                  {loading || !letterStats ? '—' : letterStats.sent}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-forest-400 text-sm flex items-center gap-1">In transit 🚀</span>
-                <span className={`font-medium text-sm tabular-nums ${letterStats?.outgoing > 0 ? 'text-bark-300' : 'text-forest-600'}`}>
-                  {loading || !letterStats ? '—' : letterStats.outgoing}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="px-5 py-3 border-t border-forest-800">
-          <Link to="/letters"
-            className="flex items-center justify-center gap-2 w-full bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm font-medium py-2.5 rounded-xl transition-colors">
-            <span>✉️</span> Write a letter
-          </Link>
-        </div>
-      </div>
+      )}
 
-      {/* 3. TODAY'S FRIEND NOTES */}
-      <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-forest-200 font-medium">📝 Today's notes</p>
-          <span className="text-forest-600 text-xs">Last 24h</span>
-        </div>
-        {loading && <p className="text-forest-600 text-sm">Loading…</p>}
-        {!loading && friendNotes.length === 0 && (
-          <div className="text-center py-4">
-            <p className="text-forest-600 text-sm">None of your connections have posted today yet.</p>
-            {friends.length === 0 && (
-              <Link to="/friends" className="inline-block mt-3 bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm px-5 py-2 rounded-full transition-colors">
-                Add connections
-              </Link>
-            )}
+      {/* ── Notes strip — flip cards ── */}
+      {notesWithStreaks.length > 0 && (
+        <div className="mb-4 flex-shrink-0">
+          <div className="px-5 mb-2 flex items-center justify-between">
+            <p className="text-forest-500 text-xs font-medium uppercase tracking-wide">Today's notes</p>
+            <Link to="/feed" className="text-forest-600 text-xs hover:text-forest-400">See all →</Link>
           </div>
-        )}
-        {friendNotes.length > 0 && (
-          <div className="space-y-3">
-            {friendNotes.slice(0, 5).map(n => (
-              <div key={n.id} className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-forest-700 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">
-                  {n.displayName?.[0] || '?'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-forest-300 text-sm font-medium">{n.displayName}</p>
-                    <p className="text-forest-700 text-xs">{n.city ? `${n.city}` : n.country}</p>
-                  </div>
-                  <p className="text-forest-400 text-sm italic mt-0.5 leading-relaxed">"{n.note}"</p>
-                </div>
-              </div>
+          <div className="px-5 flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+            {notesWithStreaks.map(n => (
+              <NoteCard key={n.id || n.userId} note={n} />
             ))}
-            {friendNotes.length > 5 && (
-              <p className="text-forest-600 text-xs text-center pt-1">+{friendNotes.length - 5} more notes today</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Main content ── */}
+      <div className="px-5 flex flex-col gap-4 pb-6">
+
+        {/* Write today's note */}
+        <div className="rounded-2xl bg-forest-900/40 border border-forest-800 overflow-hidden">
+          <div className="px-4 py-3 border-b border-forest-800 flex items-center justify-between">
+            <p className="text-forest-300 text-sm font-medium">📝 Today's note</p>
+            {!canPost && <span className="text-forest-600 text-xs">Next in {hoursLeft}</span>}
+          </div>
+          <div className="p-4">
+            <MoodPicker compact />
+            {user?.dailyNote && (
+              <div className="mt-3 py-2 px-3 rounded-xl bg-forest-800/60 border-l-2 border-forest-600">
+                <p className="text-forest-300 text-sm italic">"{user.dailyNote}"</p>
+              </div>
+            )}
+            {canPost ? (
+              <div className="mt-3">
+                <textarea
+                  className="w-full bg-forest-950/60 border border-forest-800 focus:border-forest-600
+                             text-forest-100 placeholder-forest-700 rounded-xl px-3 py-2.5
+                             text-sm resize-none outline-none transition-colors"
+                  rows={3} maxLength={280} value={note}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder={user?.dailyNote ? 'Write a new note…' : "What's on your mind?"}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <span className={`text-xs ${noteStatus.startsWith('✓') ? 'text-forest-400' : 'text-red-400'}`}>{noteStatus}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-forest-700 text-xs">{note.length}/280</span>
+                    <button onClick={postNote} disabled={noteLoading || !note.trim()}
+                      className="bg-forest-600 hover:bg-forest-500 disabled:opacity-40 text-white text-sm px-4 py-1.5 rounded-full transition-colors">
+                      {noteLoading ? 'Posting…' : 'Post'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-forest-600 text-sm mt-3">
+                {user?.dailyNote ? 'Posted today — see you tomorrow 🌙' : 'You can post once every 24 hours.'}
+              </p>
             )}
           </div>
-        )}
-      </div>
-
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link to="/map" className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-600 p-4 transition-colors group">
-          <div className="text-xl mb-2">🗺️</div>
-          <p className="text-forest-200 text-sm font-medium group-hover:text-forest-100">Open map</p>
-          <p className="text-forest-600 text-xs mt-0.5">See your global network</p>
-        </Link>
-        <Link to="/feed" className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-600 p-4 transition-colors group">
-          <div className="text-xl mb-2">📋</div>
-          <p className="text-forest-200 text-sm font-medium group-hover:text-forest-100">Friend notes</p>
-          <p className="text-forest-600 text-xs mt-0.5">See what's new</p>
-        </Link>
-      </div>
-
-      {/* App install + notifications */}
-      <InstallAppCard />
-
-
-      {/* QR Code — below friend code */}
-      <QRCodeCard friendCode={user?.friendCode} />
-
-      {/* 4. FRIEND CODE — last/bottom */}
-      <div className="rounded-2xl bg-forest-800/40 border border-forest-700 p-5 mt-auto">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <p className="text-forest-400 text-xs mb-2 uppercase tracking-wider">Your Friend Code</p>
-            <p className="friend-code text-forest-100 text-2xl tracking-[0.18em] mb-1">{user?.friendCode}</p>
-            <p className="text-forest-600 text-xs">Share this with a friend to connect 🤝</p>
-          </div>
-          <button onClick={() => navigator.clipboard?.writeText(user?.friendCode)}
-            className="bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm px-4 py-2 rounded-xl transition-colors flex-shrink-0">
-            Copy
-          </button>
         </div>
-      </div>
 
+        {/* Connection streak cards */}
+        {enrichedFriends.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-forest-500 text-xs font-medium uppercase tracking-wide">Your connections</p>
+              <Link to="/friends" className="text-forest-600 text-xs hover:text-forest-400">All →</Link>
+            </div>
+            <div className="flex flex-col gap-2">
+              {enrichedFriends.slice(0, 6).map(f => (
+                <ConnectionCard key={f.id} friend={f} myId={user?.id} />
+              ))}
+              {enrichedFriends.length > 6 && (
+                <Link to="/friends"
+                  className="text-center text-forest-600 text-xs py-2 hover:text-forest-400 transition-colors">
+                  +{enrichedFriends.length - 6} more connections
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {friends.length === 0 && !loading && (
+          <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-6 text-center">
+            <p className="text-3xl mb-3">🌿</p>
+            <p className="text-forest-300 font-medium mb-1">No connections yet</p>
+            <p className="text-forest-600 text-sm mb-4">Share your friend code to start building your network</p>
+            <Link to="/friends"
+              className="inline-block bg-forest-700 hover:bg-forest-600 text-forest-100 text-sm px-5 py-2 rounded-full transition-colors">
+              Add connections
+            </Link>
+          </div>
+        )}
+
+        {/* Letters quick stats */}
+        {letterStats && (
+          <div className="rounded-2xl bg-forest-900/40 border border-forest-800 overflow-hidden">
+            <div className="px-4 py-3 border-b border-forest-800 flex items-center justify-between">
+              <p className="text-forest-300 text-sm font-medium">✉️ Letters</p>
+              <Link to="/letters" className="text-forest-600 text-xs hover:text-forest-400">Open mailbox →</Link>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-forest-800">
+              <div className="px-4 py-3 text-center">
+                <p className="text-forest-100 font-display text-2xl">{letterStats.received || 0}</p>
+                <p className="text-forest-600 text-xs mt-0.5">received</p>
+              </div>
+              <div className="px-4 py-3 text-center">
+                <p className="text-forest-100 font-display text-2xl">{letterStats.sent || 0}</p>
+                <p className="text-forest-600 text-xs mt-0.5">sent</p>
+              </div>
+            </div>
+            {(letterStats.incoming > 0 || letterStats.outgoing > 0) && (
+              <div className="px-4 py-2 border-t border-forest-800 flex justify-around text-xs text-forest-500">
+                {letterStats.incoming > 0 && <span>✈️ {letterStats.incoming} on the way</span>}
+                {letterStats.outgoing > 0 && <span>🚀 {letterStats.outgoing} in transit</span>}
+              </div>
+            )}
+            <div className="px-4 py-3 border-t border-forest-800">
+              <Link to="/letters"
+                className="flex items-center justify-center gap-2 w-full bg-forest-700 hover:bg-forest-600
+                           text-forest-100 text-sm font-medium py-2 rounded-xl transition-colors">
+                ✉️ Write a letter
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Quick nav tiles */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { to: '/map',    icon: '🗺️', label: 'Globe Map'  },
+            { to: '/grove',  icon: '🪴', label: 'Grove'      },
+            { to: '/jobs',   icon: '💼', label: 'Jobs'       },
+          ].map(({ to, icon, label }) => (
+            <Link key={to} to={to}
+              className="rounded-xl bg-forest-900/40 border border-forest-800 hover:border-forest-600
+                         p-3 flex flex-col items-center gap-1.5 transition-colors">
+              <span className="text-2xl">{icon}</span>
+              <p className="text-forest-400 text-xs font-medium">{label}</p>
+            </Link>
+          ))}
+        </div>
+
+        {/* Friend code + QR */}
+        <div className="rounded-2xl bg-forest-800/40 border border-forest-700 p-4">
+          <p className="text-forest-500 text-xs uppercase tracking-wide mb-2">Your Friend Code</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="friend-code text-forest-100 text-xl tracking-[0.18em]">{user?.friendCode}</p>
+            <button onClick={() => navigator.clipboard?.writeText(user?.friendCode)}
+              className="bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs px-3 py-1.5 rounded-lg transition-colors flex-shrink-0">
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <QRCodeCard friendCode={user?.friendCode} />
+        <InstallAppCard />
+      </div>
     </div>
   )
 }
