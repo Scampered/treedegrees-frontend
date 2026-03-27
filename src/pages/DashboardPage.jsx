@@ -17,7 +17,7 @@ function timeOfDay() {
 // ── Flip card for friend notes ────────────────────────────────────────────────
 function NoteCard({ note }) {
   const [flipped, setFlipped] = useState(false)
-  const emoji  = note.noteEmoji || (note.mood ? note.mood : '🌿')
+  const emoji  = note.noteEmoji || note.mood || '🌿'
   const isForecaster = note.note?.startsWith('📡')
   const displayEmoji = isForecaster ? '📡' : emoji
   const timeStr = note.notePostedAt
@@ -43,7 +43,7 @@ function NoteCard({ note }) {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '10px 8px',
         }}>
-          {/* Streak top-left */}
+          {/* Streak fire top-left */}
           {note.streakDays > 0 && (
             <div style={{
               position: 'absolute', top: 8, left: 8,
@@ -98,7 +98,7 @@ function NoteCard({ note }) {
 }
 
 // ── Streak connection card ────────────────────────────────────────────────────
-function ConnectionCard({ friend, myId }) {
+function ConnectionCard({ friend, myId, onSelect }) {
   const streak = friend.streak || {}
   const fuel   = streak.fuel ?? 3
   const days   = streak.streak_days ?? 0
@@ -107,8 +107,8 @@ function ConnectionCard({ friend, myId }) {
   const atRisk = fuel <= 1 && days > 0
 
   return (
-    <Link to="/letters"
-      className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors
+    <div onClick={() => onSelect(friend)}
+      className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors cursor-pointer
         ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-forest-900/40 border-forest-800 hover:border-forest-600'}`}>
       {/* Avatar */}
       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
@@ -141,10 +141,8 @@ function ConnectionCard({ friend, myId }) {
         </div>
       </div>
       {/* Send nudge */}
-      {!iSent && (
-        <span className="text-forest-600 text-lg flex-shrink-0">✉️</span>
-      )}
-    </Link>
+      <span className="text-forest-600 text-lg flex-shrink-0">✉️</span>
+    </div>
   )
 }
 
@@ -162,6 +160,14 @@ export default function DashboardPage() {
   const [hoursLeft, setHoursLeft]   = useState(null)
   const [loading, setLoading]       = useState(true)
   const [myJob, setMyJob]           = useState(null)
+  const [seedsBalance, setSeedsBalance] = useState(null)
+
+  useEffect(() => {
+    // Listen to global seeds balance updates from Layout poller
+    const handler = (e) => setSeedsBalance(e.detail)
+    window.addEventListener('seeds-balance', handler)
+    return () => window.removeEventListener('seeds-balance', handler)
+  }, [])
 
   useEffect(() => {
     jobsApi.my().then(r => setMyJob(r.data.job)).catch(() => {})
@@ -224,6 +230,7 @@ export default function DashboardPage() {
     const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streak_days ?? 0) > 0
     if (aRisk && !bRisk) return -1
     if (!aRisk && bRisk) return 1
+    // Sort by streak days descending
     return (b.streak?.streak_days ?? 0) - (a.streak?.streak_days ?? 0)
   })
 
@@ -243,10 +250,10 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Seeds pill */}
           <Link to="/grove"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-forest-900 border border-forest-700
-                       hover:border-forest-500 transition-colors text-sm">
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-forest-900 border border-forest-700
+                       hover:border-forest-500 transition-colors">
             <span>🌱</span>
-            <span className="text-forest-200 font-mono font-medium">{user?.seeds ?? 0}</span>
+            <span className="text-forest-200 font-mono font-bold text-base">{seedsBalance ?? user?.seeds ?? 0}</span>
           </Link>
           {/* Job pill */}
           <Link to="/jobs"
@@ -358,7 +365,8 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-col gap-2">
               {enrichedFriends.slice(0, 6).map(f => (
-                <ConnectionCard key={f.id} friend={f} myId={user?.id} />
+                <ConnectionCard key={f.id} friend={f} myId={user?.id}
+                  onSelect={f => navigate('/letters', { state: { selectFriend: f } })} />
               ))}
               {enrichedFriends.length > 6 && (
                 <Link to="/friends"

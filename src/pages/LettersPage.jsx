@@ -238,9 +238,9 @@ function StreakDropdown({ streaks }) {
   )
 }
 
-function SendModal({ friends, streaks, letters, onSend, onClose }) {
-  const [step, setStep]       = useState(1)
-  const [selected, setSelected] = useState(null)
+function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId }) {
+  const [step, setStep]       = useState(initialFriendId ? 2 : 1)
+  const [selected, setSelected] = useState(initialFriendId ? (friends.find(f => f.id === initialFriendId) || null) : null)
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError]     = useState('')
@@ -346,6 +346,8 @@ function SendModal({ friends, streaks, letters, onSend, onClose }) {
 
 // ── Main Letters Page ─────────────────────────────────────────────────────────
 export default function LettersPage() {
+  const location = useLocation()
+  const initialFriendId = location.state?.selectFriend?.id || null
   const { user } = useAuth()
   const [letters, setLetters]   = useState([])
   const [streaks, setStreaks]   = useState([])
@@ -353,6 +355,10 @@ export default function LettersPage() {
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState('received')
   const [showSend, setShowSend] = useState(false)
+  useEffect(() => {
+    if (location.state?.selectFriend) setShowSend(true)
+  // eslint-disable-next-line
+  }, [])
 
   const reload = useCallback(async () => {
     try {
@@ -373,46 +379,16 @@ export default function LettersPage() {
 
   // Track which letters we've already called /arrived on this session
   // Persist which letters we've already processed across page refreshes
-  const triggerArrived = React.useCallback(async (letterList) => {
-    // Filter: inbox letters that have arrived but seeds not yet awarded by server
-    const due = letterList.filter(l =>
-      l.isInbox &&
-      !l.seedsAwarded &&
-      new Date(l.arrivesAt) <= new Date()
-    )
-    console.log(`[arrived] checking ${letterList.length} letters → ${due.length} need /arrived`)
-    if (due.length === 0) return
-
-    let anyAwarded = false
-    for (const l of due) {
-      console.log(`[arrived] calling /arrived for ${l.id} (from ${l.senderName}, arrivesAt=${l.arrivesAt})`)
-      try {
-        const res = await lettersApi.arrived(l.id)
-        console.log(`[arrived] SUCCESS → seeds sender=${res.data?.seedsSender} receiver=${res.data?.seedsReceiver}`)
-        anyAwarded = true
-      } catch (e) {
-        const status = e?.response?.status
-        const msg    = e?.response?.data?.error || e?.message
-        console.warn(`[arrived] FAILED status=${status} msg=${msg}`)
-      }
-    }
-    if (anyAwarded) {
-      reload()
-      window.dispatchEvent(new Event('seeds-updated'))
-    }
-  }, [reload])
-
-  // Run whenever letters list changes
-  useEffect(() => {
-    if (letters.length > 0) triggerArrived(letters)
-  }, [letters, triggerArrived])
-
-  // Auto-refresh interval — also checks for newly arrived letters
+  // Server awards seeds automatically via poller — frontend just refreshes display
+  // Poll every 20s to move in-transit letters to received and update balance
   useEffect(() => {
     const iv = setInterval(() => {
-      const hasArriving = letters.some(l => l.inTransit && new Date(l.arrivesAt) <= new Date())
-      if (hasArriving) reload()
-    }, 15000)  // check every 15s instead of 30s
+      const hasPending = letters.some(l => l.inTransit && new Date(l.arrivesAt) <= new Date())
+      if (hasPending) {
+        reload()
+        window.dispatchEvent(new Event('seeds-updated'))
+      }
+    }, 20000)
     return () => clearInterval(iv)
   }, [letters, reload])
 
@@ -582,6 +558,7 @@ export default function LettersPage() {
         <SendModal
           friends={friends} streaks={streaks} letters={letters}
           onSend={reload} onClose={() => setShowSend(false)}
+          initialFriendId={initialFriendId}
         />
       )}
     </div>

@@ -2,6 +2,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { friendsApi, nicknamesApi } from '../api/client'
+import QRCodeCard from '../components/QRCodeCard'
+import { useAuth } from '../context/AuthContext'
 
 // ── 3-dot dropdown menu ───────────────────────────────────────────────────────
 function FriendMenu({ friend, onRemove, onTogglePrivacy }) {
@@ -146,6 +148,7 @@ function NicknameInput({ friend, savedNickname, onSave, onRemove }) {
 }
 
 export default function FriendsPage() {
+  const { user } = useAuth()
   const [friends, setFriends] = useState([])
   const [requests, setRequests] = useState([])
   const [addCode, setAddCode] = useState('')
@@ -242,6 +245,9 @@ export default function FriendsPage() {
   return (
     <div className="p-5 sm:p-8 max-w-2xl mx-auto">
       <h1 className="font-display text-3xl text-forest-50 mb-6">🌿 Connections</h1>
+
+      {/* Your QR code */}
+      <QRCodeCard friendCode={user?.friendCode} />
 
       {/* Add by friend code */}
       <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5 mb-6">
