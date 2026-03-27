@@ -256,9 +256,9 @@ export default function DashboardPage() {
       {/* ── Header ── */}
       <div className="px-5 pt-6 pb-4 flex items-start justify-between gap-3 flex-shrink-0">
         {/* Weather emoji + name + location */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
           <Link to="/settings" state={{ scrollTo: 'theme' }}
-            className="flex-shrink-0 select-none leading-none hover:opacity-80 transition-opacity"
+            className="flex-shrink-0 select-none leading-none hover:opacity-80 transition-opacity self-start"
             title="Change theme in Settings">
             <span style={{ fontSize: 52, lineHeight: 1 }}>
               {weatherEmoji(weatherTheme)}

@@ -27,7 +27,7 @@ function weatherIdToTheme(id, isDay) {
 
 // ── Fetch weather (wttr.in primary, OWM fallback) ─────────────────────────────
 async function fetchThemeForLocation(city, country, bust = false) {
-  const locKey = (city + '|' + country).toLowerCase()
+  const locKey = ((city || '') + '|' + (country || '')).toLowerCase()
   if (!bust) {
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
@@ -39,9 +39,13 @@ async function fetchThemeForLocation(city, country, bust = false) {
   }
 
   const loc = `${city},${country}`
-  console.log('[Theme] fetching weather for:', loc)
+  // Try city+country, fall back to country alone for small cities
+  const locations = [loc]
+  if (city && country && city !== country) locations.push(country)
+  console.log('[Theme] fetching weather for:', locations[0])
 
   // wttr.in
+  for (const tryLoc of locations) {
   try {
     const res = await fetch(
       `https://wttr.in/${encodeURIComponent(loc)}?format=j1`,
@@ -83,23 +87,27 @@ async function fetchThemeForLocation(city, country, bust = false) {
       return theme
     }
   } catch (e) { console.warn('[Theme] wttr.in failed:', e.message) }
+  } // end wttr loop
 
-  // OWM fallback
-  try {
-    const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(loc)}&appid=${OWM_KEY}`,
-      { signal: AbortSignal.timeout(6000) }
-    )
-    if (res.ok) {
-      const d     = await res.json()
-      const id    = d.weather?.[0]?.id || 800
-      const isDay = Date.now() >= d.sys.sunrise * 1000 && Date.now() < d.sys.sunset * 1000
-      const theme = weatherIdToTheme(id, isDay)
-      console.log('[Theme] OWM id:', id, '→', theme)
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ theme, locKey, at: Date.now() }))
-      return theme
-    }
-  } catch (e) { console.warn('[Theme] OWM failed:', e.message) }
+  // OWM fallback — try city, then country only
+  const owmQueries = [loc, country].filter(Boolean)
+  for (const q of owmQueries) {
+    try {
+      const res = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(q)}&appid=${OWM_KEY}`,
+        { signal: AbortSignal.timeout(6000) }
+      )
+      if (res.ok) {
+        const d     = await res.json()
+        const id    = d.weather?.[0]?.id || 800
+        const isDay = Date.now() >= d.sys.sunrise * 1000 && Date.now() < d.sys.sunset * 1000
+        const theme = weatherIdToTheme(id, isDay)
+        console.log('[Theme] OWM id:', id, '→', theme, '(query:', q + ')')
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ theme, locKey, at: Date.now() }))
+        return theme
+      }
+    } catch (e) { console.warn('[Theme] OWM failed for', q, ':', e.message) }
+  }
 
   return 'dark'
 }
