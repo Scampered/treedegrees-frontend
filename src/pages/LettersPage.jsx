@@ -506,7 +506,7 @@ export default function LettersPage() {
                 ? 'Letters from your connections will appear here. The longer your streak, the faster they arrive.'
                 : tab === 'ontheway'
                 ? 'Letters you send are in transit until they arrive. Longer streaks unlock faster vehicles.'
-                : 'Letters you've sent that have been delivered appear here.'}
+                : "Letters you've sent that have been delivered appear here."}
             </p>
             {tab === 'received' && (
               <button onClick={() => setShowSend(true)}
