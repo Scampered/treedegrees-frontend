@@ -257,8 +257,12 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
   const sel = streaks.find(s => s.friendId === selected?.id)
 
   const handleSend = async () => {
-    if (!content.trim()) return
+    if (!selected?.id || !content.trim()) {
+      setError('Recipient and content are required')
+      return
+    }
     setSending(true)
+    setError('')
     try {
       await lettersApi.send(selected.id, content)
       onSend()
@@ -488,19 +492,26 @@ export default function LettersPage() {
         {loading && <div className="text-center py-12 text-forest-600">Loading letters…</div>}
 
         {!loading && currentLetters.length === 0 && (
-          <div className="text-center py-16">
+          <div className="text-center py-14 px-6">
             <div className="text-5xl mb-4">
-              {tab === 'received' ? '📬' : tab === 'ontheway' ? '🚀' : '📤'}
+              {tab === 'received' ? '📬' : tab === 'ontheway' ? '✈️' : '📤'}
             </div>
-            <p className="text-forest-400 font-medium">
-              {tab === 'received' ? 'No letters received yet'
+            <p className="text-forest-300 font-medium text-lg mb-2">
+              {tab === 'received' ? 'Your mailbox is empty'
                : tab === 'ontheway' ? 'Nothing in transit'
-               : 'No delivered letters'}
+               : 'No delivered letters yet'}
+            </p>
+            <p className="text-forest-600 text-sm mb-5 leading-relaxed">
+              {tab === 'received'
+                ? 'Letters from your connections will appear here. The longer your streak, the faster they arrive.'
+                : tab === 'ontheway'
+                ? 'Letters you send are in transit until they arrive. Longer streaks unlock faster vehicles.'
+                : 'Letters you've sent that have been delivered appear here.'}
             </p>
             {tab === 'received' && (
               <button onClick={() => setShowSend(true)}
-                className="btn-primary text-sm mt-4 rounded-full px-6">
-                Write the first one
+                className="btn-primary text-sm rounded-full px-6 py-2.5">
+                ✉️ Write your first letter
               </button>
             )}
           </div>

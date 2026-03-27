@@ -216,6 +216,12 @@ export const groveApi = {
   history:     (userId, window)      => api.get(`/api/grove/history/${userId}?window=${window}`),
 }
 
+export const notesApi = {
+  likeNote:    (userId, emoji) => api.post(`/api/users/${userId}/like-note`, { emoji }),
+  unlikeNote:  (userId)       => api.delete(`/api/users/${userId}/like-note`),
+  myNoteLikes: ()             => api.get('/api/users/my-note-likes'),
+}
+
 export const notificationsApi = {
   get:      () => api.get('/api/notifications'),
   readAll:  () => api.patch('/api/notifications/read'),

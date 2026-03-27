@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { friendsApi, usersApi, lettersApi, jobsApi } from '../api/client'
+import { friendsApi, usersApi, lettersApi, jobsApi, notesApi } from '../api/client'
 import MoodPicker from '../components/MoodPicker'
 import QRCodeCard from '../components/QRCodeCard'
 import InstallAppCard from '../components/InstallAppCard'
@@ -122,7 +122,7 @@ function ConnectionCard({ friend, myId, onSelect }) {
   return (
     <div onClick={() => onSelect(friend)}
       className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors cursor-pointer
-        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-forest-900/40 border-forest-800 hover:border-forest-600'}`}>
+        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-[var(--card,rgba(13,43,13,0.4))] border-forest-800 hover:border-forest-600'}`}>
       {/* Avatar */}
       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
         ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
@@ -174,6 +174,8 @@ export default function DashboardPage() {
   const [hoursLeft, setHoursLeft]   = useState(null)
   const [loading, setLoading]       = useState(true)
   const [myJob, setMyJob]           = useState(null)
+  const [myNoteLikes, setMyNoteLikes] = useState([])
+  const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('td_onboard') === 'done')
   const [seedsBalance, setSeedsBalance] = useState(null)
 
   useEffect(() => {
@@ -228,6 +230,21 @@ export default function DashboardPage() {
   }
 
   // Enrich friend notes with streak data
+  const handleReact = async (userId, emoji) => {
+    try {
+      await notesApi.likeNote(userId, emoji)
+      // Refresh feed
+      usersApi.feed().then(r => setFriendNotes(r.data || [])).catch(() => {})
+    } catch {}
+  }
+
+  // Build own note card data
+  const ownNote = user?.dailyNote ? {
+    userId: user.id, displayName: user.nickname || user.fullName?.split(' ')[0],
+    note: user.dailyNote, notePostedAt: user.dailyNoteUpdatedAt,
+    mood: user.mood, likes: myNoteLikes, streakDays: 0,
+  } : null
+
   const notesWithStreaks = friendNotes.map(n => {
     const streak = streaks.find(s =>
       (s.user_id_1 === n.userId || s.user_id_2 === n.userId)
@@ -291,6 +308,30 @@ export default function DashboardPage() {
         </div>
       </div>
 
+
+      {/* ── Onboarding banner ── */}
+      {!onboardingDone && friends.length === 0 && (
+        <div className="mx-5 mb-3 rounded-2xl border border-forest-600 bg-forest-900/60 p-4">
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <p className="text-forest-200 font-medium text-sm">🌱 Get started</p>
+            <button onClick={() => { localStorage.setItem('td_onboard','done'); setOnboardingDone(true) }}
+              className="text-forest-600 text-xs hover:text-forest-400">Dismiss</button>
+          </div>
+          {[
+            { to:'/friends', label:'Add your first connection', done: friends.length > 0, icon:'🌿' },
+            { to:'/letters', label:'Send them a letter', done: letterStats?.sent > 0, icon:'✉️' },
+            { to:'/grove',   label:'Invest your seeds', done: false, icon:'🪴' },
+          ].map((step, i) => (
+            <a key={i} href={step.to}
+              className={`flex items-center gap-3 py-2 border-b border-forest-800/50 last:border-0 hover:text-forest-200 transition-colors
+                ${step.done ? 'opacity-40 line-through' : ''}`}>
+              <span className="text-base">{step.done ? '✅' : step.icon}</span>
+              <span className={`text-sm ${step.done ? 'text-forest-600' : 'text-forest-300'}`}>{step.label}</span>
+              {!step.done && <span className="ml-auto text-forest-600 text-xs">→</span>}
+            </a>
+          ))}
+        </div>
+      )}
       {/* ── Connection requests banner ── */}
       {requests.length > 0 && (
         <div className="mx-5 mb-3 rounded-xl bg-forest-800/60 border border-forest-700 px-4 py-3 flex items-center justify-between">
@@ -324,15 +365,17 @@ export default function DashboardPage() {
       )}
 
       {/* ── Notes strip — flip cards ── */}
-      {notesWithStreaks.length > 0 && (
+      {(notesWithStreaks.length > 0 || ownNote) && (
         <div className="mb-4 flex-shrink-0">
           <div className="px-5 mb-2 flex items-center justify-between">
             <p className="text-forest-500 text-xs font-medium uppercase tracking-wide">Today's notes</p>
             <Link to="/feed" className="text-forest-600 text-xs hover:text-forest-400">See all →</Link>
           </div>
           <div className="px-5 flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+            {ownNote && <NoteCard key="own" note={ownNote} isOwn={true} myReaction={null} onReact={() => {}} />}
             {notesWithStreaks.map(n => (
-              <NoteCard key={n.id || n.userId} note={n} />
+              <NoteCard key={n.id || n.userId} note={n} isOwn={false}
+                myReaction={n.myReaction} onReact={handleReact} />
             ))}
           </div>
         </div>

@@ -4,9 +4,6 @@ import { usersApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 export const MOODS = ['😄','😢','😡','😴','🤔','🥹']
-export const MOOD_LABELS = {
-  '😄':'Happy','😢':'Sad','😡':'Angry','😴':'Tired','🤔':'Thinking','🥹':'Emotional',
-}
 const COOLDOWN_MS = 4 * 3600 * 1000
 
 function getStoredCooldown() {
@@ -17,79 +14,31 @@ function getStoredCooldown() {
     return Math.max(0, COOLDOWN_MS - (Date.now() - setAt))
   } catch { return 0 }
 }
-function setCooldown() {
+function storeCooldown() {
   localStorage.setItem('td_mood_ts', JSON.stringify({ setAt: Date.now() }))
 }
 
-// ── Emoji picker popup ────────────────────────────────────────────────────────
-// Common expressive emojis grouped for quick access
-const EMOJI_GROUPS = [
-  ['😄','😂','🥰','😎','🤩','😮','😤','😭','🥺','😈'],
-  ['🔥','⭐','💯','✨','🎉','💀','👀','🙏','💪','🌟'],
-  ['🌸','🌊','🌙','☀️','🍀','🌈','❤️','💚','🖤','🤍'],
-]
-
-function EmojiPickerPopup({ onSelect, onClose }) {
-  const ref = useRef(null)
-  const [custom, setCustom] = useState('')
-
-  useEffect(() => {
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) onClose() }
-    setTimeout(() => document.addEventListener('mousedown', handler), 50)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [onClose])
-
-  return (
-    <div ref={ref} style={{
-      position:'absolute', zIndex:100, top:'100%', left:0, marginTop:4,
-      background:'#0d1f0d', border:'1px solid rgba(74,107,79,0.4)',
-      borderRadius:14, padding:10, width:220, boxShadow:'0 8px 32px rgba(0,0,0,0.5)',
-    }}>
-      {EMOJI_GROUPS.map((row, i) => (
-        <div key={i} style={{ display:'flex', gap:4, marginBottom:4 }}>
-          {row.map(e => (
-            <button key={e} onClick={() => { onSelect(e); onClose() }}
-              style={{
-                width:32, height:32, fontSize:18, borderRadius:8, border:'none',
-                background:'transparent', cursor:'pointer', display:'flex',
-                alignItems:'center', justifyContent:'center',
-                transition:'background 0.1s',
-              }}
-              onMouseEnter={ev => ev.target.style.background='rgba(74,186,74,0.15)'}
-              onMouseLeave={ev => ev.target.style.background='transparent'}>
-              {e}
-            </button>
-          ))}
-        </div>
-      ))}
-      <div style={{ borderTop:'1px solid rgba(74,107,79,0.2)', paddingTop:6, display:'flex', gap:4 }}>
-        <input value={custom} onChange={e => setCustom(e.target.value)}
-          placeholder="Paste any emoji"
-          maxLength={2}
-          style={{
-            flex:1, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(74,107,79,0.3)',
-            borderRadius:8, color:'#c8d8c8', fontSize:14, padding:'4px 8px', outline:'none',
-          }}/>
-        <button onClick={() => { if (custom.trim()) { onSelect(custom.trim()); onClose() } }}
-          style={{
-            background:'#14532d', border:'none', borderRadius:8, color:'#4ade80',
-            padding:'4px 8px', fontSize:11, cursor:'pointer', fontWeight:600,
-          }}>
-          Use
-        </button>
-      </div>
-    </div>
-  )
+// Check if a string is a valid single emoji
+function isValidEmoji(str) {
+  if (!str || str.trim().length === 0) return false
+  const s = str.trim()
+  // Must be 1-4 chars (emoji can be multi-codepoint)
+  if (s.length > 8) return false
+  // Must contain at least one emoji codepoint
+  const emojiRegex = /\p{Emoji}/u
+  return emojiRegex.test(s)
 }
 
 export default function MoodPicker({ compact = false }) {
   const { user, updateUser } = useAuth()
-  const [active, setActive]       = useState(null)
-  const [staged, setStaged]       = useState(null)
-  const [saving, setSaving]       = useState(false)
-  const [status, setStatus]       = useState('')
+  const [active, setActive]     = useState(null)
+  const [staged, setStaged]     = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [status, setStatus]     = useState('')
   const [cooldownMs, setCooldownMs] = useState(0)
-  const [showPicker, setShowPicker] = useState(false)
+  const [customInput, setCustomInput] = useState('')
+  const [customError, setCustomError] = useState('')
+  const inputRef = useRef(null)
 
   useEffect(() => {
     const tick = () => setCooldownMs(getStoredCooldown())
@@ -111,17 +60,30 @@ export default function MoodPicker({ compact = false }) {
     }
   }, [user?.mood, user?.moodUpdatedAt])
 
-  const locked     = cooldownMs > 0 && !!active
-  const hasChange  = staged !== active
-  const hoursLeft  = cooldownMs / 3600000
-  const hoursStr   = hoursLeft >= 1
+  const locked    = cooldownMs > 0 && !!active
+  const hasChange = staged !== active
+  const hoursLeft = cooldownMs / 3600000
+  const hoursStr  = hoursLeft >= 1
     ? `${Math.floor(hoursLeft)}h ${Math.round((hoursLeft % 1) * 60)}m`
     : `${Math.round(hoursLeft * 60)}m`
 
-  const handleStage = (emoji) => {
-    if (saving || locked) return
+  const stage = (emoji) => {
+    if (locked || saving) return
     setStaged(prev => prev === emoji ? active : emoji)
     setStatus('')
+    setCustomError('')
+  }
+
+  const handleCustom = (val) => {
+    setCustomInput(val)
+    setCustomError('')
+    if (val && val.trim()) {
+      if (isValidEmoji(val.trim())) {
+        stage(val.trim())
+      } else if (val.trim().length > 0) {
+        setCustomError('Not a valid emoji')
+      }
+    }
   }
 
   const handleUpdate = async () => {
@@ -131,8 +93,8 @@ export default function MoodPicker({ compact = false }) {
       await usersApi.setMood(staged)
       setActive(staged)
       updateUser({ mood: staged, moodUpdatedAt: new Date().toISOString() })
-      setCooldown(); setCooldownMs(COOLDOWN_MS)
-      setStatus('✓ Updated — showing on map!')
+      storeCooldown(); setCooldownMs(COOLDOWN_MS)
+      setStatus('✓ Showing on map!')
     } catch (err) {
       const msg = err?.response?.data?.error || 'Could not update'
       const hl  = err?.response?.data?.hoursLeft
@@ -145,137 +107,94 @@ export default function MoodPicker({ compact = false }) {
     } finally { setSaving(false) }
   }
 
-  // ── Compact (dashboard) ───────────────────────────────────────────────────
-  if (compact) return (
-    <div style={{ position:'relative' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-        <span style={{ fontSize:10, color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.06em', flexShrink:0 }}>
-          Mood
-        </span>
-        {MOODS.map(emoji => {
-          const isStaged = staged === emoji
-          return (
-            <button key={emoji} type="button" onClick={() => handleStage(emoji)}
-              disabled={saving}
-              style={{
-                width:36, height:36, fontSize:19, borderRadius:9, outline:'none',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                border:`2px solid ${isStaged ? '#4dba4d' : active === emoji ? '#2d6a35' : 'rgba(255,255,255,0.07)'}`,
-                background: isStaged ? 'rgba(74,186,74,0.2)' : active === emoji ? 'rgba(74,186,74,0.07)' : 'transparent',
-                transform: isStaged ? 'scale(1.13)' : 'scale(1)',
-                cursor:(locked || saving) ? 'not-allowed' : 'pointer',
-                opacity: locked && active !== emoji ? 0.35 : 1,
-                transition:'all 0.15s',
-              }}>
-              {emoji}
-            </button>
-          )
-        })}
+  const btnStyle = (emoji) => ({
+    width: compact ? 34 : 44,
+    height: compact ? 34 : 44,
+    fontSize: compact ? 18 : 23,
+    borderRadius: 10,
+    outline: 'none',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: `2px solid ${staged === emoji ? '#4dba4d' : active === emoji ? '#2d6a35' : 'rgba(255,255,255,0.08)'}`,
+    background: staged === emoji ? 'rgba(74,186,74,0.22)' : active === emoji ? 'rgba(74,186,74,0.07)' : 'transparent',
+    transform: staged === emoji ? 'scale(1.15)' : 'scale(1)',
+    cursor: (locked || saving) ? 'not-allowed' : 'pointer',
+    opacity: locked && active !== emoji ? 0.3 : 1,
+    transition: 'all 0.15s',
+  })
 
-        {/* + custom emoji button */}
-        {!locked && (
-          <div style={{ position:'relative' }}>
-            <button type="button" onClick={() => setShowPicker(s => !s)}
-              style={{
-                width:36, height:36, fontSize:16, borderRadius:9, outline:'none',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                border:'2px dashed rgba(255,255,255,0.15)',
-                background: staged && !MOODS.includes(staged) ? 'rgba(74,186,74,0.2)' : 'transparent',
-                cursor:'pointer', color:'#6b7280', transition:'all 0.15s',
-              }}>
-              {staged && !MOODS.includes(staged) ? staged : '+'}
-            </button>
-            {showPicker && (
-              <EmojiPickerPopup
-                onSelect={e => { handleStage(e) }}
-                onClose={() => setShowPicker(false)}
-              />
-            )}
-          </div>
-        )}
-
-        {!locked && hasChange && staged && (
-          <button type="button" onClick={handleUpdate} disabled={saving}
-            style={{
-              padding:'3px 11px', borderRadius:20, fontSize:11, fontWeight:600,
-              background:'#14532d', border:'1px solid #2d6a35', color:'#4ade80',
-              cursor:saving ? 'wait' : 'pointer', outline:'none',
-            }}>
-            {saving ? '…' : 'Set'}
-          </button>
-        )}
-      </div>
-      <div style={{ marginTop:3, fontSize:10, color:status.startsWith('✓') ? '#4ade80' : locked ? '#4b5563' : '#6b7280' }}>
-        {status || (locked ? `🔒 Locked for ${hoursStr}` : active ? `${active} showing on map` : 'Pick a mood or emoji')}
-      </div>
-    </div>
-  )
-
-  // ── Full ──────────────────────────────────────────────────────────────────
   return (
     <div>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-        <p className="text-forest-600 text-xs uppercase tracking-wide">Today's mood</p>
-        {locked && <span style={{ fontSize:10, color:'#4b5563' }}>🔒 Next in {hoursStr}</span>}
-      </div>
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', position:'relative' }}>
-        {MOODS.map(emoji => {
-          const isStaged = staged === emoji
-          return (
-            <button key={emoji} type="button" onClick={() => handleStage(emoji)} disabled={saving}
-              style={{
-                width:46, height:46, fontSize:24, borderRadius:12, outline:'none',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                border:`2px solid ${isStaged ? '#4dba4d' : active === emoji ? '#2d6a35' : 'rgba(255,255,255,0.08)'}`,
-                background: isStaged ? 'rgba(74,186,74,0.22)' : active === emoji ? 'rgba(74,186,74,0.07)' : 'transparent',
-                transform: isStaged ? 'scale(1.18)' : 'scale(1)',
-                cursor:(locked || saving) ? 'not-allowed' : 'pointer',
-                opacity: locked && active !== emoji ? 0.3 : 1,
-                transition:'all 0.15s',
-              }}>
-              {emoji}
-            </button>
-          )
-        })}
-        {/* + custom emoji */}
+      {!compact && (
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+          <p className="text-forest-600 text-xs uppercase tracking-wide">Mood</p>
+          {locked && <span style={{ fontSize:10, color:'#4b5563' }}>🔒 Next in {hoursStr}</span>}
+        </div>
+      )}
+
+      <div style={{ display:'flex', alignItems:'center', gap:compact?5:7, flexWrap:'wrap' }}>
+        {compact && (
+          <span style={{ fontSize:10, color:'#6b7280', textTransform:'uppercase', letterSpacing:'0.06em' }}>Mood</span>
+        )}
+
+        {/* Default emojis */}
+        {MOODS.map(emoji => (
+          <button key={emoji} type="button" onClick={() => stage(emoji)}
+            disabled={saving} style={btnStyle(emoji)}>
+            {emoji}
+          </button>
+        ))}
+
+        {/* Custom emoji via keyboard input */}
         {!locked && (
-          <div style={{ position:'relative' }}>
-            <button type="button" onClick={() => setShowPicker(s => !s)}
+          <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+            <input
+              ref={inputRef}
+              value={customInput}
+              onChange={e => handleCustom(e.target.value)}
+              placeholder="+"
+              maxLength={8}
               style={{
-                width:46, height:46, fontSize:22, borderRadius:12, outline:'none',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                border:'2px dashed rgba(255,255,255,0.15)',
-                background: staged && !MOODS.includes(staged) ? 'rgba(74,186,74,0.22)' : 'transparent',
-                cursor:'pointer', color:'#6b7280', transition:'all 0.15s',
-              }}>
-              {staged && !MOODS.includes(staged) ? staged : '+'}
-            </button>
-            {showPicker && (
-              <EmojiPickerPopup
-                onSelect={e => handleStage(e)}
-                onClose={() => setShowPicker(false)}
-              />
+                width: compact ? 34 : 44,
+                height: compact ? 34 : 44,
+                fontSize: compact ? 18 : 22,
+                textAlign: 'center',
+                borderRadius: 10,
+                border: staged && !MOODS.includes(staged) && staged === customInput.trim()
+                  ? '2px solid #4dba4d'
+                  : '2px dashed rgba(255,255,255,0.2)',
+                background: 'transparent',
+                color: '#c8d8c8',
+                outline: 'none',
+                cursor: 'text',
+              }}
+              title="Type or paste any emoji"
+            />
+            {customError && (
+              <span style={{ fontSize:8, color:'#f87171', textAlign:'center', lineHeight:1 }}>{customError}</span>
             )}
           </div>
         )}
-      </div>
-      <div style={{ marginTop:8, minHeight:28, display:'flex', alignItems:'center', gap:10 }}>
+
+        {/* Set button */}
         {!locked && hasChange && staged && (
           <button type="button" onClick={handleUpdate} disabled={saving}
             style={{
-              padding:'6px 18px', borderRadius:20, fontSize:13, fontWeight:600,
-              background:'#14532d', border:'1px solid #2d6a35', color:'#4ade80',
-              cursor:saving ? 'wait' : 'pointer', outline:'none', transition:'all 0.15s',
+              padding: compact ? '3px 10px' : '5px 14px',
+              borderRadius: 20, fontSize: compact ? 11 : 12, fontWeight: 600,
+              background: '#14532d', border: '1px solid #2d6a35', color: '#4ade80',
+              cursor: saving ? 'wait' : 'pointer', outline: 'none',
             }}>
-            {saving ? 'Updating…' : `Set ${staged}`}
+            {saving ? '…' : `Set ${staged}`}
           </button>
         )}
-        <p style={{ fontSize:11, color:status.startsWith('✓') ? '#4ade80' : locked ? '#4b5563' : '#6b7280' }}>
-          {status || (locked
-            ? `🔒 ${active} showing on map. Next in ${hoursStr}`
-            : active && !hasChange ? `${active} showing on map` : 'Pick a mood or any emoji'
-          )}
-        </p>
+      </div>
+
+      {/* Status line */}
+      <div style={{ marginTop: compact ? 3 : 6, fontSize:10, color: status.startsWith('✓') ? '#4ade80' : locked ? '#4b5563' : '#6b7280' }}>
+        {status || (locked
+          ? `🔒 ${active} locked — ${hoursStr} left`
+          : active && !hasChange ? `${active} showing on map` : !active ? 'Pick a mood' : ''
+        )}
       </div>
     </div>
   )

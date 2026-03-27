@@ -1,6 +1,6 @@
 // src/pages/MapPage.jsx
 import { useEffect, useState, useCallback } from 'react'
-import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { graphApi, lettersApi, friendsApi, groupsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -148,6 +148,16 @@ function buildLabelIcon(name, zoom) {
 function lerp(a, b, t) { return a + (b - a) * t }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+
+// Helper: fly to a node when clicked
+function FlyToOnOpen({ lat, lng }) {
+  const map = useMap()
+  useEffect(() => {
+    map.flyTo([lat, lng], Math.max(map.getZoom(), 6), { animate: true, duration: 1.2 })
+  }, []) // eslint-disable-line
+  return null
+}
 
 function ZoomTracker({ onZoom }) {
   const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) })
@@ -555,8 +565,10 @@ export default function MapPage() {
                   </Tooltip>
                 )}
 
-                {/* Click popup */}
-                <Popup autoPan={false} closeButton={false}>
+                {/* Click popup — fly to node on open */}
+                <Popup autoPan={false} closeButton={false}
+                  eventHandlers={{ add: () => {} }}>
+                  <FlyToOnOpen lat={node.latitude} lng={node.longitude} />
                   <div style={popupStyle}>
                     <div style={{ marginBottom: 8 }}>
                       <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,

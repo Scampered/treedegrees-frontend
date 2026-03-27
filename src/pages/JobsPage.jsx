@@ -790,9 +790,10 @@ function StarRating({ value, max = 5, onChange }) {
 }
 
 // ── Job listing card ──────────────────────────────────────────────────────────
-function JobCard({ job, meta, onRate, onHire }) {
-  const avg     = job.rating_count > 0 ? (job.rating_sum / job.rating_count) : 0
-  const canRate = job.has_hired && !job.has_rated
+function JobCard({ job, meta, role, onRate, onHire }) {
+  const avg      = job.rating_count > 0 ? (job.rating_sum / job.rating_count) : 0
+  const canRate  = job.has_hired && !job.has_rated
+  const [showTip, setShowTip] = useState(false)
   return (
     <div className="rounded-2xl bg-forest-900/40 border border-forest-800 hover:border-forest-700 transition-colors overflow-hidden">
       <div className="p-4">
@@ -811,12 +812,26 @@ function JobCard({ job, meta, onRate, onHire }) {
               <p className="text-forest-500 text-xs">{job.city}{job.country ? `, ${job.country}` : ''}</p>
             </div>
           </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-forest-200 font-mono text-sm font-medium">🌱 {job.hourly_rate}</p>
-            <p className="text-forest-600 text-xs">{meta.unit}</p>
+          <div className="flex items-start gap-2 flex-shrink-0">
+            <button onClick={() => setShowTip(s => !s)}
+              className="w-5 h-5 rounded-full border border-forest-700 text-forest-600 text-xs
+                         hover:border-forest-500 hover:text-forest-300 transition-colors flex items-center justify-center flex-shrink-0 mt-0.5">
+              ?
+            </button>
+            <div className="text-right">
+              <p className="text-forest-200 font-mono text-sm font-medium">🌱 {job.hourly_rate}</p>
+              <p className="text-forest-600 text-xs">{meta.unit}</p>
+            </div>
           </div>
         </div>
         {job.bio && <p className="mt-2 text-forest-400 text-xs leading-relaxed line-clamp-2">{job.bio}</p>}
+
+        {/* Tooltip */}
+        {showTip && role && JOB_DETAIL[role] && (
+          <div className="mt-2 p-2.5 rounded-xl bg-forest-800/60 border border-forest-700 text-forest-400 text-xs leading-relaxed">
+            {JOB_DETAIL[role]}
+          </div>
+        )}
 
         {/* Rating row */}
         <div className="flex items-center gap-1.5 mt-2.5">
