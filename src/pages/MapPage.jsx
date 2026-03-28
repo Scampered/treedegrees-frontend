@@ -1,7 +1,7 @@
 // src/pages/MapPage.jsx
 import { useEffect, useState, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMapEvents, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, Polygon, Popup, Tooltip, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { graphApi, lettersApi, friendsApi, groupsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -150,6 +150,41 @@ function lerp(a, b, t) { return a + (b - a) * t }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+
+
+// ── Convex hull (Graham scan) for group polygon ───────────────────────────────
+function convexHull(points) {
+  if (points.length < 2) return points
+  if (points.length === 2) return points
+  const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  const cross = (O, A, B) => (A[0]-O[0])*(B[1]-O[1]) - (A[1]-O[1])*(B[0]-O[0])
+  const lower = []
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0)
+      lower.pop()
+    lower.push(p)
+  }
+  const upper = []
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i]
+    while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0)
+      upper.pop()
+    upper.push(p)
+  }
+  upper.pop(); lower.pop()
+  return [...lower, ...upper]
+}
+
+// Expand hull points slightly outward from centroid for visual padding
+function expandHull(hull, padDeg = 0.015) {
+  const cx = hull.reduce((s, p) => s + p[0], 0) / hull.length
+  const cy = hull.reduce((s, p) => s + p[1], 0) / hull.length
+  return hull.map(([lat, lng]) => {
+    const dlat = lat - cx, dlng = lng - cy
+    const len = Math.sqrt(dlat*dlat + dlng*dlng) || 1
+    return [lat + (dlat/len)*padDeg, lng + (dlng/len)*padDeg]
+  })
+}
 
 // Helper: fly to a node when clicked
 
@@ -366,6 +401,7 @@ export default function MapPage() {
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState('')
   const [filter, setFilter]             = useState('all')
+  const [showGroups, setShowGroups]     = useState(false)
   const [hidePrivate, setHidePrivate]   = useState(false)
   const [zoom, setZoom]                 = useState(4)
   const [inTransit, setInTransit]       = useState([])
@@ -496,6 +532,11 @@ export default function MapPage() {
             className="rounded border-forest-700 bg-forest-950 text-forest-500" />
           Hide private
         </label>
+        <button onClick={() => setShowGroups(s => !s)}
+          className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1
+            ${showGroups ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
+          ☘️ GCs
+        </button>
         <button onClick={loadMap} className="btn-ghost text-xs py-1 px-3">↻</button>
       </div>
 
@@ -649,30 +690,32 @@ export default function MapPage() {
             )
           })}
 
-          {/* Group overlay — zigzag coloured lines between members */}
-          {groupMapData.map(group => {
-            const members = group.members.filter(m => m.lat && m.lon)
+          {/* Group overlay — filled convex hull polygon, toggled by ☘️ GCs button */}
+          {showGroups && groupMapData.map(group => {
+            const members = group.members.filter(m => m.lat && m.lon && !isNaN(m.lat) && !isNaN(m.lon))
             if (members.length < 2) return null
-            // Draw lines connecting all members in a ring
-            const lines = []
-            for (let i = 0; i < members.length; i++) {
-              const a = members[i]
-              const b = members[(i + 1) % members.length]
-              // Create zigzag points
-              const midLat = (a.lat + b.lat) / 2 + (Math.random() * 0.4 - 0.2)
-              const midLon = (a.lon + b.lon) / 2 + (Math.random() * 0.4 - 0.2)
-              lines.push(
-                <Polyline key={`${group.id}-${i}`}
-                  positions={[[a.lat, a.lon], [midLat, midLon], [b.lat, b.lon]]}
-                  pathOptions={{
-                    color: group.color,
-                    weight: 2,
-                    opacity: 0.6,
-                    dashArray: '6 4',
-                  }} />
-              )
-            }
-            return lines
+            const points = members.map(m => [m.lat, m.lon])
+            const hull   = convexHull(points)
+            // For 2 members draw a circle-ish rounded shape, for 3+ use hull
+            const positions = hull.length >= 3 ? expandHull(hull) : [
+              [points[0][0] + 0.008, points[0][1]],
+              [points[0][0], points[0][1] + 0.01],
+              [points[1][0], points[1][1] + 0.01],
+              [points[1][0] - 0.008, points[1][1]],
+              [points[1][0], points[1][1] - 0.01],
+              [points[0][0], points[0][1] - 0.01],
+            ]
+            return (
+              <Polygon key={group.id}
+                positions={positions}
+                pathOptions={{
+                  color: group.color,
+                  fillColor: group.color,
+                  fillOpacity: 0.12,
+                  weight: 1.5,
+                  opacity: 0.5,
+                }} />
+            )
           })}
 
           {/* Group letter transit — envelope emoji following group lines */}
