@@ -22,11 +22,15 @@ function storeCooldown() {
 function isValidEmoji(str) {
   if (!str || str.trim().length === 0) return false
   const s = str.trim()
-  // Must be 1-4 chars (emoji can be multi-codepoint)
   if (s.length > 8) return false
-  // Must contain at least one emoji codepoint
-  const emojiRegex = /\p{Emoji}/u
-  return emojiRegex.test(s)
+  // Check for emoji using multiple patterns
+  const hasEmoji = /\p{Emoji_Presentation}/u.test(s) ||
+    /\p{Extended_Pictographic}/u.test(s) ||
+    /[\u{1F000}-\u{1FFFF}]/u.test(s) ||
+    /[\u{2600}-\u{27BF}]/u.test(s)
+  // Reject if it looks like plain ASCII text
+  const isPlainText = /^[a-zA-Z0-9\s!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]+$/.test(s)
+  return hasEmoji && !isPlainText
 }
 
 export default function MoodPicker({ compact = false }) {
@@ -77,12 +81,17 @@ export default function MoodPicker({ compact = false }) {
   const handleCustom = (val) => {
     setCustomInput(val)
     setCustomError('')
-    if (val && val.trim()) {
-      if (isValidEmoji(val.trim())) {
-        stage(val.trim())
-      } else if (val.trim().length > 0) {
-        setCustomError('Not a valid emoji')
-      }
+    if (!val || !val.trim()) {
+      // Clear custom if user deletes
+      if (staged && !MOODS.includes(staged)) setStaged(active)
+      return
+    }
+    const trimmed = val.trim()
+    if (isValidEmoji(trimmed)) {
+      setStaged(trimmed)  // directly set, bypassing locked check
+      setStatus('')
+    } else {
+      setCustomError('Type or paste an emoji')
     }
   }
 
@@ -168,6 +177,7 @@ export default function MoodPicker({ compact = false }) {
                 cursor: 'text',
               }}
               title="Type or paste any emoji"
+              onFocus={() => setCustomError('')}
             />
             {customError && (
               <span style={{ fontSize:8, color:'#f87171', textAlign:'center', lineHeight:1 }}>{customError}</span>

@@ -55,9 +55,8 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
   }
 
   return (
-    <div className="flex-shrink-0 w-32 cursor-pointer select-none"
-      style={{ perspective: 900 }}
-      onClick={() => { if (!reacting) setFlipped(f => !f) }}>
+    <div className="flex-shrink-0 w-32 select-none"
+      style={{ perspective: 900 }}>
       <div style={{
         position:'relative', width:'100%', paddingBottom:'150%',
         transition:'transform 0.45s cubic-bezier(.4,0,.2,1)',
@@ -66,11 +65,11 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
       }}>
 
         {/* ── BACK FACE (shown by default) ── */}
-        <div style={{
+        <div onClick={() => setFlipped(true)} style={{
           position:'absolute', inset:0, backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
           borderRadius:16, background: cardBack, border:`1.5px solid ${border}`,
           display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-          padding:'10px 8px', overflow:'hidden',
+          padding:'10px 8px', overflow:'hidden', cursor:'pointer',
         }}>
           {/* Streak */}
           {note.streakDays > 0 && (
@@ -85,23 +84,29 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
           <span style={{ fontSize:42, lineHeight:1.1 }}>{displayEmoji}</span>
 
           {/* Heart / reaction button — centred below emoji */}
-          <button
-            onClick={handleHeartClick}
-            style={{
-              marginTop:8, background:'transparent', border:'none', cursor: isOwn ? 'default' : 'pointer',
-              fontSize:18, opacity: isOwn ? 0 : 0.55, transition:'opacity 0.15s',
-              display:'flex', alignItems:'center', justifyContent:'center',
-            }}>
-            {myReaction || '🤍'}
-          </button>
+          {!isOwn && (
+            <button
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); setReacting(r => !r) }}
+              style={{
+                marginTop:8, background: reacting ? 'rgba(74,186,74,0.15)' : 'transparent',
+                border: reacting ? '1px solid rgba(74,186,74,0.3)' : '1px solid transparent',
+                borderRadius:8, cursor:'pointer', fontSize:18, padding:'3px 8px',
+                transition:'all 0.15s', display:'flex', alignItems:'center', gap:4,
+              }}>
+              <span>{myReaction || '🤍'}</span>
+              {myReaction && <span style={{ fontSize:9, color:'rgb(var(--f400))' }}>✓</span>}
+            </button>
+          )}
 
           {/* Reaction picker */}
           {reacting && (
-            <div onClick={e => e.stopPropagation()}
-              style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'center', marginTop:4 }}>
+            <div onClick={e => { e.stopPropagation(); e.preventDefault() }}
+              style={{ display:'flex', gap:3, flexWrap:'wrap', justifyContent:'center', marginTop:4 }}>
               {['🌿','❤️','🔥','😂','👀','💯'].map(r => (
-                <button key={r} onClick={() => { onReact(note.userId, r); setReacting(false) }}
-                  style={{ fontSize:16, background:'transparent', border:'none', cursor:'pointer', padding:1 }}>
+                <button key={r}
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReact(note.userId, r); setReacting(false) }}
+                  style={{ fontSize:15, background: myReaction===r ? 'rgba(74,186,74,0.2)' : 'transparent',
+                    border:'none', cursor:'pointer', padding:2, borderRadius:6 }}>
                   {r}
                 </button>
               ))}
@@ -119,11 +124,11 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
         </div>
 
         {/* ── FRONT FACE (after flip) ── */}
-        <div style={{
+        <div onClick={() => { if (!reacting) setFlipped(false) }} style={{
           position:'absolute', inset:0, backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
           borderRadius:16, background: cardFront, border:`1.5px solid ${border}`,
           transform:'rotateY(180deg)',
-          display:'flex', flexDirection:'column', padding:10, overflow:'hidden',
+          display:'flex', flexDirection:'column', padding:10, overflow:'hidden', cursor:'pointer',
         }}>
           <div style={{ fontSize:20, textAlign:'center', marginBottom:4 }}>{displayEmoji}</div>
           <p style={{ color: textMain, fontSize:10, lineHeight:1.5, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:6, WebkitBoxOrient:'vertical' }}>
@@ -140,7 +145,7 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
                   display:'flex', gap:2, alignItems:'center',
                 }}>
                   <span>{l.emoji}</span>
-                  <span>{l.likerName?.length > 7 ? l.likerName.slice(0,6)+'-' : l.likerName}</span>
+                  <span>{l.likerName?.length > 10 ? l.likerName.slice(0,9)+'…' : l.likerName}</span>
                 </div>
               ))}
             </div>
@@ -154,7 +159,7 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
                   background:'rgba(240,220,100,0.12)', border:'1px solid rgba(240,220,100,0.22)',
                   borderRadius:4, padding:'2px 4px', fontSize:8, color:'rgba(240,230,150,0.75)',
                 }}>
-                  {l.emoji} {l.likerName?.length > 7 ? l.likerName.slice(0,6)+'-' : l.likerName}
+                  {l.emoji} {l.likerName?.length > 10 ? l.likerName.slice(0,9)+'…' : l.likerName}
                 </div>
               ))}
             </div>
@@ -450,6 +455,9 @@ export default function DashboardPage() {
           </div>
           <div className="p-4">
             <MoodPicker compact />
+            {!user?.mood && (
+              <p className="text-forest-700 text-xs mt-1">💡 Set a mood — it shows on your note card and earns +10 🌱</p>
+            )}
             {user?.dailyNote && (
               <div className="mt-3 py-2 px-3 rounded-xl bg-forest-800/60 border-l-2 border-forest-600">
                 <p className="text-forest-300 text-sm italic">"{user.dailyNote}"</p>
@@ -494,7 +502,8 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-2">
               {enrichedFriends.slice(0, 6).map(f => (
                 <ConnectionCard key={f.id} friend={f} myId={user?.id}
-                  onSelect={f => navigate('/letters', { state: { selectFriend: f } })} />
+                  onViewMap={f => navigate('/map', { state: { flyTo: { lat: f.latitude, lng: f.longitude } } })}
+                  onWriteLetter={f => navigate('/letters', { state: { selectFriend: f } })} />
               ))}
               {enrichedFriends.length > 6 && (
                 <Link to="/friends"

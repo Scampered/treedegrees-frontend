@@ -151,6 +151,18 @@ function lerp(a, b, t) { return a + (b - a) * t }
 
 
 // Helper: fly to a node when clicked
+
+// Fly to a specific target on mount if passed via router state
+function FlyToTarget({ lat, lng }) {
+  const map = useMap()
+  useEffect(() => {
+    if (lat && lng) {
+      map.flyTo([lat, lng], 8, { animate: true, duration: 1.5 })
+    }
+  }, []) // eslint-disable-line
+  return null
+}
+
 function FlyToOnOpen({ lat, lng }) {
   const map = useMap()
   useEffect(() => {
@@ -346,6 +358,8 @@ const popupStyle = {
 
 // ── Main MapPage ──────────────────────────────────────────────────────────────
 export default function MapPage() {
+  const routeLocation = useLocation()
+  const flyTarget = routeLocation.state?.flyTo || null
   const { user } = useAuth()
   const [mapData, setMapData]           = useState(null)
   const [loading, setLoading]           = useState(true)
@@ -518,6 +532,7 @@ export default function MapPage() {
           />
 
           <ZoomTracker onZoom={setZoom} />
+          {flyTarget && <FlyToTarget lat={flyTarget.lat} lng={flyTarget.lng} />}
 
           {/* Custom region labels */}
           {CUSTOM_LABELS.map(lbl => zoom >= lbl.minZoom && (
