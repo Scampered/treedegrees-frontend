@@ -184,8 +184,9 @@ function clusterNodes(nodes, zoom, thresholdPx = 40) {
       }
     }
     // Centroid of group
-    const lat = group.reduce((s, n) => s + n.latitude, 0) / group.length
-    const lng = group.reduce((s, n) => s + n.longitude, 0) / group.length
+    const lat = group.reduce((s, n) => s + Number(n.latitude), 0) / group.length
+    const lng = group.reduce((s, n) => s + Number(n.longitude), 0) / group.length
+    if (isNaN(lat) || isNaN(lng)) continue
     clustered.push({ nodes: group, lat, lng, count: group.length })
   }
   return clustered
@@ -597,7 +598,8 @@ export default function MapPage() {
           {filteredEdges.map((edge, i) => {
             const src = nodeMap[edge.source]
             const tgt = nodeMap[edge.target]
-            if (!src?.latitude || !tgt?.latitude) return null
+            const validNum = n => n != null && !isNaN(Number(n)) && n !== ''
+            if (!src || !tgt || !validNum(src.latitude) || !validNum(src.longitude) || !validNum(tgt.latitude) || !validNum(tgt.longitude)) return null
             const style = (edge.isPrivate || edge.isHidden) ? PRIVATE_LINE : (LINE_STYLES[edge.degree] || LINE_STYLES[3])
             return (
               <Polyline key={i}
@@ -618,7 +620,7 @@ export default function MapPage() {
               if (cluster.count > 1) {
                 // Render a single cluster bubble
                 return (
-                  <Marker key={`cluster-${ci}`} position={[cluster.lat, cluster.lng]}
+                  <Marker key={`cluster-${ci}`} position={[Number(cluster.lat), Number(cluster.lng)]}
                     icon={buildClusterIcon(cluster.count)}>
                     <Popup autoPan={false} closeButton={false}>
                       <div style={{ fontFamily: 'Dosis,sans-serif', padding: '4px 0', minWidth: 140 }}>
@@ -639,8 +641,9 @@ export default function MapPage() {
               const nodeSeeds = node.degree <= 1 ? node.seeds : null
               const nodeJob = node.degree <= 1 ? (node.jobRole || null) : null
               const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, nodeJob)
+              if (!node.latitude || !node.longitude || isNaN(Number(node.latitude)) || isNaN(Number(node.longitude))) return null
               return (
-                <Marker key={node.id} position={[node.latitude, node.longitude]}
+                <Marker key={node.id} position={[Number(node.latitude), Number(node.longitude)]}
                   icon={icon} zIndexOffset={0}>
 
                 {/* Hover tooltip for notes */}
@@ -723,7 +726,7 @@ export default function MapPage() {
             if (myNode && myNode.latitude != null && !isNaN(myNode.latitude)) {
               const icon = buildNodeIcon(0, false, false, myNode.mood || null, myNode.seeds, myNode.jobRole || null)
               clusterMarkers.push(
-                <Marker key={myNode.id} position={[myNode.latitude, myNode.longitude]}
+                <Marker key={myNode.id} position={[Number(myNode.latitude), Number(myNode.longitude)]}
                   icon={icon} zIndexOffset={1000}>
                   <FlyToOnOpen lat={myNode.latitude} lng={myNode.longitude} />
                   <Popup autoPan={false} closeButton={false}>
@@ -752,7 +755,7 @@ export default function MapPage() {
               const midLon = (a.lon + b.lon) / 2 + (Math.random() * 0.4 - 0.2)
               lines.push(
                 <Polyline key={`${group.id}-${i}`}
-                  positions={[[a.lat, a.lon], [midLat, midLon], [b.lat, b.lon]]}
+                  positions={(a.lat != null && b.lat != null && !isNaN(a.lat) && !isNaN(b.lat)) ? [[a.lat, a.lon], [midLat, midLon], [b.lat, b.lon]] : []}
                   pathOptions={{
                     color: group.color,
                     weight: 2,
@@ -765,9 +768,9 @@ export default function MapPage() {
           })}
 
           {/* Group letter transit — envelope emoji following group lines */}
-          {groupTransitPos.map(v => (
+          {groupTransitPos.filter(v => v.currentLat != null && v.currentLon != null && !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (
             <Marker key={v.id}
-              position={[v.currentLat, v.currentLon]}
+              position={[Number(v.currentLat), Number(v.currentLon)]}
               icon={L.divIcon({
                 className: '',
                 iconSize: [20, 20],
@@ -780,9 +783,9 @@ export default function MapPage() {
           ))}
 
           {/* Vehicle markers — pure emoji, no node inside */}
-          {vehiclePos.filter(v => !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (
+          {vehiclePos.filter(v => v.currentLat != null && v.currentLon != null && !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (
             <Marker key={v.id}
-              position={[v.currentLat, v.currentLon]}
+              position={[Number(v.currentLat), Number(v.currentLon)]}
               icon={buildVehicleIcon(v.vehicleTier)}
               interactive={false}
               zIndexOffset={500}
