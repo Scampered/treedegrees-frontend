@@ -630,6 +630,7 @@ export default function MapPage() {
               }
               // Single node — render normally
               const node = cluster.nodes[0]
+              const me = false  // 'me' node is never in clusters (filtered out above)
               const hasNote = node.hasNote || false
               const nodeMood = node.degree <= 1 ? (node.mood || null) : null
               const nodeSeeds = node.degree <= 1 ? node.seeds : null
