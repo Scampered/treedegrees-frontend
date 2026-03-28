@@ -32,7 +32,7 @@ function weatherEmoji(theme) {
 function NoteCard({ note, isOwn, myReaction, onReact }) {
   const [flipped, setFlipped]   = useState(false)
   const [reacting, setReacting] = useState(false)
-  const emoji        = note.mood || '🌿'
+  const emoji        = note.noteEmoji || note.mood || '🌿'
   const isForecaster = note.note?.startsWith('📡')
   const displayEmoji = isForecaster ? '📡' : emoji
   const timeStr      = note.notePostedAt
@@ -235,6 +235,7 @@ export default function DashboardPage() {
   const [friendNotes, setFriendNotes] = useState([])
   const [streaks, setStreaks]        = useState([])
   const [note, setNote]             = useState('')
+  const [noteEmoji, setNoteEmoji]   = useState(null)
   const [noteStatus, setNoteStatus] = useState('')
   const [noteLoading, setNoteLoading] = useState(false)
   const [hoursLeft, setHoursLeft]   = useState(null)
@@ -285,9 +286,9 @@ export default function DashboardPage() {
     if (!note.trim()) return
     setNoteLoading(true); setNoteStatus('')
     try {
-      const { data } = await usersApi.postDailyNote(note)
-      updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt })
-      setHoursLeft('24.0'); setNote('')
+      const { data } = await usersApi.postDailyNote(note, noteEmoji)
+      updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt, noteEmoji: data.noteEmoji })
+      setHoursLeft('24.0'); setNote(''); setNoteEmoji(null)
       setNoteStatus('✓ Posted!')
     } catch (err) {
       setNoteStatus(err.response?.data?.error || 'Could not post note')
@@ -308,7 +309,7 @@ export default function DashboardPage() {
   const ownNote = user?.dailyNote ? {
     userId: user.id, displayName: user.nickname || user.fullName?.split(' ')[0],
     note: user.dailyNote, notePostedAt: user.dailyNoteUpdatedAt,
-    mood: user.mood, likes: myNoteLikes, streakDays: 0,
+    noteEmoji: user.noteEmoji, mood: user.mood, likes: myNoteLikes, streakDays: 0,
   } : null
 
   const notesWithStreaks = friendNotes.map(n => {
@@ -502,8 +503,8 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-2">
               {enrichedFriends.slice(0, 6).map(f => (
                 <ConnectionCard key={f.id} friend={f} myId={user?.id}
-                  onViewMap={f => navigate('/map', { state: { flyTo: { lat: f.latitude, lng: f.longitude } } })}
-                  onWriteLetter={f => navigate('/letters', { state: { selectFriend: f } })} />
+                  onViewMap={conn => navigate('/map', { state: { flyTo: { lat: conn.latitude, lng: conn.longitude } } })}
+                  onWriteLetter={conn => navigate('/letters', { state: { selectFriend: conn } })} />
               ))}
               {enrichedFriends.length > 6 && (
                 <Link to="/friends"
