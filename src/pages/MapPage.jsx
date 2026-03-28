@@ -560,8 +560,7 @@ export default function MapPage() {
             const hasNote = !me && (node.hasNote || false)
             const nodeMood = (node.degree === 0 || node.degree === 1) ? (node.mood || null) : null
             const nodeSeeds = (node.degree === 0 || node.degree === 1) ? node.seeds : null
-            const nodeJob = (node.degree === 0 || node.degree === 1) ? (node.jobRole || null) : null
-            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, nodeJob)
+            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, null)
 
             return (
               <Marker key={node.id} position={[node.latitude, node.longitude]}
@@ -629,6 +628,13 @@ export default function MapPage() {
                         <p style={{ fontSize: 11, color: '#4dba4d', margin: 0 }}>
                           {node.city}, {node.country}
                         </p>
+                        {node.degree === 1 && node.jobRole && (
+                          <p style={{ fontSize: 11, color: '#80a080', marginTop: 5,
+                            display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {JOB_EMOJIS[node.jobRole]}
+                            <span>{node.jobRole.replace('_', ' ').replace(/\w/g, c => c.toUpperCase())}</span>
+                          </p>
+                        )}
                         {node.dailyNote && (
                           <p style={{ fontSize: 12, color: '#80d580', marginTop: 8,
                             fontStyle: 'italic', borderTop: '1px solid #196219', paddingTop: 6, lineHeight: 1.4 }}>
