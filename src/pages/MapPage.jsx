@@ -165,13 +165,15 @@ function projectLatLng(lat, lng, zoom) {
 function clusterNodes(nodes, zoom, thresholdPx = 40) {
   const clustered = []
   const used = new Set()
-  for (let i = 0; i < nodes.length; i++) {
+  // Only cluster nodes with valid coordinates
+  const valid = nodes.filter(n => n.latitude != null && n.longitude != null && !isNaN(n.latitude) && !isNaN(n.longitude))
+  for (let i = 0; i < valid.length; i++) {
     if (used.has(i)) continue
-    const a = nodes[i]
+    const a = valid[i]
     const pa = projectLatLng(a.latitude, a.longitude, zoom)
     const group = [a]
     used.add(i)
-    for (let j = i + 1; j < nodes.length; j++) {
+    for (let j = i + 1; j < valid.length; j++) {
       if (used.has(j)) continue
       const b = nodes[j]
       const pb = projectLatLng(b.latitude, b.longitude, zoom)
@@ -607,8 +609,9 @@ export default function MapPage() {
           {/* User nodes — clustered when too close */}
           {(() => {
             // Separate "me" node from others so it's never clustered
-            const myNode = filteredNodes.find(n => isMe(n.id))
-            const otherNodes = filteredNodes.filter(n => !isMe(n.id))
+            const validCoord = n => n.latitude != null && n.longitude != null && !isNaN(n.latitude) && !isNaN(n.longitude)
+            const myNode = filteredNodes.find(n => isMe(n.id) && validCoord(n))
+            const otherNodes = filteredNodes.filter(n => !isMe(n.id) && validCoord(n))
             const clusters = clusterNodes(otherNodes, zoom, zoom <= 4 ? 50 : zoom <= 6 ? 35 : 20)
 
             const clusterMarkers = clusters.map((cluster, ci) => {
@@ -717,7 +720,7 @@ export default function MapPage() {
             })
 
             // Add "me" node always on top, never clustered
-            if (myNode) {
+            if (myNode && myNode.latitude != null && !isNaN(myNode.latitude)) {
               const icon = buildNodeIcon(0, false, false, myNode.mood || null, myNode.seeds, myNode.jobRole || null)
               clusterMarkers.push(
                 <Marker key={myNode.id} position={[myNode.latitude, myNode.longitude]}
