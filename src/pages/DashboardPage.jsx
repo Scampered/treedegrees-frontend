@@ -175,52 +175,59 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
   )
 }
 
-// ── Streak connection card
 // ── Streak connection card ────────────────────────────────────────────────────
-function ConnectionCard({ friend, myId, onSelect }) {
-  const streak = friend.streak || {}
-  const fuel   = streak.fuel ?? 3
-  const days   = streak.streakDays ?? 0
-  const iSent  = streak.iSentToday || false
+function ConnectionCard({ friend, myId, onViewMap, onWriteLetter }) {
+  const streak   = friend.streak || {}
+  const fuel     = streak.fuel ?? 3
+  const days     = streak.streakDays ?? 0
+  const iSent    = streak.iSentToday || false
   const theySent = streak.theySentToday || false
-  const atRisk = fuel <= 1 && days > 0
+  const atRisk   = fuel <= 1 && days > 0
 
   return (
-    <div onClick={() => onSelect(friend)}
-      className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors cursor-pointer
-        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-forest-900/40 border-forest-800 hover:border-forest-600'}`}>
-      {/* Avatar */}
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
-        ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
-        {friend.mood || '🌿'}
-      </div>
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-forest-200 text-sm font-medium truncate">{friend.displayName}</p>
-          {days > 0 && (
-            <span className={`text-xs font-mono flex-shrink-0 ${atRisk ? 'text-amber-400' : 'text-forest-500'}`}>
-              🔥{days}
-            </span>
-          )}
+    <div className={`rounded-2xl border flex items-center transition-colors overflow-hidden
+      ${atRisk ? 'bg-amber-950/30 border-amber-900/60' : 'bg-forest-900/40 border-forest-800'}`}>
+      {/* Main area → view on map */}
+      <div onClick={() => onViewMap && onViewMap(friend)}
+        className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors">
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-lg flex-shrink-0
+          ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
+          {friend.mood || '🌿'}
         </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          {/* Fuel dots */}
-          <div className="flex gap-0.5">
-            {[0,1,2].map(i => (
-              <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < fuel ? (atRisk ? 'bg-amber-400' : 'bg-forest-500') : 'bg-forest-800'}`}/>
-            ))}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="text-forest-200 text-sm font-medium truncate">{friend.displayName}</p>
+            {days > 0 && (
+              <span className={`text-xs font-mono flex-shrink-0 ${atRisk ? 'text-amber-400' : 'text-forest-500'}`}>
+                🔥{days}
+              </span>
+            )}
           </div>
-          <span className="text-forest-600 text-xs">
-            {iSent && theySent ? '✓ Both sent today' :
-             iSent ? '✓ You sent' :
-             theySent ? 'They sent' :
-             days > 0 ? (atRisk ? '⚠️ At risk' : 'Not sent today') : 'No streak yet'}
-          </span>
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex gap-0.5">
+              {[0,1,2].map(i => (
+                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < fuel ? (atRisk ? 'bg-amber-400' : 'bg-forest-500') : 'bg-forest-800'}`}/>
+              ))}
+            </div>
+            <span className="text-forest-600 text-xs">
+              {iSent && theySent ? '✓ Both sent' :
+               iSent ? '✓ You sent' :
+               theySent ? 'They sent' :
+               days > 0 ? (atRisk ? '⚠️ At risk' : 'Not sent today') : 'No streak yet'}
+            </span>
+          </div>
         </div>
       </div>
-      {/* Send nudge */}
-      <span className="text-forest-600 text-lg flex-shrink-0">✉️</span>
+      {/* Letter button — separate, right side */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onWriteLetter && onWriteLetter(friend) }}
+        className={`flex-shrink-0 px-4 py-3 border-l transition-colors
+          ${atRisk
+            ? 'border-amber-900/40 text-amber-500 hover:text-amber-300 hover:bg-amber-950/30'
+            : 'border-forest-800 text-forest-500 hover:text-forest-200 hover:bg-forest-800/50'}`}
+        title={`Write to ${friend.displayName}`}>
+        ✉️
+      </button>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 // src/pages/MapPage.jsx
 import { useEffect, useState, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { graphApi, lettersApi, friendsApi, groupsApi } from '../api/client'
