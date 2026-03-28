@@ -151,59 +151,6 @@ function lerp(a, b, t) { return a + (b - a) * t }
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 
-
-// ── Cluster nodes that are too close at current zoom ─────────────────────────
-function projectLatLng(lat, lng, zoom) {
-  // Simple Web Mercator projection for clustering pixel distance
-  const scale = 256 * Math.pow(2, zoom)
-  const x = (lng + 180) / 360 * scale
-  const sinLat = Math.sin(lat * Math.PI / 180)
-  const y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale
-  return { x, y }
-}
-
-function clusterNodes(nodes, zoom, thresholdPx = 40) {
-  const clustered = []
-  const used = new Set()
-  // Only cluster nodes with valid coordinates
-  const valid = nodes.filter(n => n.latitude != null && n.longitude != null && !isNaN(n.latitude) && !isNaN(n.longitude))
-  for (let i = 0; i < valid.length; i++) {
-    if (used.has(i)) continue
-    const a = valid[i]
-    const pa = projectLatLng(a.latitude, a.longitude, zoom)
-    const group = [a]
-    used.add(i)
-    for (let j = i + 1; j < valid.length; j++) {
-      if (used.has(j)) continue
-      const b = nodes[j]
-      const pb = projectLatLng(b.latitude, b.longitude, zoom)
-      const dx = pa.x - pb.x, dy = pa.y - pb.y
-      if (Math.sqrt(dx*dx + dy*dy) < thresholdPx) {
-        group.push(b)
-        used.add(j)
-      }
-    }
-    // Centroid of group
-    const lat = group.reduce((s, n) => s + Number(n.latitude), 0) / group.length
-    const lng = group.reduce((s, n) => s + Number(n.longitude), 0) / group.length
-    if (isNaN(lat) || isNaN(lng)) continue
-    clustered.push({ nodes: group, lat, lng, count: group.length })
-  }
-  return clustered
-}
-
-function buildClusterIcon(count) {
-  const size = Math.min(52, 32 + count * 4)
-  const html = `<div style="
-    width:${size}px;height:${size}px;border-radius:50%;
-    background:rgba(34,85,34,0.92);border:2.5px solid #4dba4d;
-    display:flex;align-items:center;justify-content:center;
-    color:#c8f0c8;font-size:13px;font-weight:700;
-    box-shadow:0 0 12px rgba(77,186,77,0.4);
-  ">${count}</div>`
-  return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size/2, size/2] })
-}
-
 // Helper: fly to a node when clicked
 
 // Fly to a specific target on mount if passed via router state
@@ -420,7 +367,7 @@ export default function MapPage() {
   const [error, setError]               = useState('')
   const [filter, setFilter]             = useState('all')
   const [hidePrivate, setHidePrivate]   = useState(false)
-  const [zoom, setZoom]                 = useState(3)
+  const [zoom, setZoom]                 = useState(4)
   const [inTransit, setInTransit]       = useState([])
   const [vehiclePos, setVehiclePos]     = useState([])
   const [streaks, setStreaks]           = useState([])
@@ -576,7 +523,7 @@ export default function MapPage() {
           </div>
         )}
 
-        <MapContainer center={[20, 20]} zoom={3} minZoom={2} maxZoom={18}
+        <MapContainer center={[25, 30]} zoom={4} minZoom={2} maxZoom={18}
           style={{ height: '100%', width: '100%' }} worldCopyJump>
 
           <TileLayer
@@ -598,8 +545,7 @@ export default function MapPage() {
           {filteredEdges.map((edge, i) => {
             const src = nodeMap[edge.source]
             const tgt = nodeMap[edge.target]
-            const validNum = n => n != null && !isNaN(Number(n)) && n !== ''
-            if (!src || !tgt || !validNum(src.latitude) || !validNum(src.longitude) || !validNum(tgt.latitude) || !validNum(tgt.longitude)) return null
+            if (!src?.latitude || !tgt?.latitude) return null
             const style = (edge.isPrivate || edge.isHidden) ? PRIVATE_LINE : (LINE_STYLES[edge.degree] || LINE_STYLES[3])
             return (
               <Polyline key={i}
@@ -608,43 +554,18 @@ export default function MapPage() {
             )
           })}
 
-          {/* User nodes — clustered when too close */}
-          {(() => {
-            // Separate "me" node from others so it's never clustered
-            const validCoord = n => n.latitude != null && n.longitude != null && !isNaN(n.latitude) && !isNaN(n.longitude)
-            const myNode = filteredNodes.find(n => isMe(n.id) && validCoord(n))
-            const otherNodes = filteredNodes.filter(n => !isMe(n.id) && validCoord(n))
-            const clusters = clusterNodes(otherNodes, zoom, zoom <= 4 ? 50 : zoom <= 6 ? 35 : 20)
+          {/* User nodes */}
+          {filteredNodes.map(node => {
+            const me = isMe(node.id)
+            const hasNote = !me && (node.hasNote || false)
+            const nodeMood = (node.degree === 0 || node.degree === 1) ? (node.mood || null) : null
+            const nodeSeeds = (node.degree === 0 || node.degree === 1) ? node.seeds : null
+            const nodeJob = (node.degree === 0 || node.degree === 1) ? (node.jobRole || null) : null
+            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, nodeJob)
 
-            const clusterMarkers = clusters.map((cluster, ci) => {
-              if (cluster.count > 1) {
-                // Render a single cluster bubble
-                return (
-                  <Marker key={`cluster-${ci}`} position={[Number(cluster.lat), Number(cluster.lng)]}
-                    icon={buildClusterIcon(cluster.count)}>
-                    <Popup autoPan={false} closeButton={false}>
-                      <div style={{ fontFamily: 'Dosis,sans-serif', padding: '4px 0', minWidth: 140 }}>
-                        <p style={{ fontSize: 11, color: '#80d580', marginBottom: 8, fontWeight: 600 }}>
-                          {cluster.count} people here
-                        </p>
-                        <p style={{ fontSize: 10, color: '#6b9e6b', marginBottom: 4 }}>Zoom in to see each person</p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              }
-              // Single node — render normally
-              const node = cluster.nodes[0]
-              const me = false  // 'me' node is never in clusters (filtered out above)
-              const hasNote = node.hasNote || false
-              const nodeMood = node.degree <= 1 ? (node.mood || null) : null
-              const nodeSeeds = node.degree <= 1 ? node.seeds : null
-              const nodeJob = node.degree <= 1 ? (node.jobRole || null) : null
-              const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, nodeJob)
-              if (!node.latitude || !node.longitude || isNaN(Number(node.latitude)) || isNaN(Number(node.longitude))) return null
-              return (
-                <Marker key={node.id} position={[Number(node.latitude), Number(node.longitude)]}
-                  icon={icon} zIndexOffset={0}>
+            return (
+              <Marker key={node.id} position={[node.latitude, node.longitude]}
+                icon={icon} zIndexOffset={me ? 1000 : 0}>
 
                 {/* Hover tooltip for notes */}
                 {hasNote && !node.hiddenByPrivateLink && (
@@ -718,28 +639,9 @@ export default function MapPage() {
                     )}
                   </div>
                 </Popup>
-                </Marker>
-              )
-            })
-
-            // Add "me" node always on top, never clustered
-            if (myNode && myNode.latitude != null && !isNaN(myNode.latitude)) {
-              const icon = buildNodeIcon(0, false, false, myNode.mood || null, myNode.seeds, myNode.jobRole || null)
-              clusterMarkers.push(
-                <Marker key={myNode.id} position={[Number(myNode.latitude), Number(myNode.longitude)]}
-                  icon={icon} zIndexOffset={1000}>
-                  <FlyToOnOpen lat={myNode.latitude} lng={myNode.longitude} />
-                  <Popup autoPan={false} closeButton={false}>
-                    <div style={popupStyle}>
-                      <p style={{ fontSize: 12, color: '#4dba4d', fontWeight: 700, marginBottom: 2 }}>You</p>
-                      <p style={{ fontSize: 11, color: '#6b9e6b' }}>{myNode.city}, {myNode.country}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              )
-            }
-            return clusterMarkers
-          })()}}
+              </Marker>
+            )
+          })}
 
           {/* Group overlay — zigzag coloured lines between members */}
           {groupMapData.map(group => {
@@ -755,7 +657,7 @@ export default function MapPage() {
               const midLon = (a.lon + b.lon) / 2 + (Math.random() * 0.4 - 0.2)
               lines.push(
                 <Polyline key={`${group.id}-${i}`}
-                  positions={(a.lat != null && b.lat != null && !isNaN(a.lat) && !isNaN(b.lat)) ? [[a.lat, a.lon], [midLat, midLon], [b.lat, b.lon]] : []}
+                  positions={[[a.lat, a.lon], [midLat, midLon], [b.lat, b.lon]]}
                   pathOptions={{
                     color: group.color,
                     weight: 2,
@@ -768,9 +670,9 @@ export default function MapPage() {
           })}
 
           {/* Group letter transit — envelope emoji following group lines */}
-          {groupTransitPos.filter(v => v.currentLat != null && v.currentLon != null && !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (
+          {groupTransitPos.map(v => (
             <Marker key={v.id}
-              position={[Number(v.currentLat), Number(v.currentLon)]}
+              position={[v.currentLat, v.currentLon]}
               icon={L.divIcon({
                 className: '',
                 iconSize: [20, 20],
@@ -783,9 +685,9 @@ export default function MapPage() {
           ))}
 
           {/* Vehicle markers — pure emoji, no node inside */}
-          {vehiclePos.filter(v => v.currentLat != null && v.currentLon != null && !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (
+          {vehiclePos.filter(v => !isNaN(v.currentLat) && !isNaN(v.currentLon)).map(v => (
             <Marker key={v.id}
-              position={[Number(v.currentLat), Number(v.currentLon)]}
+              position={[v.currentLat, v.currentLon]}
               icon={buildVehicleIcon(v.vehicleTier)}
               interactive={false}
               zIndexOffset={500}
