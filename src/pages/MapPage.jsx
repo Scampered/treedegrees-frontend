@@ -151,6 +151,56 @@ function lerp(a, b, t) { return a + (b - a) * t }
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 
+
+// ── Cluster nodes that are too close at current zoom ─────────────────────────
+function projectLatLng(lat, lng, zoom) {
+  // Simple Web Mercator projection for clustering pixel distance
+  const scale = 256 * Math.pow(2, zoom)
+  const x = (lng + 180) / 360 * scale
+  const sinLat = Math.sin(lat * Math.PI / 180)
+  const y = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale
+  return { x, y }
+}
+
+function clusterNodes(nodes, zoom, thresholdPx = 40) {
+  const clustered = []
+  const used = new Set()
+  for (let i = 0; i < nodes.length; i++) {
+    if (used.has(i)) continue
+    const a = nodes[i]
+    const pa = projectLatLng(a.latitude, a.longitude, zoom)
+    const group = [a]
+    used.add(i)
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (used.has(j)) continue
+      const b = nodes[j]
+      const pb = projectLatLng(b.latitude, b.longitude, zoom)
+      const dx = pa.x - pb.x, dy = pa.y - pb.y
+      if (Math.sqrt(dx*dx + dy*dy) < thresholdPx) {
+        group.push(b)
+        used.add(j)
+      }
+    }
+    // Centroid of group
+    const lat = group.reduce((s, n) => s + n.latitude, 0) / group.length
+    const lng = group.reduce((s, n) => s + n.longitude, 0) / group.length
+    clustered.push({ nodes: group, lat, lng, count: group.length })
+  }
+  return clustered
+}
+
+function buildClusterIcon(count) {
+  const size = Math.min(52, 32 + count * 4)
+  const html = `<div style="
+    width:${size}px;height:${size}px;border-radius:50%;
+    background:rgba(34,85,34,0.92);border:2.5px solid #4dba4d;
+    display:flex;align-items:center;justify-content:center;
+    color:#c8f0c8;font-size:13px;font-weight:700;
+    box-shadow:0 0 12px rgba(77,186,77,0.4);
+  ">${count}</div>`
+  return L.divIcon({ html, className: '', iconSize: [size, size], iconAnchor: [size/2, size/2] })
+}
+
 // Helper: fly to a node when clicked
 
 // Fly to a specific target on mount if passed via router state
@@ -367,7 +417,7 @@ export default function MapPage() {
   const [error, setError]               = useState('')
   const [filter, setFilter]             = useState('all')
   const [hidePrivate, setHidePrivate]   = useState(false)
-  const [zoom, setZoom]                 = useState(2)
+  const [zoom, setZoom]                 = useState(3)
   const [inTransit, setInTransit]       = useState([])
   const [vehiclePos, setVehiclePos]     = useState([])
   const [streaks, setStreaks]           = useState([])
@@ -523,7 +573,7 @@ export default function MapPage() {
           </div>
         )}
 
-        <MapContainer center={[20, 0]} zoom={2} minZoom={2} maxZoom={18}
+        <MapContainer center={[20, 20]} zoom={3} minZoom={2} maxZoom={18}
           style={{ height: '100%', width: '100%' }} worldCopyJump>
 
           <TileLayer
@@ -554,18 +604,40 @@ export default function MapPage() {
             )
           })}
 
-          {/* User nodes */}
-          {filteredNodes.map(node => {
-            const me = isMe(node.id)
-            const hasNote = !me && (node.hasNote || false)
-            const nodeMood = (node.degree === 0 || node.degree === 1) ? (node.mood || null) : null
-            const nodeSeeds = (node.degree === 0 || node.degree === 1) ? node.seeds : null
-            const nodeJob = (node.degree === 0 || node.degree === 1) ? (node.jobRole || null) : null
-            const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, nodeJob)
+          {/* User nodes — clustered when too close */}
+          {(() => {
+            // Separate "me" node from others so it's never clustered
+            const myNode = filteredNodes.find(n => isMe(n.id))
+            const otherNodes = filteredNodes.filter(n => !isMe(n.id))
+            const clusters = clusterNodes(otherNodes, zoom, zoom <= 4 ? 50 : zoom <= 6 ? 35 : 20)
 
-            return (
-              <Marker key={node.id} position={[node.latitude, node.longitude]}
-                icon={icon} zIndexOffset={me ? 1000 : 0}>
+            const clusterMarkers = clusters.map((cluster, ci) => {
+              if (cluster.count > 1) {
+                // Render a single cluster bubble
+                return (
+                  <Marker key={`cluster-${ci}`} position={[cluster.lat, cluster.lng]}
+                    icon={buildClusterIcon(cluster.count)}>
+                    <Popup autoPan={false} closeButton={false}>
+                      <div style={{ fontFamily: 'Dosis,sans-serif', padding: '4px 0', minWidth: 140 }}>
+                        <p style={{ fontSize: 11, color: '#80d580', marginBottom: 8, fontWeight: 600 }}>
+                          {cluster.count} people here
+                        </p>
+                        <p style={{ fontSize: 10, color: '#6b9e6b', marginBottom: 4 }}>Zoom in to see each person</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )
+              }
+              // Single node — render normally
+              const node = cluster.nodes[0]
+              const hasNote = node.hasNote || false
+              const nodeMood = node.degree <= 1 ? (node.mood || null) : null
+              const nodeSeeds = node.degree <= 1 ? node.seeds : null
+              const nodeJob = node.degree <= 1 ? (node.jobRole || null) : null
+              const icon = buildNodeIcon(node.degree, hasNote, node.hiddenByPrivateLink, nodeMood, nodeSeeds, nodeJob)
+              return (
+                <Marker key={node.id} position={[node.latitude, node.longitude]}
+                  icon={icon} zIndexOffset={0}>
 
                 {/* Hover tooltip for notes */}
                 {hasNote && !node.hiddenByPrivateLink && (
@@ -639,9 +711,28 @@ export default function MapPage() {
                     )}
                   </div>
                 </Popup>
-              </Marker>
-            )
-          })}
+                </Marker>
+              )
+            })
+
+            // Add "me" node always on top, never clustered
+            if (myNode) {
+              const icon = buildNodeIcon(0, false, false, myNode.mood || null, myNode.seeds, myNode.jobRole || null)
+              clusterMarkers.push(
+                <Marker key={myNode.id} position={[myNode.latitude, myNode.longitude]}
+                  icon={icon} zIndexOffset={1000}>
+                  <FlyToOnOpen lat={myNode.latitude} lng={myNode.longitude} />
+                  <Popup autoPan={false} closeButton={false}>
+                    <div style={popupStyle}>
+                      <p style={{ fontSize: 12, color: '#4dba4d', fontWeight: 700, marginBottom: 2 }}>You</p>
+                      <p style={{ fontSize: 11, color: '#6b9e6b' }}>{myNode.city}, {myNode.country}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              )
+            }
+            return clusterMarkers
+          })()}}
 
           {/* Group overlay — zigzag coloured lines between members */}
           {groupMapData.map(group => {
