@@ -253,7 +253,7 @@ function FuelBar({ streaks }) {
         </div>
       ))}
 
-      {/* ── Profile modal ── */}
+      {/* ── Profile modal — opens when clicking degree-1 node ── */}
       {profileNode && (
         <div className="absolute inset-0 z-[1000] flex items-end sm:items-center justify-center p-4"
           onClick={() => setProfileNode(null)}>
@@ -269,7 +269,7 @@ function FuelBar({ streaks }) {
                     width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
                     background: '#196219', border: '2px solid #2d9e2d',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: profileNode.mood ? 26 : 20, color: '#80d580', fontWeight: 700,
+                    fontSize: profileNode.mood ? 28 : 20, color: '#80d580', fontWeight: 700,
                   }}>
                     {profileNode.mood || profileNode.nickname?.[0]?.toUpperCase() || '?'}
                   </div>
@@ -308,186 +308,41 @@ function FuelBar({ streaks }) {
 
             {/* Body */}
             <div style={{ padding: '14px 20px 18px' }}>
-              {/* Job */}
               {profileNode.jobRole && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                   <span style={{ fontSize: 16 }}>{JOB_EMOJIS[profileNode.jobRole]}</span>
                   <span style={{ fontSize: 12, color: '#80a080' }}>
-                    {JOB_LABELS[profileNode.jobRole] || profileNode.jobRole} (on hire)
+                    {{'courier':'Courier','writer':'Writer','seed_broker':'Seed Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'}[profileNode.jobRole] || profileNode.jobRole}
                   </span>
                 </div>
               )}
-
-              {/* Daily note */}
               {profileNode.dailyNote && (
                 <div style={{ background: 'rgba(25,98,25,0.15)', border: '1px solid #196219',
                   borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
-                  <p style={{ fontSize: 11, color: '#4d8a4d', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Today's note
-                  </p>
-                  {profileNode.noteEmoji && <span style={{ fontSize: 18, marginRight: 6 }}>{profileNode.noteEmoji}</span>}
+                  <p style={{ fontSize: 11, color: '#4d8a4d', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's note</p>
                   <p style={{ fontSize: 13, color: '#c0e8c0', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
+                    {profileNode.noteEmoji && <span style={{ marginRight: 6 }}>{profileNode.noteEmoji}</span>}
                     "{profileNode.dailyNote}"
                   </p>
                 </div>
               )}
-
-              {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => { setProfileNode(null); navigate('/letters', { state: { selectFriend: { id: profileNode.id, displayName: profileNode.nickname } } }) }}
-                  style={{
-                    flex: 1, padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                    background: '#196219', border: '1px solid #2d9e2d', color: '#80d580', cursor: 'pointer',
-                  }}>
-                  ✉️ Write letter
-                </button>
-              </div>
+              <button
+                onClick={() => { setProfileNode(null); navigate('/letters', { state: { selectFriend: { id: profileNode.id, displayName: profileNode.nickname } } }) }}
+                style={{
+                  width: '100%', padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                  background: '#196219', border: '1px solid #2d9e2d', color: '#80d580', cursor: 'pointer',
+                }}>
+                ✉️ Write letter
+              </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   )
 }
 
-function MapSendModal({ friends, streaks, groups, onSend, onClose }) {
-  const [step, setStep] = useState(1)
-  const [selected, setSelected] = useState(null)
-  const [content, setContent] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState('')
-  const sel = streaks.find(s => s.friendId === selected?.id)
-
-  const handleSend = async () => {
-    if (!content.trim()) return
-    setSending(true)
-    try {
-      if (selected.isGroup) {
-        await groupsApi.sendLetter(selected.id, content)
-      } else {
-        await lettersApi.send(selected.id, content)
-      }
-      onSend()
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send')
-      setSending(false)
-    }
-  }
-
-  return (
-    <div className="w-full max-w-sm rounded-2xl bg-forest-950 border border-forest-700 shadow-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-forest-800">
-        <h3 className="text-forest-200 font-medium text-sm">
-          {step === 1 ? '✉️ Send a Letter' : `To ${selected?.displayName}`}
-        </h3>
-        <button onClick={onClose}
-          className="text-forest-600 hover:text-forest-300 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-forest-800 transition-colors">
-          ✕
-        </button>
-      </div>
-      {step === 1 ? (
-        <div className="p-3 max-h-60 overflow-y-auto space-y-1.5">
-          {friends.length === 0 && <p className="text-forest-600 text-sm text-center py-6">No connections yet</p>}
-          {/* Groups first */}
-          {(groups || []).map(g => (
-            <button key={g.id} onClick={() => { setSelected({ id: g.id, displayName: g.name, isGroup: true, color: g.color }); setStep(2) }}
-              className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-forest-900/50 hover:bg-forest-800
-                         border border-forest-800 hover:border-forest-600 transition-colors text-left">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                style={{ background: g.color + '22', border: `1px solid ${g.color}44` }}>
-                ☘️
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium" style={{ color: g.color }}>{g.name}</p>
-                <p className="text-forest-600 text-xs">{g.memberCount} members</p>
-              </div>
-              <span className="text-forest-600 text-xs">Group</span>
-            </button>
-          ))}
-          {/* Divider if both */}
-          {(groups || []).length > 0 && friends.length > 0 && (
-            <div className="flex items-center gap-2 py-1">
-              <div className="flex-1 h-px bg-forest-800" />
-              <span className="text-forest-700 text-xs">Connections</span>
-              <div className="flex-1 h-px bg-forest-800" />
-            </div>
-          )}
-          {friends.map(f => {
-            const s = streaks.find(st => st.friendId === f.id)
-            return (
-              <button key={f.id} onClick={() => { setSelected(f); setStep(2) }}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-forest-900/50 hover:bg-forest-800
-                           border border-forest-800 hover:border-forest-600 transition-colors text-left">
-                <div className="w-8 h-8 rounded-full bg-forest-700 flex items-center justify-center text-forest-200 text-xs flex-shrink-0">
-                  {f.displayName?.[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-forest-200 text-sm">{f.displayName}</p>
-                  <p className="text-forest-600 text-xs">{f.city}</p>
-                </div>
-                <span className="text-lg flex-shrink-0">{VEHICLE_EMOJI[s?.tier] || '🚗'}</span>
-              </button>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="p-4 space-y-3">
-          {sel && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-900/50 border border-forest-800 text-xs text-forest-400">
-              <span className="text-lg">{VEHICLE_EMOJI[sel.tier] || '🚗'}</span>
-              <span>{sel.tierLabel} delivery</span>
-              <span className="ml-auto">🔥 {sel.streakDays} · ⛽ {sel.fuel}/3</span>
-            </div>
-          )}
-          <textarea
-            className="w-full bg-forest-900/60 border border-forest-800 focus:border-forest-600 text-forest-100
-                       placeholder-forest-700 rounded-xl px-3 py-2.5 text-sm resize-none outline-none transition-colors"
-            rows={4} placeholder="Write your letter…" maxLength={500}
-            value={content} onChange={e => setContent(e.target.value)} autoFocus
-          />
-          <div className="flex items-center justify-between">
-            <span className="text-forest-700 text-xs">{content.length}/500</span>
-            <div className="flex gap-2">
-              <button onClick={() => setStep(1)} className="btn-ghost text-sm py-1.5 px-3 rounded-xl">← Back</button>
-              <button onClick={handleSend} disabled={sending || !content.trim()}
-                className="btn-primary text-sm py-1.5 px-4 rounded-xl">
-                {sending ? '…' : 'Send ✉️'}
-              </button>
-            </div>
-          </div>
-          {error && <p className="text-red-400 text-xs">{error}</p>}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Leaflet CSS overrides ─────────────────────────────────────────────────────
-const mapCSS = `
-  .leaflet-popup-content-wrapper {
-    background:#0d2b0d!important;border:1px solid #196219!important;
-    border-radius:12px!important;box-shadow:0 4px 24px rgba(0,0,0,0.6)!important;padding:0!important;
-  }
-  .leaflet-popup-content { margin:0!important; }
-  .leaflet-popup-tip { background:#0d2b0d!important; }
-  .note-tip .leaflet-tooltip {
-    background:#0d2b0d!important;border:1px solid #2d9e2d!important;color:#e0ffe0!important;
-    border-radius:12px!important;padding:10px 14px!important;font-family:Dosis,sans-serif!important;
-    font-size:13px!important;max-width:220px!important;white-space:normal!important;
-    box-shadow:0 4px 20px rgba(0,0,0,0.5)!important;
-  }
-  .note-tip .leaflet-tooltip::before { border-top-color:#2d9e2d!important; }
-  @media(max-width:1023px){ .leaflet-bottom { bottom:4rem!important; } }
-`
-
-const popupStyle = {
-  background: '#0d2b0d', color: '#f0faf0',
-  borderRadius: 12, padding: '12px 14px',
-  minWidth: 155, fontFamily: 'Dosis, sans-serif',
-}
-
-// ── Main MapPage ──────────────────────────────────────────────────────────────
 export default function MapPage() {
   const routeLocation = useLocation()
   const flyTarget = routeLocation.state?.flyTo || null
@@ -606,6 +461,7 @@ export default function MapPage() {
   const isMe = (id) => id === mapData?.myId
 
   const degreeLabel = d => ['You','1st degree','2nd degree','3rd degree'][d] ?? '3rd degree'
+  const profileStreak = profileNode ? streaks.find(s => s.friendId === profileNode.id) : null
   // ── Profile modal for degree-1 connections ─────────────────────────────────
   const profileStreak = profileNode ? streaks.find(s => s.friendId === profileNode.id) : null
   const JOB_LABELS = { courier:'Courier', writer:'Writer', seed_broker:'Seed Broker',
@@ -893,6 +749,7 @@ export default function MapPage() {
           {vehiclePos.length > 0 && ` · ${vehiclePos.length} in transit`}
         </span>
       </div>
+
     </div>
   )
 }
