@@ -252,6 +252,101 @@ function FuelBar({ streaks }) {
           </div>
         </div>
       ))}
+
+      {/* ── Profile modal ── */}
+      {profileNode && (
+        <div className="absolute inset-0 z-[1000] flex items-end sm:items-center justify-center p-4"
+          onClick={() => setProfileNode(null)}>
+          <div onClick={e => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+            style={{ background: '#0a1f0a', border: '1px solid #2d6a2d' }}>
+
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg, #0d2b0d, #142814)', padding: '20px 20px 16px' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                    background: '#196219', border: '2px solid #2d9e2d',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: profileNode.mood ? 26 : 20, color: '#80d580', fontWeight: 700,
+                  }}>
+                    {profileNode.mood || profileNode.nickname?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: 800, fontSize: 18, color: '#e0ffe0', margin: 0, lineHeight: 1.2 }}>
+                      {profileNode.nickname}
+                    </p>
+                    {profileNode.fullName && profileNode.fullName !== profileNode.nickname && (
+                      <p style={{ fontSize: 11, color: '#4d8a4d', margin: '2px 0 0' }}>{profileNode.fullName}</p>
+                    )}
+                    <p style={{ fontSize: 11, color: '#4dba4d', margin: '3px 0 0' }}>
+                      📍 {profileNode.city}, {profileNode.country}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setProfileNode(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#4d7a4d', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0 }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #196219' }}>
+              {[
+                { label: 'Seeds', value: `🌱 ${profileNode.seeds ?? '—'}` },
+                { label: 'Streak', value: profileStreak?.streakDays > 0 ? `🔥 ${profileStreak.streakDays}` : '—' },
+                { label: 'Fuel', value: profileStreak ? `⛽ ${profileStreak.fuel ?? 0}/3` : '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ padding: '12px 8px', textAlign: 'center', borderRight: '1px solid #196219' }}>
+                  <p style={{ fontSize: 14, color: '#80d580', margin: '0 0 2px', fontWeight: 600 }}>{value}</p>
+                  <p style={{ fontSize: 10, color: '#4d7a4d', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '14px 20px 18px' }}>
+              {/* Job */}
+              {profileNode.jobRole && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                  <span style={{ fontSize: 16 }}>{JOB_EMOJIS[profileNode.jobRole]}</span>
+                  <span style={{ fontSize: 12, color: '#80a080' }}>
+                    {JOB_LABELS[profileNode.jobRole] || profileNode.jobRole} (on hire)
+                  </span>
+                </div>
+              )}
+
+              {/* Daily note */}
+              {profileNode.dailyNote && (
+                <div style={{ background: 'rgba(25,98,25,0.15)', border: '1px solid #196219',
+                  borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, color: '#4d8a4d', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Today's note
+                  </p>
+                  {profileNode.noteEmoji && <span style={{ fontSize: 18, marginRight: 6 }}>{profileNode.noteEmoji}</span>}
+                  <p style={{ fontSize: 13, color: '#c0e8c0', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
+                    "{profileNode.dailyNote}"
+                  </p>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => { setProfileNode(null); navigate('/letters', { state: { selectFriend: { id: profileNode.id, displayName: profileNode.nickname } } }) }}
+                  style={{
+                    flex: 1, padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    background: '#196219', border: '1px solid #2d9e2d', color: '#80d580', cursor: 'pointer',
+                  }}>
+                  ✉️ Write letter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -402,6 +497,7 @@ export default function MapPage() {
   const [error, setError]               = useState('')
   const [filter, setFilter]             = useState('all')
   const [showGroups, setShowGroups]     = useState(false)
+  const [profileNode, setProfileNode]   = useState(null)
   const [hidePrivate, setHidePrivate]   = useState(false)
   const [zoom, setZoom]                 = useState(4)
   const [inTransit, setInTransit]       = useState([])
@@ -510,6 +606,12 @@ export default function MapPage() {
   const isMe = (id) => id === mapData?.myId
 
   const degreeLabel = d => ['You','1st degree','2nd degree','3rd degree'][d] ?? '3rd degree'
+  // ── Profile modal for degree-1 connections ─────────────────────────────────
+  const profileStreak = profileNode ? streaks.find(s => s.friendId === profileNode.id) : null
+  const JOB_LABELS = { courier:'Courier', writer:'Writer', seed_broker:'Seed Broker',
+    accountant:'Accountant', steward:'Steward', forecaster:'Forecaster', farmer:'Farmer' }
+
+
 
   return (
     <div className="flex flex-col h-full">
@@ -621,65 +723,64 @@ export default function MapPage() {
                   </Tooltip>
                 )}
 
-                {/* Click popup — fly to node on open */}
+                {/* Click popup */}
                 <Popup autoPan={false} closeButton={false}
                   eventHandlers={{ add: () => {} }}>
                   <FlyToOnOpen lat={node.latitude} lng={node.longitude} />
                   <div style={popupStyle}>
-                    <div style={{ marginBottom: 8 }}>
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
-                        background: '#196219', color: '#80d580', border: '1px solid #2d9e2d' }}>
-                        {degreeLabel(node.degree)}
-                      </span>
-                      {node.locationPrivacy && !me && (
-                        <span style={{ fontSize: 10, marginLeft: 6, color: '#4d7a4d' }}>📍 Approx.</span>
-                      )}
-                    </div>
-
                     {node.hiddenByPrivateLink ? (
                       <>
-                        <p style={{ fontWeight: 700, fontSize: 16, margin: '0 0 4px', color: '#666' }}>?</p>
-                        <p style={{ fontSize: 11, color: '#555', fontStyle: 'italic', margin: 0 }}>
-                          Private connection
-                        </p>
-                        <p style={{ fontSize: 11, color: '#4d5a4d', margin: '4px 0 0' }}>
-                          📍 {node.country} (approx.)
-                        </p>
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
+                          background: '#1a1a2e', color: '#555', border: '1px solid #333' }}>
+                          {degreeLabel(node.degree)}
+                        </span>
+                        <p style={{ fontWeight: 700, fontSize: 15, margin: '8px 0 2px', color: '#555' }}>🔒 Hidden</p>
+                        <p style={{ fontSize: 11, color: '#4d5a4d', margin: 0 }}>📍 {node.country}</p>
                       </>
                     ) : me ? (
                       <>
-                        <p style={{ fontWeight: 800, fontSize: 18, margin: '0 0 2px', color: '#80d580' }}>
+                        <p style={{ fontSize: 10, color: '#4dba4d', marginBottom: 4 }}>You</p>
+                        <p style={{ fontWeight: 800, fontSize: 17, margin: '0 0 2px', color: '#80d580' }}>
                           {user?.nickname || node.nickname}
                         </p>
-                        {user?.fullName && (
-                          <p style={{ fontSize: 11, color: '#4d7a4d', margin: '0 0 4px' }}>{user.fullName}</p>
-                        )}
                         <p style={{ fontSize: 11, color: '#4dba4d', margin: 0 }}>
-                          {node.city}, {node.country}
+                          📍 {node.city}, {node.country}
+                        </p>
+                        <p style={{ fontSize: 11, color: '#4d8a4d', marginTop: 4 }}>
+                          🌱 {user?.seeds ?? node.seeds ?? 0} seeds
                         </p>
                       </>
                     ) : (
                       <>
-                        <p style={{ fontWeight: 700, fontSize: 15, margin: '0 0 2px', color: '#e0ffe0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
+                            background: '#196219', color: '#80d580', border: '1px solid #2d9e2d' }}>
+                            {degreeLabel(node.degree)}
+                          </span>
+                          {node.mood && <span style={{ fontSize: 18 }}>{node.mood}</span>}
+                        </div>
+                        <p style={{ fontWeight: 700, fontSize: 15, margin: '0 0 1px', color: '#e0ffe0' }}>
                           {node.nickname}
                         </p>
-                        {node.fullName && (
-                          <p style={{ fontSize: 11, color: '#4d7a4d', margin: '0 0 4px' }}>{node.fullName}</p>
-                        )}
-                        <p style={{ fontSize: 11, color: '#4dba4d', margin: 0 }}>
-                          {node.city}, {node.country}
+                        <p style={{ fontSize: 11, color: '#4dba4d', margin: '0 0 6px' }}>
+                          📍 {node.city}, {node.country}
+                          {node.locationPrivacy && <span style={{ color: '#3d6a3d', marginLeft: 4 }}>(approx.)</span>}
                         </p>
-                        {node.degree === 1 && node.jobRole && (
-                          <p style={{ fontSize: 11, color: '#80a080', marginTop: 5,
-                            display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {JOB_EMOJIS[node.jobRole]}
-                            <span>{node.jobRole.replace('_', ' ').replace(/\w/g, c => c.toUpperCase())}</span>
-                          </p>
+                        {node.degree === 1 && (
+                          <button
+                            onClick={() => setProfileNode(node)}
+                            style={{
+                              width: '100%', padding: '5px 0', borderRadius: 8, fontSize: 11,
+                              background: 'rgba(45,158,45,0.15)', border: '1px solid #2d6a2d',
+                              color: '#80d580', cursor: 'pointer', marginTop: 2,
+                            }}>
+                            View profile →
+                          </button>
                         )}
-                        {node.dailyNote && (
-                          <p style={{ fontSize: 12, color: '#80d580', marginTop: 8,
-                            fontStyle: 'italic', borderTop: '1px solid #196219', paddingTop: 6, lineHeight: 1.4 }}>
-                            "{node.dailyNote}"
+                        {node.degree !== 1 && node.dailyNote && (
+                          <p style={{ fontSize: 11, color: '#80d580', fontStyle: 'italic',
+                            borderTop: '1px solid #196219', paddingTop: 5, lineHeight: 1.4 }}>
+                            "{node.dailyNote.slice(0, 80)}{node.dailyNote.length > 80 ? '…' : ''}"
                           </p>
                         )}
                       </>
