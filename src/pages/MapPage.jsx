@@ -461,7 +461,6 @@ export default function MapPage() {
   const isMe = (id) => id === mapData?.myId
 
   const degreeLabel = d => ['You','1st degree','2nd degree','3rd degree'][d] ?? '3rd degree'
-  const profileStreak = profileNode ? streaks.find(s => s.friendId === profileNode.id) : null
   // ── Profile modal for degree-1 connections ─────────────────────────────────
   const profileStreak = profileNode ? streaks.find(s => s.friendId === profileNode.id) : null
   const JOB_LABELS = { courier:'Courier', writer:'Writer', seed_broker:'Seed Broker',
