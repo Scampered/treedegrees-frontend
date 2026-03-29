@@ -465,6 +465,12 @@ export default function MapPage() {
   const profileStreak = profileNode ? streaks.find(s => s.friendId === profileNode.id) : null
 
 
+  const popupStyle = {
+    background: '#0d2b0d', color: '#f0faf0',
+    borderRadius: 12, padding: '12px 14px',
+    minWidth: 155, fontFamily: 'Dosis, sans-serif',
+  }
+
   const mapCSS = `
     .leaflet-popup-content-wrapper {
       background: #0d2b0d !important;
