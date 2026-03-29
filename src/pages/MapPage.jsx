@@ -463,10 +463,30 @@ export default function MapPage() {
   const degreeLabel = d => ['You','1st degree','2nd degree','3rd degree'][d] ?? '3rd degree'
   // ── Profile modal for degree-1 connections ─────────────────────────────────
   const profileStreak = profileNode ? streaks.find(s => s.friendId === profileNode.id) : null
-  const JOB_LABELS = { courier:'Courier', writer:'Writer', seed_broker:'Seed Broker',
-    accountant:'Accountant', steward:'Steward', forecaster:'Forecaster', farmer:'Farmer' }
 
 
+  const mapCSS = `
+    .leaflet-popup-content-wrapper {
+      background: #0d2b0d !important;
+      border: 1px solid #2d6a2d !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-content { margin:0!important; }
+    .leaflet-popup-tip { background:#0d2b0d!important; }
+    .note-tip .leaflet-tooltip {
+      background: rgba(8,34,8,0.92);
+      border: 1px solid #2d6a2d;
+      border-radius: 8px;
+      color: #c0f0c0;
+      font-family: Dosis,sans-serif;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+    .note-tip .leaflet-tooltip::before { border-top-color:#2d9e2d!important; }
+    @media(max-width:1023px){ .leaflet-bottom { bottom:4rem!important; } }
+  `
 
   return (
     <div className="flex flex-col h-full">
