@@ -222,3 +222,10 @@ export const momentsApi = {
   tagged:  ()      => api.get('/api/moments/tagged'),
   remove:  (id)    => api.delete(`/api/moments/${id}`),
 }
+
+export const notesApi = {
+  feed:       ()              => api.get('/api/users/feed'),
+  post:       (note, emoji)   => api.post('/api/users/daily-note', { note, noteEmoji: emoji }),
+  like:       (userId, emoji) => api.post(`/api/users/${userId}/like-note`, { emoji }),
+  friendNotes:()              => api.get('/api/users/friend-notes'),
+}
