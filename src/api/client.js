@@ -229,3 +229,9 @@ export const notesApi = {
   like:       (userId, emoji) => api.post(`/api/users/${userId}/like-note`, { emoji }),
   friendNotes:()              => api.get('/api/users/friend-notes'),
 }
+
+export const notificationsApi = {
+  get:     () => api.get('/api/notifications'),
+  readAll: () => api.post('/api/notifications/read-all'),
+  unread:  () => api.get('/api/notifications/unread-count'),
+}
