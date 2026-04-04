@@ -491,7 +491,7 @@ export default function MapPage() {
                         {node.degree !== 1 && node.dailyNote && (
                           <p style={{ fontSize:11, color:'#80d580', fontStyle:'italic',
                             borderTop:'1px solid #196219', paddingTop:5, lineHeight:1.4 }}>
-                            "{"}{node.dailyNote.slice(0,80)}{node.dailyNote.length > 80 ? '…' : ''}{""}"
+                            {`"${node.dailyNote.slice(0,80)}${node.dailyNote.length > 80 ? '…' : ''}"`}
                           </p>
                         )}
                       </>
