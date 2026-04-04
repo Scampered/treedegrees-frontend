@@ -253,6 +253,101 @@ function FuelBar({ streaks }) {
         </div>
       ))}
 
+      {/* ── Profile modal — opens when clicking degree-1 node ── */}
+      {profileNode && (
+        <div className="absolute inset-0 z-[1000] flex items-end sm:items-center justify-center p-4"
+          onClick={() => setProfileNode(null)}>
+          <div onClick={e => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+            style={{ background: '#0a1f0a', border: '1px solid #2d6a2d' }}>
+
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg, #0d2b0d, #142814)', padding: '20px 20px 16px' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                    background: '#196219', border: '2px solid #2d9e2d',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: profileNode.mood ? 28 : 20, color: '#80d580', fontWeight: 700,
+                  }}>
+                    {profileNode.mood || profileNode.nickname?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: 800, fontSize: 18, color: '#e0ffe0', margin: 0, lineHeight: 1.2 }}>
+                      {profileNode.nickname}
+                    </p>
+                    {profileNode.fullName && profileNode.fullName !== profileNode.nickname && (
+                      <p style={{ fontSize: 11, color: '#4d8a4d', margin: '2px 0 0' }}>{profileNode.fullName}</p>
+                    )}
+                    <p style={{ fontSize: 11, color: '#4dba4d', margin: '3px 0 0' }}>
+                      📍 {profileNode.city}, {profileNode.country}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setProfileNode(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#4d7a4d', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0 }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #196219' }}>
+              {[
+                { label: 'Seeds', value: `🌱 ${profileNode.seeds ?? '—'}` },
+                { label: 'Streak', value: profileStreak?.streakDays > 0 ? `🔥 ${profileStreak.streakDays}` : '—' },
+                { label: 'Fuel', value: profileStreak ? `⛽ ${profileStreak.fuel ?? 0}/3` : '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ padding: '12px 8px', textAlign: 'center', borderRight: '1px solid #196219' }}>
+                  <p style={{ fontSize: 14, color: '#80d580', margin: '0 0 2px', fontWeight: 600 }}>{value}</p>
+                  <p style={{ fontSize: 10, color: '#4d7a4d', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '14px 20px 18px' }}>
+              {profileNode.jobRole && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                  <span style={{ fontSize: 16 }}>{JOB_EMOJIS[profileNode.jobRole]}</span>
+                  <span style={{ fontSize: 12, color: '#80a080' }}>
+                    {{'courier':'Courier','writer':'Writer','seed_broker':'Seed Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'}[profileNode.jobRole] || profileNode.jobRole}
+                  </span>
+                </div>
+              )}
+              {profileNode.dailyNote && (
+                <div style={{ background: 'rgba(25,98,25,0.15)', border: '1px solid #196219',
+                  borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, color: '#4d8a4d', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's note</p>
+                  <p style={{ fontSize: 13, color: '#c0e8c0', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
+                    {profileNode.noteEmoji && <span style={{ marginRight: 6 }}>{profileNode.noteEmoji}</span>}
+                    "{profileNode.dailyNote}"
+                  </p>
+                </div>
+              )}
+              <div style={{ display:'flex', gap:8, marginTop:4 }}>
+                <button
+                  onClick={() => { setProfileNode(null); navigate(`/profile/${profileNode.id}`) }}
+                  style={{
+                    flex:1, padding:'7px 0', borderRadius:10, fontSize:12, fontWeight:600,
+                    background:'rgba(45,158,45,0.1)', border:'1px solid #2d6a2d', color:'#6aaa6a', cursor:'pointer',
+                  }}>
+                  👤 Profile
+                </button>
+                <button
+                onClick={() => { setProfileNode(null); navigate('/letters', { state: { selectFriend: { id: profileNode.id, displayName: profileNode.nickname } } }) }}
+                style={{
+                  width: '100%', padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                  background: '#196219', border: '1px solid #2d9e2d', color: '#80d580', cursor: 'pointer',
+                }}>
+                ✉️ Write letter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -688,93 +783,6 @@ export default function MapPage() {
           {vehiclePos.length > 0 && ` · ${vehiclePos.length} in transit`}
         </span>
       </div>
-
-
-      {/* ── Profile modal — opens when clicking degree-1 node ── */}
-      {profileNode && (
-        <div className="absolute inset-0 z-[1000] flex items-end sm:items-center justify-center p-4"
-          onClick={() => setProfileNode(null)}>
-          <div onClick={e => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
-            style={{ background: '#0a1f0a', border: '1px solid #2d6a2d' }}>
-
-            {/* Header */}
-            <div style={{ background: 'linear-gradient(135deg, #0d2b0d, #142814)', padding: '20px 20px 16px' }}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div style={{
-                    width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-                    background: '#196219', border: '2px solid #2d9e2d',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: profileNode.mood ? 28 : 20, color: '#80d580', fontWeight: 700,
-                  }}>
-                    {profileNode.mood || profileNode.nickname?.[0]?.toUpperCase() || '?'}
-                  </div>
-                  <div>
-                    <p style={{ fontWeight: 800, fontSize: 18, color: '#e0ffe0', margin: 0, lineHeight: 1.2 }}>
-                      {profileNode.nickname}
-                    </p>
-                    {profileNode.fullName && profileNode.fullName !== profileNode.nickname && (
-                      <p style={{ fontSize: 11, color: '#4d8a4d', margin: '2px 0 0' }}>{profileNode.fullName}</p>
-                    )}
-                    <p style={{ fontSize: 11, color: '#4dba4d', margin: '3px 0 0' }}>
-                      📍 {profileNode.city}, {profileNode.country}
-                    </p>
-                  </div>
-                </div>
-                <button onClick={() => setProfileNode(null)}
-                  style={{ background: 'transparent', border: 'none', color: '#4d7a4d', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 0 }}>
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Stats row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid #196219' }}>
-              {[
-                { label: 'Seeds', value: `🌱 ${profileNode.seeds ?? '—'}` },
-                { label: 'Streak', value: profileStreak?.streakDays > 0 ? `🔥 ${profileStreak.streakDays}` : '—' },
-                { label: 'Fuel', value: profileStreak ? `⛽ ${profileStreak.fuel ?? 0}/3` : '—' },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: '12px 8px', textAlign: 'center', borderRight: '1px solid #196219' }}>
-                  <p style={{ fontSize: 14, color: '#80d580', margin: '0 0 2px', fontWeight: 600 }}>{value}</p>
-                  <p style={{ fontSize: 10, color: '#4d7a4d', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: '14px 20px 18px' }}>
-              {profileNode.jobRole && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                  <span style={{ fontSize: 16 }}>{JOB_EMOJIS[profileNode.jobRole]}</span>
-                  <span style={{ fontSize: 12, color: '#80a080' }}>
-                    {{'courier':'Courier','writer':'Writer','seed_broker':'Seed Broker','accountant':'Accountant','steward':'Steward','forecaster':'Forecaster','farmer':'Farmer'}[profileNode.jobRole] || profileNode.jobRole}
-                  </span>
-                </div>
-              )}
-              {profileNode.dailyNote && (
-                <div style={{ background: 'rgba(25,98,25,0.15)', border: '1px solid #196219',
-                  borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
-                  <p style={{ fontSize: 11, color: '#4d8a4d', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's note</p>
-                  <p style={{ fontSize: 13, color: '#c0e8c0', margin: 0, lineHeight: 1.5, fontStyle: 'italic' }}>
-                    {profileNode.noteEmoji && <span style={{ marginRight: 6 }}>{profileNode.noteEmoji}</span>}
-                    "{profileNode.dailyNote}"
-                  </p>
-                </div>
-              )}
-              <button
-                onClick={() => { setProfileNode(null); navigate('/letters', { state: { selectFriend: { id: profileNode.id, displayName: profileNode.nickname } } }) }}
-                style={{
-                  width: '100%', padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                  background: '#196219', border: '1px solid #2d9e2d', color: '#80d580', cursor: 'pointer',
-                }}>
-                ✉️ Write letter
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   )

@@ -149,8 +149,7 @@ export const gamesApi = {
 export const jobActionsApi = {
   // Courier
   courierQueue:      ()                         => api.get('/api/job-actions/courier/queue'),
-  courierRequest:    (courierId, recipientId)   => api.post('/api/job-actions/courier/request', { courierId, recipientId }),
-  myCourierRequests: ()                         => api.get('/api/job-actions/courier/my-requests'),
+  courierRequest:    (courierId)                => api.post('/api/job-actions/courier/request', { courierId }),
   courierRespond:    (id, action)               => api.patch(`/api/job-actions/courier/request/${id}`, { action }),
   // Writer
   writerCommissions: ()                         => api.get('/api/job-actions/writer/commissions'),
@@ -161,8 +160,7 @@ export const jobActionsApi = {
   // Broker
   brokerSession:     ()                         => api.get('/api/job-actions/broker/session'),
   openBrokerSession: (brokerId, seeds, hours)   => api.post('/api/job-actions/broker/open', { brokerId, seeds, durationHours: hours }),
-  brokerInvest:      (sessionId, targetId, t, amount) => api.post('/api/job-actions/broker/invest', { sessionId, targetId, targetType: t, amount }),
-  brokerAllocations: (sessionId)               => api.get(`/api/job-actions/broker/allocations/${sessionId}`),
+  brokerInvest:      (sessionId, targetId, t)   => api.post('/api/job-actions/broker/invest', { sessionId, targetId, targetType: t }),
   closeBrokerSession:(sessionId)                => api.post('/api/job-actions/broker/close', { sessionId }),
   // Accountant
   accountantClients: ()                         => api.get('/api/job-actions/accountant/clients'),
@@ -183,10 +181,7 @@ export const jobActionsApi = {
   farmerPlant:       (slot, seeds)              => api.post('/api/job-actions/farmer/plant', { slotIndex: slot, seeds }),
   farmerDeposit:     (farmerId, seeds)           => api.post('/api/job-actions/farmer/deposit', { farmerId, seeds }),
   myFarmerDeposits:  ()                         => api.get('/api/job-actions/farmer/my-deposits'),
-  markServicesRead:  ()                         => api.post('/api/job-actions/services/mark-read'),
-  serviceUnreadCount:()                         => api.get('/api/job-actions/services/unread-count'),
   farmerHarvest:     (slotId)                   => api.post('/api/job-actions/farmer/harvest', { slotId }),
-  farmerBuyPlot:     ()                         => api.post('/api/job-actions/farmer/buy-plot'),
 }
 
 export const jobsApi = {
@@ -216,14 +211,14 @@ export const groveApi = {
   history:     (userId, window)      => api.get(`/api/grove/history/${userId}?window=${window}`),
 }
 
-export const notesApi = {
-  likeNote:    (userId, emoji) => api.post(`/api/users/${userId}/like-note`, { emoji }),
-  unlikeNote:  (userId)       => api.delete(`/api/users/${userId}/like-note`),
-  myNoteLikes: ()             => api.get('/api/users/my-note-likes'),
+export const profileApi = {
+  me:      ()   => api.get('/api/profile/me'),
+  get:     (id) => api.get(`/api/profile/${id}`),
 }
 
-export const notificationsApi = {
-  get:      () => api.get('/api/notifications'),
-  readAll:  () => api.patch('/api/notifications/read'),
-  readType: (type) => api.patch(`/api/notifications/read/${type}`),
+export const momentsApi = {
+  upload:  (data)  => api.post('/api/moments', data),
+  mine:    ()      => api.get('/api/moments/mine'),
+  tagged:  ()      => api.get('/api/moments/tagged'),
+  remove:  (id)    => api.delete(`/api/moments/${id}`),
 }

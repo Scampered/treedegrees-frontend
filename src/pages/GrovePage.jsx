@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 
 // ── Time window config ────────────────────────────────────────────────────────
 const WINDOWS = [
-  { key: '1h',  label: '1h',  xStepMs: 5*60*1000,     xFormat: t => { const d=new Date(t); const m=d.getMinutes(); return m===0?`${d.getHours()%12||12}${d.getHours()<12?'a':'p'}`:`${m}m` } },
+  { key: '1h',  label: '1h',  xStepMs: 10*60*1000,    xFormat: t => { const d=new Date(t); return d.getMinutes()===0?`${d.getHours()%12||12}${d.getHours()<12?'a':'p'}`:`${d.getMinutes()}m` } },
   { key: '6h',  label: '6h',  xStepMs: 30*60*1000,    xFormat: t => { const d=new Date(t); return `${d.getHours()%12||12}${d.getHours()<12?'a':'p'}` } },
   { key: '12h', label: '12h', xStepMs: 2*3600*1000,   xFormat: t => { const d=new Date(t); return `${d.getHours()%12||12}${d.getHours()<12?'a':'p'}` } },
   { key: '1d',  label: '1d',  xStepMs: 4*3600*1000,   xFormat: t => { const d=new Date(t); return `${d.getHours()%12||12}${d.getHours()<12?'a':'p'}` } },
@@ -166,7 +166,7 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
     setLoad(true)
     load()
     // Polling: 12h → 1min, 1d → 2min, 1w → 5min
-    const interval = win === '1h' ? 60000 : win === '6h' ? 120000 : win === '12h' ? 300000 : win === '1d' ? 300000 : 600000
+    const interval = win === '1h' ? 90000 : win === '6h' ? 180000 : win === '12h' ? 300000 : win === '1d' ? 300000 : 600000
     timer.current = setInterval(load, interval)
     return () => clearInterval(timer.current)
   }, [load, win])
@@ -247,7 +247,7 @@ function MarketCard({ market }) {
 
   useEffect(() => {
     setLoad(true); load()
-    const iv = win === '1h' ? 60000 : win === '6h' ? 120000 : 300000
+    const iv = win === '1h' ? 90000 : win === '6h' ? 180000 : 300000
     timer.current = setInterval(load, iv)
     return () => clearInterval(timer.current)
   }, [load, win])
@@ -735,6 +735,7 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
 
 // ── Main GrovePage ────────────────────────────────────────────────────────────
 export default function GrovePage() {
+  const navigate = useNavigate()
   const { user }  = useAuth()
   const [me, setMe]                   = useState(null)
   const [connections, setConnections] = useState([])
@@ -759,29 +760,6 @@ export default function GrovePage() {
   }, [])
 
   useEffect(() => { reload() }, [reload])
-
-  // Refresh when seeds change (from poller or letter arrival)
-  useEffect(() => {
-    const onUpdate = () => reload()
-    const onBalance = (e) => setMe(prev => prev ? { ...prev, seeds: e.detail } : prev)
-    window.addEventListener('seeds-updated', onUpdate)
-    window.addEventListener('seeds-balance', onBalance)
-    return () => {
-      window.removeEventListener('seeds-updated', onUpdate)
-      window.removeEventListener('seeds-balance', onBalance)
-    }
-  }, [reload])
-
-  // Poll just the seeds balance every 15s — cheap single query, updates header
-  useEffect(() => {
-    const iv = setInterval(async () => {
-      try {
-        const r = await groveApi.seeds()
-        setMe(prev => prev ? { ...prev, seeds: r.data.seeds } : prev)
-      } catch {}
-    }, 15000)
-    return () => clearInterval(iv)
-  }, [])
 
   const sorted = [...connections]
     .filter(c => sort === 'invested' ? c.myInvestment > 0 : true)

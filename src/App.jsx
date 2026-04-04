@@ -15,6 +15,8 @@ import LettersPage from './pages/LettersPage'
 import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/AdminPage'
 import GuidePage from './pages/GuidePage'
+import ProfilePage from './pages/ProfilePage'
+import MyWorldPage from './pages/MyWorldPage'
 import GroupsPage from './pages/GroupsPage'
 import GrovePage from './pages/GrovePage'
 import GamesPage from './pages/GamesPage'
@@ -111,7 +113,11 @@ export default function App() {
             <Route path="/letters" element={<MaintenanceGuard pageKey="letters"><LettersPage /></MaintenanceGuard>} />
             <Route path="/settings" element={<MaintenanceGuard pageKey="settings"><SettingsPage /></MaintenanceGuard>} />
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
-            <Route path="/guide" element={<GuidePage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/profile/:id" element={<ProfilePage />} />
+              <Route path="/my-world" element={<MyWorldPage />} />
+              <Route path="/memories" element={<MyWorldPage />} />
+              <Route path="/guide" element={<GuidePage />} />
             <Route path="/groups" element={<GroupsPage />} />
           </Route>
 

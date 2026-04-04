@@ -32,14 +32,13 @@ function weatherEmoji(theme) {
 function NoteCard({ note, isOwn, myReaction, onReact }) {
   const [flipped, setFlipped]   = useState(false)
   const [reacting, setReacting] = useState(false)
-  const emoji        = note.noteEmoji || note.mood || '🌿'
+  const emoji        = note.mood || '🌿'
   const isForecaster = note.note?.startsWith('📡')
   const displayEmoji = isForecaster ? '📡' : emoji
   const timeStr      = note.notePostedAt
     ? new Date(note.notePostedAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
     : ''
   const likes = note.likes || []
-  const likeCount = note.likeCount || likes.length
 
   // Theme-aware colours via CSS vars
   const cardBack  = 'rgb(var(--f900) / 0.85)'
@@ -55,8 +54,9 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
   }
 
   return (
-    <div className="flex-shrink-0 w-32 select-none"
-      style={{ perspective: 900 }}>
+    <div className="flex-shrink-0 w-32 cursor-pointer select-none"
+      style={{ perspective: 900 }}
+      onClick={() => { if (!reacting) setFlipped(f => !f) }}>
       <div style={{
         position:'relative', width:'100%', paddingBottom:'150%',
         transition:'transform 0.45s cubic-bezier(.4,0,.2,1)',
@@ -65,11 +65,11 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
       }}>
 
         {/* ── BACK FACE (shown by default) ── */}
-        <div onClick={() => setFlipped(true)} style={{
+        <div style={{
           position:'absolute', inset:0, backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
           borderRadius:16, background: cardBack, border:`1.5px solid ${border}`,
           display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-          padding:'10px 8px', overflow:'hidden', cursor:'pointer',
+          padding:'10px 8px', overflow:'hidden',
         }}>
           {/* Streak */}
           {note.streakDays > 0 && (
@@ -84,29 +84,23 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
           <span style={{ fontSize:42, lineHeight:1.1 }}>{displayEmoji}</span>
 
           {/* Heart / reaction button — centred below emoji */}
-          {!isOwn && (
-            <button
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); setReacting(r => !r) }}
-              style={{
-                marginTop:8, background: reacting ? 'rgba(74,186,74,0.15)' : 'transparent',
-                border: reacting ? '1px solid rgba(74,186,74,0.3)' : '1px solid transparent',
-                borderRadius:8, cursor:'pointer', fontSize:18, padding:'3px 8px',
-                transition:'all 0.15s', display:'flex', alignItems:'center', gap:4,
-              }}>
-              <span>{myReaction || '🤍'}</span>
-              {myReaction && <span style={{ fontSize:9, color:'rgb(var(--f400))' }}>✓</span>}
-            </button>
-          )}
+          <button
+            onClick={handleHeartClick}
+            style={{
+              marginTop:8, background:'transparent', border:'none', cursor: isOwn ? 'default' : 'pointer',
+              fontSize:18, opacity: isOwn ? 0 : 0.55, transition:'opacity 0.15s',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>
+            {myReaction || '🤍'}
+          </button>
 
           {/* Reaction picker */}
           {reacting && (
-            <div onClick={e => { e.stopPropagation(); e.preventDefault() }}
-              style={{ display:'flex', gap:3, flexWrap:'wrap', justifyContent:'center', marginTop:4 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'center', marginTop:4 }}>
               {['🌿','❤️','🔥','😂','👀','💯'].map(r => (
-                <button key={r}
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReact(note.userId, r); setReacting(false) }}
-                  style={{ fontSize:15, background: myReaction===r ? 'rgba(74,186,74,0.2)' : 'transparent',
-                    border:'none', cursor:'pointer', padding:2, borderRadius:6 }}>
+                <button key={r} onClick={() => { onReact(note.userId, r); setReacting(false) }}
+                  style={{ fontSize:16, background:'transparent', border:'none', cursor:'pointer', padding:1 }}>
                   {r}
                 </button>
               ))}
@@ -124,11 +118,11 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
         </div>
 
         {/* ── FRONT FACE (after flip) ── */}
-        <div onClick={() => { if (!reacting) setFlipped(false) }} style={{
+        <div style={{
           position:'absolute', inset:0, backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
           borderRadius:16, background: cardFront, border:`1.5px solid ${border}`,
           transform:'rotateY(180deg)',
-          display:'flex', flexDirection:'column', padding:10, overflow:'hidden', cursor:'pointer',
+          display:'flex', flexDirection:'column', padding:10, overflow:'hidden',
         }}>
           <div style={{ fontSize:20, textAlign:'center', marginBottom:4 }}>{displayEmoji}</div>
           <p style={{ color: textMain, fontSize:10, lineHeight:1.5, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:6, WebkitBoxOrient:'vertical' }}>
@@ -145,7 +139,7 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
                   display:'flex', gap:2, alignItems:'center',
                 }}>
                   <span>{l.emoji}</span>
-                  <span>{l.likerName?.length > 10 ? l.likerName.slice(0,9)+'…' : l.likerName}</span>
+                  <span>{l.likerName?.length > 7 ? l.likerName.slice(0,6)+'-' : l.likerName}</span>
                 </div>
               ))}
             </div>
@@ -159,7 +153,7 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
                   background:'rgba(240,220,100,0.12)', border:'1px solid rgba(240,220,100,0.22)',
                   borderRadius:4, padding:'2px 4px', fontSize:8, color:'rgba(240,230,150,0.75)',
                 }}>
-                  {l.emoji} {l.likerName?.length > 10 ? l.likerName.slice(0,9)+'…' : l.likerName}
+                  {l.emoji} {l.likerName?.length > 7 ? l.likerName.slice(0,6)+'-' : l.likerName}
                 </div>
               ))}
             </div>
@@ -175,59 +169,52 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
   )
 }
 
+// ── Streak connection card
 // ── Streak connection card ────────────────────────────────────────────────────
-function ConnectionCard({ friend, myId, onViewMap, onWriteLetter }) {
-  const streak   = friend.streak || {}
-  const fuel     = streak.fuel ?? 3
-  const days     = streak.streakDays ?? 0
-  const iSent    = streak.iSentToday || false
-  const theySent = streak.theySentToday || false
-  const atRisk   = fuel <= 1 && days > 0
+function ConnectionCard({ friend, myId, onSelect }) {
+  const streak = friend.streak || {}
+  const fuel   = streak.fuel ?? 3
+  const days   = streak.streak_days ?? 0
+  const iSent  = streak.user_id_1 === myId ? streak.user1_sent_today : streak.user2_sent_today
+  const theySent = streak.user_id_1 === myId ? streak.user2_sent_today : streak.user1_sent_today
+  const atRisk = fuel <= 1 && days > 0
 
   return (
-    <div className={`rounded-2xl border flex items-center transition-colors overflow-hidden
-      ${atRisk ? 'bg-amber-950/30 border-amber-900/60' : 'bg-forest-900/40 border-forest-800'}`}>
-      {/* Main area → view on map */}
-      <div onClick={() => onViewMap && onViewMap(friend)}
-        className="flex items-center gap-3 flex-1 min-w-0 px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-lg flex-shrink-0
-          ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
-          {friend.mood || '🌿'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-forest-200 text-sm font-medium truncate">{friend.displayName}</p>
-            {days > 0 && (
-              <span className={`text-xs font-mono flex-shrink-0 ${atRisk ? 'text-amber-400' : 'text-forest-500'}`}>
-                🔥{days}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <div className="flex gap-0.5">
-              {[0,1,2].map(i => (
-                <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < fuel ? (atRisk ? 'bg-amber-400' : 'bg-forest-500') : 'bg-forest-800'}`}/>
-              ))}
-            </div>
-            <span className="text-forest-600 text-xs">
-              {iSent && theySent ? '✓ Both sent' :
-               iSent ? '✓ You sent' :
-               theySent ? 'They sent' :
-               days > 0 ? (atRisk ? '⚠️ At risk' : 'Not sent today') : 'No streak yet'}
+    <div onClick={() => onSelect(friend)}
+      className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors cursor-pointer
+        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-forest-900/40 border-forest-800 hover:border-forest-600'}`}>
+      {/* Avatar */}
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
+        ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
+        {friend.mood || '🌿'}
+      </div>
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-forest-200 text-sm font-medium truncate">{friend.displayName}</p>
+          {days > 0 && (
+            <span className={`text-xs font-mono flex-shrink-0 ${atRisk ? 'text-amber-400' : 'text-forest-500'}`}>
+              🔥{days}
             </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          {/* Fuel dots */}
+          <div className="flex gap-0.5">
+            {[0,1,2].map(i => (
+              <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < fuel ? (atRisk ? 'bg-amber-400' : 'bg-forest-500') : 'bg-forest-800'}`}/>
+            ))}
           </div>
+          <span className="text-forest-600 text-xs">
+            {iSent && theySent ? '✓ Both sent today' :
+             iSent ? '✓ You sent' :
+             theySent ? 'They sent' :
+             days > 0 ? (atRisk ? '⚠️ At risk' : 'Not sent today') : 'No streak yet'}
+          </span>
         </div>
       </div>
-      {/* Letter button — separate, right side */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onWriteLetter && onWriteLetter(friend) }}
-        className={`flex-shrink-0 px-4 py-3 border-l transition-colors
-          ${atRisk
-            ? 'border-amber-900/40 text-amber-500 hover:text-amber-300 hover:bg-amber-950/30'
-            : 'border-forest-800 text-forest-500 hover:text-forest-200 hover:bg-forest-800/50'}`}
-        title={`Write to ${friend.displayName}`}>
-        ✉️
-      </button>
+      {/* Send nudge */}
+      <span className="text-forest-600 text-lg flex-shrink-0">✉️</span>
     </div>
   )
 }
@@ -242,7 +229,6 @@ export default function DashboardPage() {
   const [friendNotes, setFriendNotes] = useState([])
   const [streaks, setStreaks]        = useState([])
   const [note, setNote]             = useState('')
-  const [noteEmoji, setNoteEmoji]   = useState(null)
   const [noteStatus, setNoteStatus] = useState('')
   const [noteLoading, setNoteLoading] = useState(false)
   const [hoursLeft, setHoursLeft]   = useState(null)
@@ -293,9 +279,9 @@ export default function DashboardPage() {
     if (!note.trim()) return
     setNoteLoading(true); setNoteStatus('')
     try {
-      const { data } = await usersApi.postDailyNote(note, noteEmoji)
-      updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt, noteEmoji: data.noteEmoji })
-      setHoursLeft('24.0'); setNote(''); setNoteEmoji(null)
+      const { data } = await usersApi.postDailyNote(note)
+      updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt })
+      setHoursLeft('24.0'); setNote('')
       setNoteStatus('✓ Posted!')
     } catch (err) {
       setNoteStatus(err.response?.data?.error || 'Could not post note')
@@ -316,27 +302,30 @@ export default function DashboardPage() {
   const ownNote = user?.dailyNote ? {
     userId: user.id, displayName: user.nickname || user.fullName?.split(' ')[0],
     note: user.dailyNote, notePostedAt: user.dailyNoteUpdatedAt,
-    noteEmoji: user.noteEmoji, mood: user.mood, likes: myNoteLikes, streakDays: 0,
+    mood: user.mood, likes: myNoteLikes, streakDays: 0,
   } : null
 
   const notesWithStreaks = friendNotes.map(n => {
-    const streak = streaks.find(s => s.friendId === n.userId || s.friendId === n.id)
-    return { ...n, streakDays: streak?.streakDays || 0 }
+    const streak = streaks.find(s =>
+      (s.user_id_1 === n.userId || s.user_id_2 === n.userId)
+    )
+    return { ...n, streakDays: streak?.streak_days || 0 }
   })
 
   // Sort connections: at-risk first, then not-sent-today, then healthy
   const enrichedFriends = friends.map(f => {
-    const streak = streaks.find(s => s.friendId === f.id)
+    const streak = streaks.find(s => s.user_id_1 === f.id || s.user_id_2 === f.id)
     return { ...f, streak }
   }).sort((a, b) => {
-    const aRisk = (a.streak?.fuel ?? 3) <= 1 && (a.streak?.streakDays ?? 0) > 0
-    const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streakDays ?? 0) > 0
+    const aRisk = (a.streak?.fuel ?? 3) <= 1 && (a.streak?.streak_days ?? 0) > 0
+    const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streak_days ?? 0) > 0
     if (aRisk && !bRisk) return -1
     if (!aRisk && bRisk) return 1
-    return (b.streak?.streakDays ?? 0) - (a.streak?.streakDays ?? 0)
+    // Sort by streak days descending
+    return (b.streak?.streak_days ?? 0) - (a.streak?.streak_days ?? 0)
   })
 
-  const atRiskCount = enrichedFriends.filter(f => (f.streak?.fuel ?? 3) <= 1 && (f.streak?.streakDays ?? 0) > 0).length
+  const atRiskCount = enrichedFriends.filter(f => (f.streak?.fuel ?? 3) <= 1 && (f.streak?.streak_days ?? 0) > 0).length
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -345,7 +334,7 @@ export default function DashboardPage() {
       <div className="px-5 pt-6 pb-4 flex items-start justify-between gap-3 flex-shrink-0">
         {/* Weather emoji + name + location */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-          <Link to="/settings" state={{ scrollTo: 'theme' }}
+          <Link to="/profile"
             className="flex-shrink-0 select-none leading-none hover:opacity-80 transition-opacity self-start"
             title="Change theme in Settings">
             <span style={{ fontSize: 52, lineHeight: 1 }}>
@@ -463,9 +452,6 @@ export default function DashboardPage() {
           </div>
           <div className="p-4">
             <MoodPicker compact />
-            {!user?.mood && (
-              <p className="text-forest-700 text-xs mt-1">💡 Set a mood — it shows on your note card and earns +10 🌱</p>
-            )}
             {user?.dailyNote && (
               <div className="mt-3 py-2 px-3 rounded-xl bg-forest-800/60 border-l-2 border-forest-600">
                 <p className="text-forest-300 text-sm italic">"{user.dailyNote}"</p>
@@ -510,8 +496,7 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-2">
               {enrichedFriends.slice(0, 6).map(f => (
                 <ConnectionCard key={f.id} friend={f} myId={user?.id}
-                  onViewMap={conn => navigate('/map', { state: { flyTo: { lat: conn.latitude, lng: conn.longitude } } })}
-                  onWriteLetter={conn => navigate('/letters', { state: { selectFriend: conn } })} />
+                  onSelect={f => navigate('/letters', { state: { selectFriend: f } })} />
               ))}
               {enrichedFriends.length > 6 && (
                 <Link to="/friends"

@@ -14,26 +14,22 @@ const sidebarItems = [
   { to: '/dashboard', icon: '🌳', fullLabel: 'Home'        },
   { to: '/letters',   icon: '✉️',  fullLabel: 'Letters'     },
   { to: '/map',       icon: '🗺️', fullLabel: 'Globe Map'   },
+  { to: '/my-world',  icon: '📸', fullLabel: 'My World'    },
   { to: '/grove',     icon: '🪴', fullLabel: 'Grove',      extra: '💼', extraLabel: 'Jobs', extraTo: '/jobs' },
-  { to: '/friends',   icon: '🌱', fullLabel: 'Connections' },
   { to: '/feed',      icon: '📝', fullLabel: 'Notes'       },
-]
-
-const sidebarMoreItems = [
-  { to: '/groups',    icon: '☘️', fullLabel: 'Groups'      },
-  { to: '/games',     icon: '🎮', fullLabel: 'Games'       },
-  { to: '/guide',     icon: '📖', fullLabel: 'Guide'       },
+  { to: '/friends',   icon: '🌱', fullLabel: 'Connections' },
 ]
 
 const mobileNavItems = [
-  { to: '/letters',   icon: '✉️',  label: 'Letters' },
-  { to: '/map',       icon: '🗺️', label: 'Map'     },
-  { to: '/dashboard', icon: '🌳', label: 'Home',   isCenter: true },
-  { to: '/grove',     icon: '🪴', label: 'Grove'   },
-  { key: 'more',      icon: '☰',  label: 'More',   isMore: true },
+  { to: '/letters',   icon: '✉️',  label: 'Letters'  },
+  { to: '/map',       icon: '🗺️', label: 'Map'      },
+  { to: '/dashboard', icon: '🌳', label: 'Home',    isCenter: true },
+  { to: '/my-world',  icon: '📸', label: 'My World' },
+  { key: 'more',      icon: '☰',  label: 'More',    isMore: true },
 ]
 
 const moreItems = [
+  { to: '/profile',  icon: '👤', label: 'My Profile'  },
   { to: '/jobs',     icon: '💼', label: 'Jobs'        },
   { to: '/friends',  icon: '🌿', label: 'Connections' },
   { to: '/feed',     icon: '📝', label: 'Notes'       },
@@ -51,7 +47,6 @@ export default function Layout() {
   const [unreadLetters, setUnreadLetters] = useState(0)
   const [groupInvites, setGroupInvites]   = useState(0)
   const [showMore, setShowMore]           = useState(false)
-  const [showSideMore, setShowSideMore]   = useState(false)
   const [showNotif, setShowNotif]         = useState(false)
   const [unreadCount, setUnreadCount]     = useState(0)
 
@@ -66,6 +61,34 @@ export default function Layout() {
   }, [])
 
   useEffect(() => { registerSW() }, [])
+  // ── Live location auto-update (once per hour, only if moved >2km) ──────────
+  useEffect(() => {
+    if (!user?.id) return
+    const stored = localStorage.getItem('td_loc_ts')
+    if (stored && Date.now() - parseInt(stored) < 3600000) return
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const { latitude, longitude } = pos.coords
+      if (user.latitude && user.longitude) {
+        const dlat = latitude - user.latitude, dlng = longitude - user.longitude
+        const dist = Math.sqrt(dlat*dlat + dlng*dlng) * 111
+        if (dist < 2) { localStorage.setItem('td_loc_ts', Date.now().toString()); return }
+      }
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`, { headers: { 'Accept-Language': 'en' } })
+        const d = await r.json()
+        const city = d.address?.city||d.address?.town||d.address?.village||d.address?.suburb||''
+        const country = d.address?.country||''
+        if (city || country) {
+          await usersApi.updateProfile({ city, country, latitude, longitude })
+          updateUser({ city, country, latitude, longitude })
+        }
+        localStorage.setItem('td_loc_ts', Date.now().toString())
+      } catch {}
+    }, () => {}, { timeout: 8000, maximumAge: 300000 })
+  }, [user?.id]) // eslint-disable-line
+
+
   useEffect(() => { if (user) applyForUser(user) }, [user?.id, user?.city, user?.country]) // eslint-disable-line
   useEffect(() => { setShowMore(false) }, [location.pathname])
 
@@ -242,31 +265,6 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* Desktop sidebar More — collapsible with ☰ */}
-        <div className="px-3 pb-2 border-t border-forest-800/50 pt-1">
-          <button onClick={() => setShowSideMore(s => !s)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-forest-600
-                       hover:text-forest-400 hover:bg-forest-900/60 transition-colors text-xs font-medium">
-            <span className="text-base">☰</span>
-            <span className="uppercase tracking-wider text-[10px]">More</span>
-            <span className="ml-auto text-forest-700">{showSideMore ? '▲' : '▼'}</span>
-          </button>
-          {showSideMore && (
-            <div className="mt-0.5">
-              {sidebarMoreItems.map(({ to, icon, fullLabel }) => (
-                <NavLink key={to} to={to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all
-                     ${isActive ? 'bg-forest-800 text-forest-200' : 'text-forest-600 hover:text-forest-400 hover:bg-forest-900/60'}`
-                  }>
-                  <span>{icon}</span>
-                  <span>{fullLabel}</span>
-                </NavLink>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="p-4 border-t border-forest-800 flex items-center gap-2">
           <NavLink to="/settings"
             className={({ isActive }) =>
@@ -296,9 +294,9 @@ export default function Layout() {
               <span className="text-sm font-medium">Notes</span>
             </Link>
             <div className="relative">
-              <button className="relative w-9 h-9 flex items-center justify-center rounded-xl
-                           text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors"
-                onClick={() => { setShowNotif(s => !s); setUnreadCount(0) }}>
+              <button onClick={() => setShowNotif(s => !s)}
+                className="relative w-9 h-9 flex items-center justify-center rounded-xl
+                           text-forest-400 hover:text-forest-200 hover:bg-forest-800 transition-colors">
                 <span>🔔</span>
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5
@@ -309,7 +307,11 @@ export default function Layout() {
                 )}
               </button>
               {showNotif && (
-                <NotificationPanel onClose={() => setShowNotif(false)} />
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}>
+                  <div onClick={e => e.stopPropagation()} className="absolute top-16 right-4">
+                    <NotificationPanel onClose={() => setShowNotif(false)} />
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -318,10 +320,10 @@ export default function Layout() {
         {/* Desktop floating bell — top-right, hidden on map */}
         {!isMap && (
           <div className="hidden lg:block absolute top-[72px] right-4 z-30">
-            <button className="relative w-10 h-10 flex items-center justify-center rounded-xl
+            <button onClick={() => setShowNotif(s => !s)}
+              className="relative w-10 h-10 flex items-center justify-center rounded-xl
                          bg-forest-900/80 border border-forest-700 backdrop-blur-sm
-                         text-forest-400 hover:text-forest-200 hover:border-forest-500 transition-colors shadow-lg"
-              onClick={() => { setShowNotif(s => !s); setUnreadCount(0) }}>
+                         text-forest-400 hover:text-forest-200 hover:border-forest-500 transition-colors shadow-lg">
               <span className="text-lg">🔔</span>
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1

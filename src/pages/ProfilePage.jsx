@@ -55,6 +55,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [weather, setWeather] = useState(null)
+  const [grove, setGrove] = useState(null)
 
   useEffect(() => {
     const endpoint = isOwn ? '/api/profile/me' : `/api/profile/${id}`
@@ -62,6 +63,12 @@ export default function ProfilePage() {
       .then(r => {
         setProfile(r.data)
         fetchWeatherTheme(r.data.city, r.data.country).then(setWeather)
+        // Fetch grove stock for connection profiles
+        if (!isOwn) {
+          api.get(`/api/grove/connection/${r.data.id}`).then(g => setGrove(g.data)).catch(() => {})
+        } else {
+          api.get('/api/grove/my').then(g => setGrove(g.data)).catch(() => {})
+        }
       })
       .catch(e => {
         if (e.response?.status===403) setError('This profile is only visible to their connections.')
@@ -191,6 +198,33 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {/* Grove / Seeds chart */}
+        {grove && (
+          <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
+            <p className="text-forest-600 text-xs uppercase tracking-wide mb-3">Grove</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-forest-50 font-display text-2xl">🌱 {grove.seeds ?? grove.currentSeeds ?? '—'}</p>
+                <p className="text-forest-600 text-xs mt-0.5">seeds balance</p>
+              </div>
+              {grove.priceChange !== undefined && (
+                <div className="text-right">
+                  <p className={`text-sm font-medium ${grove.priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {grove.priceChange >= 0 ? '↑' : '↓'} {Math.abs(grove.priceChange).toFixed(1)}%
+                  </p>
+                  <p className="text-forest-600 text-xs">7-day change</p>
+                </div>
+              )}
+              {!isOwn && (
+                <button onClick={() => window.location.href='/grove'}
+                  className="text-forest-500 text-xs hover:text-forest-300 ml-4">
+                  Invest →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Job */}
         {profile.jobRole && (

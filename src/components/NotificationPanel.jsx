@@ -1,107 +1,79 @@
-// src/components/NotificationPanel.jsx
-import { useState, useEffect, useCallback, useRef } from 'react'
+// src/components/NotificationPanel.jsx — flat list, oldest first, 24h window
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { notificationsApi } from '../api/client'
 
 const TYPE_META = {
-  letter_arrived:      { icon: '✉️',  label: 'Letter arrived',     link: '/letters',   section: 'Letters'     },
-  letter_sent:         { icon: '📤',  label: 'Letter sent',        link: '/letters',   section: 'Letters'     },
-  seeds_earned:        { icon: '🌱',  label: 'Seeds earned',       link: '/grove',     section: 'Grove'       },
-  grove_invest:        { icon: '📈',  label: 'Investment',         link: '/grove',     section: 'Grove'       },
-  grove_withdraw:      { icon: '📉',  label: 'Withdrawal',         link: '/grove',     section: 'Grove'       },
-  job_hired:           { icon: '💼',  label: 'Job activity',       link: '/jobs',      section: 'Jobs'        },
-  job_advice:          { icon: '📊',  label: 'Accountant advice',  link: '/jobs',      section: 'Jobs'        },
-  job_commission:      { icon: '✍️',  label: 'Commission ready',   link: '/jobs',      section: 'Jobs'        },
-  job_nudge:           { icon: '🔔',  label: 'Streak nudge',       link: '/letters',   section: 'Letters'     },
-  connection_request:  { icon: '🌿',  label: 'Connection request', link: '/friends',   section: 'Connections' },
-  connection_accepted: { icon: '✅',  label: 'Connected',          link: '/friends',   section: 'Connections' },
-  note_posted:         { icon: '📝',  label: 'Note posted',        link: '/feed',      section: 'Notes'       },
-  forecaster_post:     { icon: '📡',  label: 'Forecast update',    link: '/jobs',      section: 'Jobs'        },
+  letter_arrived:      { icon:'✉️',  label:'Letter arrived',    link:'/letters'  },
+  seeds_earned:        { icon:'🌱',  label:'Seeds earned',      link:'/grove'    },
+  grove_invest:        { icon:'📈',  label:'New investment',    link:'/grove'    },
+  grove_withdraw:      { icon:'📉',  label:'Withdrawal',        link:'/grove'    },
+  job_hired:           { icon:'💼',  label:'Job update',        link:'/jobs'     },
+  job_advice:          { icon:'📊',  label:'Advice received',   link:'/jobs'     },
+  job_commission:      { icon:'✍️',  label:'Commission ready',  link:'/jobs'     },
+  job_nudge:           { icon:'🔔',  label:'Streak nudge',      link:'/letters'  },
+  connection_request:  { icon:'🌿',  label:'Connection request',link:'/friends'  },
+  connection_accepted: { icon:'✅',  label:'Connected',         link:'/friends'  },
+  note_posted:         { icon:'📝',  label:'Note posted',       link:'/feed'     },
+  forecaster_post:     { icon:'📡',  label:'Forecast',          link:'/jobs'     },
 }
 
-const SECTION_ORDER = ['Letters', 'Connections', 'Grove', 'Jobs', 'Notes']
-
 function fmtTime(d) {
-  const ms  = Date.now() - new Date(d)
-  const min = Math.floor(ms / 60000)
-  const hr  = Math.floor(ms / 3600000)
-  const day = Math.floor(ms / 86400000)
-  if (min < 1)  return 'just now'
+  const ms = Date.now() - new Date(d)
+  const min = Math.floor(ms/60000), hr = Math.floor(ms/3600000)
+  if (min < 1) return 'just now'
   if (min < 60) return `${min}m ago`
-  if (hr  < 24) return `${hr}h ago`
-  return `${day}d ago`
+  return `${hr}h ago`
 }
 
 export default function NotificationPanel({ onClose }) {
-  const [data, setData]       = useState(null)
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const navigate              = useNavigate()
-  const panelRef              = useRef(null)
+  const navigate = useNavigate()
+  const panelRef = useRef(null)
 
-  const load = useCallback(async () => {
-    try {
-      const r = await notificationsApi.get()
-      setData(r.data)
-    } catch {} finally { setLoading(false) }
+  useEffect(() => {
+    // Fetch raw notifications, flatten, filter to 24h, sort oldest first
+    notificationsApi.get().then(r => {
+      const all = []
+      for (const n of (r.data.notifications || [])) {
+        // Each grouped item — expand back to individual for flat display
+        // Since we only have grouped data, show each group as one item sorted by latest_at
+        all.push(n)
+      }
+      // Filter to last 24h, sort oldest first
+      const cutoff = Date.now() - 86400000
+      const filtered = all
+        .filter(n => new Date(n.latest_at).getTime() > cutoff)
+        .sort((a,b) => new Date(a.latest_at) - new Date(b.latest_at))
+      setItems(filtered)
+    }).catch(()=>{}).finally(()=>setLoading(false))
+    notificationsApi.readAll().catch(()=>{})
   }, [])
 
   useEffect(() => {
-    load()
-    // Mark all read immediately when panel opens — clears the badge
-    notificationsApi.readAll().catch(() => {})
-  }, [load])
-
-  // Close on outside click — using mousedown so it fires before click events on other elements
-  useEffect(() => {
-    const handler = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        onClose()
-      }
+    const handler = e => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) onClose()
     }
-    // Small delay so the button click that opened the panel doesn't immediately close it
-    const timeout = setTimeout(() => {
-      document.addEventListener('mousedown', handler)
-    }, 50)
-    return () => {
-      clearTimeout(timeout)
-      document.removeEventListener('mousedown', handler)
-    }
+    const t = setTimeout(() => document.addEventListener('mousedown', handler), 50)
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler) }
   }, [onClose])
 
-  const handleClick = (notif) => {
-    const meta = TYPE_META[notif.type]
-    const dest = meta?.link || notif.link || '/dashboard'
-    navigate(dest)
+  const handleClick = (item) => {
+    const meta = TYPE_META[item.type]
+    navigate(meta?.link || item.link || '/dashboard')
     onClose()
   }
 
-  // Group by section
-  const grouped = {}
-  if (data?.notifications) {
-    for (const n of data.notifications) {
-      const meta = TYPE_META[n.type] || { icon: '🔔', label: n.type, section: 'Other' }
-      const section = meta.section
-      if (!grouped[section]) grouped[section] = []
-      grouped[section].push({ ...n, meta })
-    }
-  }
-
-  const sections = SECTION_ORDER.filter(s => grouped[s])
-  if (grouped['Other']) sections.push('Other')
-
   return (
     <div ref={panelRef}
-      className="absolute right-0 top-12 z-50 w-80 max-h-[480px] overflow-y-auto
+      className="absolute right-0 top-12 z-50 w-80 max-h-[500px] overflow-y-auto
                  bg-forest-950 border border-forest-700 rounded-2xl shadow-2xl flex flex-col"
       style={{ minWidth: 300 }}>
 
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-forest-800 flex-shrink-0">
         <p className="text-forest-100 font-medium text-sm">Notifications</p>
-        <button onClick={onClose}
-          className="text-forest-600 hover:text-forest-300 text-lg leading-none w-7 h-7 flex items-center justify-center">
-          ✕
-        </button>
+        <span className="text-forest-600 text-xs">Last 24h</span>
       </div>
 
       {loading && (
@@ -110,24 +82,23 @@ export default function NotificationPanel({ onClose }) {
         </div>
       )}
 
-      {!loading && sections.length === 0 && (
+      {!loading && items.length === 0 && (
         <div className="text-center py-10">
           <p className="text-4xl mb-2">🔔</p>
-          <p className="text-forest-500 text-sm">No notifications yet</p>
+          <p className="text-forest-600 text-sm">No notifications in the last 24 hours</p>
         </div>
       )}
 
-      {sections.map(section => (
-        <div key={section}>
-          <p className="px-4 pt-3 pb-1 text-forest-600 text-[10px] font-medium uppercase tracking-wider">
-            {section}
-          </p>
-          {grouped[section].map(n => (
-            <button key={n.type} onClick={() => handleClick(n)}
-              className={`w-full flex items-start gap-3 px-4 py-2.5 hover:bg-forest-900/60
-                         transition-colors text-left
+      {/* Flat list — oldest first */}
+      <div className="flex flex-col">
+        {items.map((n, i) => {
+          const meta = TYPE_META[n.type] || { icon:'🔔', label: n.type }
+          return (
+            <button key={`${n.type}-${i}`} onClick={() => handleClick(n)}
+              className={`flex items-start gap-3 px-4 py-3 hover:bg-forest-900/60 transition-colors text-left
+                         border-b border-forest-800/50 last:border-0
                          ${n.has_unread ? 'bg-forest-900/30' : ''}`}>
-              <span className="text-xl flex-shrink-0 mt-0.5">{n.meta.icon}</span>
+              <span className="text-xl flex-shrink-0 mt-0.5">{meta.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <p className={`text-sm font-medium truncate ${n.has_unread ? 'text-forest-100' : 'text-forest-400'}`}>
@@ -135,21 +106,17 @@ export default function NotificationPanel({ onClose }) {
                   </p>
                   <span className="text-forest-700 text-xs flex-shrink-0">{fmtTime(n.latest_at)}</span>
                 </div>
-                {n.body && (
-                  <p className="text-forest-500 text-xs truncate mt-0.5">{n.body}</p>
-                )}
+                {n.body && <p className="text-forest-500 text-xs truncate mt-0.5">{n.body}</p>}
               </div>
-              {n.has_unread && (
-                <div className="w-1.5 h-1.5 rounded-full bg-forest-400 flex-shrink-0 mt-2"/>
-              )}
+              {n.has_unread && <div className="w-1.5 h-1.5 rounded-full bg-forest-400 flex-shrink-0 mt-2"/>}
             </button>
-          ))}
-        </div>
-      ))}
+          )
+        })}
+      </div>
 
-      {sections.length > 0 && (
+      {items.length > 0 && (
         <div className="border-t border-forest-800 px-4 py-2 flex-shrink-0">
-          <button onClick={() => { notificationsApi.readAll(); load() }}
+          <button onClick={() => { notificationsApi.readAll(); onClose() }}
             className="text-forest-600 text-xs hover:text-forest-400 transition-colors">
             Mark all read
           </button>
