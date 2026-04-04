@@ -341,8 +341,7 @@ export default function MapPage() {
         <div className="flex items-center gap-1">
           {['all','1','2','3'].map(v => (
             <button key={v} onClick={() => setFilter(v)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors
-                ${filter===v ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${filter===v ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
               {v==='all' ? 'All' : `${v}°`}
             </button>
           ))}
@@ -353,8 +352,7 @@ export default function MapPage() {
           Hide private
         </label>
         <button onClick={() => setShowGroups(s => !s)}
-          className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1
-            ${showGroups ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
+          className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ${showGroups ? 'bg-forest-700 text-forest-100' : 'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
           ☘️ GCs
         </button>
         <button onClick={loadMap} className="btn-ghost text-xs py-1 px-3">↻</button>
@@ -427,7 +425,7 @@ export default function MapPage() {
                     <div style={{ fontFamily:'Dosis,sans-serif' }}>
                       <p style={{ fontSize:11, color:'#80d580', margin:'0 0 4px', fontWeight:600 }}>{node.nickname}</p>
                       <p style={{ fontSize:12, color:'#c0f0c0', margin:0, fontStyle:'italic', lineHeight:1.4 }}>
-                        "{node.dailyNote}"
+                        {`"${node.dailyNote}"`}
                       </p>
                     </div>
                   </Tooltip>
@@ -493,7 +491,7 @@ export default function MapPage() {
                         {node.degree !== 1 && node.dailyNote && (
                           <p style={{ fontSize:11, color:'#80d580', fontStyle:'italic',
                             borderTop:'1px solid #196219', paddingTop:5, lineHeight:1.4 }}>
-                            "{node.dailyNote.slice(0,80)}{node.dailyNote.length > 80 ? '…' : ''}"
+                            "{"}{node.dailyNote.slice(0,80)}{node.dailyNote.length > 80 ? '…' : ''}{""}"
                           </p>
                         )}
                       </>
@@ -631,7 +629,7 @@ export default function MapPage() {
                     <p style={{ fontSize:11, color:'#4d8a4d', margin:'0 0 4px', textTransform:'uppercase', letterSpacing:'0.05em' }}>Today's note</p>
                     <p style={{ fontSize:13, color:'#c0e8c0', margin:0, lineHeight:1.5, fontStyle:'italic' }}>
                       {profileNode.noteEmoji && <span style={{ marginRight:6 }}>{profileNode.noteEmoji}</span>}
-                      "{profileNode.dailyNote}"
+                      {`"${profileNode.dailyNote}"`}
                     </p>
                   </div>
                 )}
