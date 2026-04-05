@@ -32,7 +32,7 @@ const moreItems = [
   { to: '/profile',  icon: '👤', label: 'My Profile'  },
   { to: '/jobs',     icon: '💼', label: 'Jobs'        },
   { to: '/friends',  icon: '🌿', label: 'Connections' },
-  { to: '/feed',     icon: '📝', label: 'Notes'       },
+  { to: '/grove',    icon: '🪴', label: 'Grove'       },
   { to: '/groups',   icon: '☘️', label: 'Groups'      },
   { to: '/games',    icon: '🎮', label: 'Games'       },
   { to: '/guide',    icon: '📖', label: 'Guide'       },

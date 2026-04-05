@@ -30,8 +30,15 @@ function weatherEmoji(theme) {
 // ── Flip card for friend notes ────────────────────────────────────────────────
 // ── Flip card for friend notes ────────────────────────────────────────────────
 function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
+  const storageKey = `note_read_${note.userId}_${note.notePostedAt}`
   const [flipped, setFlipped]   = useState(false)
   const [reacting, setReacting] = useState(false)
+  const [hasRead, setHasRead]   = useState(() => !!sessionStorage.getItem(storageKey))
+
+  const markRead = () => {
+    sessionStorage.setItem(storageKey, '1')
+    setHasRead(true)
+  }
   const emoji        = note.mood || '🌿'
   const isForecaster = note.note?.startsWith('📡')
   const displayEmoji = isForecaster ? '📡' : emoji
@@ -56,7 +63,7 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
   return (
     <div className="flex-shrink-0 w-32 cursor-pointer select-none"
       style={{ perspective: 900 }}
-      onClick={() => { if (!reacting) setFlipped(f => !f) }}>
+      onClick={() => { if (!reacting) { setFlipped(f => !f); if (!flipped) markRead() } }}>
       <div style={{
         position:'relative', width:'100%', paddingBottom:'150%',
         transition:'transform 0.45s cubic-bezier(.4,0,.2,1)',
@@ -79,6 +86,16 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
             </div>
           )}
           {isOwn && <div style={{ position:'absolute', top:7, right:7, fontSize:8, color:'rgb(var(--f400))', fontWeight:700 }}>YOU</div>}
+          {/* Unread dot — solid red if unseen, hollow ring if seen */}
+          {!isOwn && (
+            <div style={{
+              position:'absolute', top:6, right:6,
+              width:9, height:9, borderRadius:'50%',
+              background: hasRead ? 'transparent' : '#ef4444',
+              border: hasRead ? '2px solid #ef4444' : 'none',
+              boxShadow: hasRead ? 'none' : '0 0 4px rgba(239,68,68,0.6)',
+            }}/>
+          )}
 
           {/* Big emoji */}
           <span style={{ fontSize:42, lineHeight:1.1 }}>{displayEmoji}</span>
@@ -299,6 +316,7 @@ export default function DashboardPage() {
 
   // Enrich friend notes with streak data
   const handleReact = async (userId, emoji) => {
+    if (!userId || userId === user?.id) return  // never like own note
     try {
       await notesApi.like(userId, emoji)
       // Refresh feed
@@ -316,6 +334,14 @@ export default function DashboardPage() {
   const notesWithStreaks = friendNotes.map(n => {
     const streak = streaks.find(s => s.friendId === n.userId)
     return { ...n, streakDays: streak?.streakDays || 0 }
+  })
+
+  // Sort connections: streak desc, then seeds desc
+  const sortedFriends = [...(friends||[])].sort((a,b) => {
+    const sa = streaks.find(s=>s.friendId===a.id)?.streakDays||0
+    const sb = streaks.find(s=>s.friendId===b.id)?.streakDays||0
+    if (sb !== sa) return sb - sa
+    return (b.seeds||b.currentSeeds||0) - (a.seeds||a.currentSeeds||0)
   })
 
   // Sort connections: at-risk first, then not-sent-today, then healthy
