@@ -169,27 +169,29 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
   )
 }
 
-// ── Streak connection card
 // ── Streak connection card ────────────────────────────────────────────────────
-function ConnectionCard({ friend, myId, onSelect }) {
-  const streak = friend.streak || {}
-  const fuel   = streak.fuel ?? 3
-  const days   = streak.streak_days ?? 0
-  const iSent  = streak.user_id_1 === myId ? streak.user1_sent_today : streak.user2_sent_today
-  const theySent = streak.user_id_1 === myId ? streak.user2_sent_today : streak.user1_sent_today
-  const atRisk = fuel <= 1 && days > 0
+function ConnectionCard({ friend, myId, onViewMap, onWriteLetter, onViewProfile }) {
+  const streak   = friend.streak || {}
+  const fuel     = streak.fuel ?? 3
+  const days     = streak.streakDays ?? 0
+  const iSent    = streak.iSentToday || false
+  const theySent = streak.theySentToday || false
+  const atRisk   = fuel <= 1 && days > 0
 
   return (
-    <div onClick={() => onSelect(friend)}
-      className={`rounded-2xl border p-4 flex items-center gap-3 transition-colors cursor-pointer
-        ${atRisk ? 'bg-amber-950/30 border-amber-900/60 hover:border-amber-700' : 'bg-forest-900/40 border-forest-800 hover:border-forest-600'}`}>
-      {/* Avatar */}
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
-        ${atRisk ? 'bg-amber-900/40' : 'bg-forest-800'}`}>
+    <div className={`rounded-2xl border flex items-center transition-colors overflow-hidden
+      ${atRisk ? 'bg-amber-950/30 border-amber-900/60' : 'bg-forest-900/40 border-forest-800'}`}>
+
+      {/* Avatar — clicks to profile */}
+      <div onClick={() => onViewProfile && onViewProfile(friend)}
+        className={`w-14 flex-shrink-0 self-stretch flex items-center justify-center text-xl cursor-pointer hover:opacity-80 transition-opacity border-r
+          ${atRisk ? 'bg-amber-900/20 border-amber-900/40' : 'bg-forest-800/40 border-forest-800'}`}>
         {friend.mood || '🌿'}
       </div>
-      {/* Info */}
-      <div className="flex-1 min-w-0">
+
+      {/* Info — clicks to map */}
+      <div onClick={() => onViewMap && onViewMap(friend)}
+        className="flex-1 min-w-0 px-3 py-3 cursor-pointer hover:bg-white/5 transition-colors">
         <div className="flex items-center gap-1.5">
           <p className="text-forest-200 text-sm font-medium truncate">{friend.displayName}</p>
           {days > 0 && (
@@ -199,22 +201,28 @@ function ConnectionCard({ friend, myId, onSelect }) {
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          {/* Fuel dots */}
           <div className="flex gap-0.5">
             {[0,1,2].map(i => (
               <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < fuel ? (atRisk ? 'bg-amber-400' : 'bg-forest-500') : 'bg-forest-800'}`}/>
             ))}
           </div>
           <span className="text-forest-600 text-xs">
-            {iSent && theySent ? '✓ Both sent today' :
+            {iSent && theySent ? '✓ Both sent' :
              iSent ? '✓ You sent' :
              theySent ? 'They sent' :
              days > 0 ? (atRisk ? '⚠️ At risk' : 'Not sent today') : 'No streak yet'}
           </span>
         </div>
       </div>
-      {/* Send nudge */}
-      <span className="text-forest-600 text-lg flex-shrink-0">✉️</span>
+
+      {/* Letter button */}
+      <button
+        onClick={e => { e.stopPropagation(); onWriteLetter && onWriteLetter(friend) }}
+        className={`flex-shrink-0 px-3 self-stretch flex items-center border-l transition-colors
+          ${atRisk ? 'border-amber-900/40 text-amber-500 hover:bg-amber-950/30' : 'border-forest-800 text-forest-500 hover:bg-forest-800/50 hover:text-forest-200'}`}
+        title={`Write to ${friend.displayName}`}>
+        ✉️
+      </button>
     </div>
   )
 }
@@ -292,7 +300,7 @@ export default function DashboardPage() {
   // Enrich friend notes with streak data
   const handleReact = async (userId, emoji) => {
     try {
-      await notesApi.likeNote(userId, emoji)
+      await notesApi.like(userId, emoji)
       // Refresh feed
       usersApi.feed().then(r => setFriendNotes(r.data || [])).catch(() => {})
     } catch {}
@@ -306,26 +314,23 @@ export default function DashboardPage() {
   } : null
 
   const notesWithStreaks = friendNotes.map(n => {
-    const streak = streaks.find(s =>
-      (s.user_id_1 === n.userId || s.user_id_2 === n.userId)
-    )
-    return { ...n, streakDays: streak?.streak_days || 0 }
+    const streak = streaks.find(s => s.friendId === n.userId)
+    return { ...n, streakDays: streak?.streakDays || 0 }
   })
 
   // Sort connections: at-risk first, then not-sent-today, then healthy
   const enrichedFriends = friends.map(f => {
-    const streak = streaks.find(s => s.user_id_1 === f.id || s.user_id_2 === f.id)
+    const streak = streaks.find(s => s.friendId === f.id)
     return { ...f, streak }
   }).sort((a, b) => {
-    const aRisk = (a.streak?.fuel ?? 3) <= 1 && (a.streak?.streak_days ?? 0) > 0
-    const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streak_days ?? 0) > 0
+    const aRisk = (a.streak?.fuel ?? 3) <= 1 && (a.streak?.streakDays ?? 0) > 0
+    const bRisk = (b.streak?.fuel ?? 3) <= 1 && (b.streak?.streakDays ?? 0) > 0
     if (aRisk && !bRisk) return -1
     if (!aRisk && bRisk) return 1
-    // Sort by streak days descending
-    return (b.streak?.streak_days ?? 0) - (a.streak?.streak_days ?? 0)
+    return (b.streak?.streakDays ?? 0) - (a.streak?.streakDays ?? 0)
   })
 
-  const atRiskCount = enrichedFriends.filter(f => (f.streak?.fuel ?? 3) <= 1 && (f.streak?.streak_days ?? 0) > 0).length
+  const atRiskCount = enrichedFriends.filter(f => (f.streak?.fuel ?? 3) <= 1 && (f.streak?.streakDays ?? 0) > 0).length
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -434,8 +439,13 @@ export default function DashboardPage() {
           <div className="px-5 flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {ownNote && <NoteCard key="own" note={ownNote} isOwn={true} myReaction={null} onReact={() => {}} />}
             {notesWithStreaks.map(n => (
-              <NoteCard key={n.id || n.userId} note={n} isOwn={false}
-                myReaction={n.myReaction} onReact={handleReact} />
+              <div key={n.id || n.userId} className="relative flex-shrink-0">
+                <NoteCard note={n} isOwn={false} myReaction={n.myReaction} onReact={handleReact} />
+                <button onClick={() => navigate(`/profile/${n.userId}`)}
+                  className="absolute bottom-1 left-1 text-[8px] text-forest-700 hover:text-forest-400 bg-forest-950/60 rounded px-1 py-0.5 leading-none">
+                  view
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -496,7 +506,9 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-2">
               {enrichedFriends.slice(0, 6).map(f => (
                 <ConnectionCard key={f.id} friend={f} myId={user?.id}
-                  onSelect={f => navigate('/letters', { state: { selectFriend: f } })} />
+                  onViewProfile={f => navigate(`/profile/${f.id}`)}
+                  onViewMap={f => navigate('/map', { state: { flyTo: { lat: f.latitude, lng: f.longitude } } })}
+                  onWriteLetter={f => navigate('/letters', { state: { selectFriend: f } })} />
               ))}
               {enrichedFriends.length > 6 && (
                 <Link to="/friends"
