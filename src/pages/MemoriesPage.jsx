@@ -76,25 +76,30 @@ async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
     }
 
     if (drawPts.length >= 2) {
-      // ── Relative bounds — always zoom to fit the actual point spread ───────
-      // Size option controls the margin (context) around the spread:
-      //   small = tight zoom (10% margin) — points fill the box
-      //   medium = comfortable (30% margin)
-      //   large = zoomed out (70% margin) — shows more geographic context
-      const marginMap = { small: 0.12, medium: 0.32, large: 0.72 }
-      const margin = marginMap[size] || 0.32
+      const marginMap = { small: 0.18, medium: 0.38, large: 0.75 }
+      const margin = marginMap[size] || 0.38
 
-      const lats = drawPts.map(p=>p[0])
-      const lons = drawPts.map(p=>p[1])
-      const latSpan = Math.max(Math.max(...lats)-Math.min(...lats), 0.0002)
-      const lonSpan = Math.max(Math.max(...lons)-Math.min(...lons), 0.0002)
-      // Keep aspect ratio square-ish so route doesn't get squished
-      const span = Math.max(latSpan, lonSpan * 0.8)
+      // ── CRITICAL: bounds are based on ENDPOINTS only, not full route ────────
+      // This ensures the map is always centred on the people, not skewed
+      // by intermediate road waypoints that may go far off-centre.
+      const anchorPts = isRoute2
+        ? [drawPts[0], drawPts[drawPts.length-1]]  // just the two endpoints
+        : drawPts                                   // polygon: all participant coords
+      const anchorLats = anchorPts.map(p=>p[0])
+      const anchorLons = anchorPts.map(p=>p[1])
+
+      // Make the view square so neither axis gets stretched
+      const latSpan = Math.max(Math.max(...anchorLats)-Math.min(...anchorLats), 0.0002)
+      const lonSpan = Math.max(Math.max(...anchorLons)-Math.min(...anchorLons), 0.0002)
+      // Equalise spans so the map isn't squished in one direction
+      const span = Math.max(latSpan, lonSpan * 0.75)
+      const midLat = (Math.max(...anchorLats)+Math.min(...anchorLats))/2
+      const midLon = (Math.max(...anchorLons)+Math.min(...anchorLons))/2
       const bounds = {
-        minLat: Math.min(...lats) - span*margin,
-        maxLat: Math.max(...lats) + span*margin,
-        minLon: Math.min(...lons) - lonSpan*margin,
-        maxLon: Math.max(...lons) + lonSpan*margin,
+        minLat: midLat - span*(0.5+margin),
+        maxLat: midLat + span*(0.5+margin),
+        minLon: midLon - span*(0.5+margin)/0.75,
+        maxLon: midLon + span*(0.5+margin)/0.75,
       }
 
       const mapH = Math.round(regionH * 0.72)
