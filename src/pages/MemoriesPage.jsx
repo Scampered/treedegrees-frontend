@@ -24,149 +24,141 @@ function project(lat, lon, bounds, canvasW, canvasH) {
 // route: { points:[[lat,lon],...], type } (for 2-person)
 // options: { position, size, color }
 async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
-  const { position='bottom-right', size='medium', color='#ffffff' } = options
+  const { position = 'bottom-right', size = 'medium' } = options
 
-  const sizeMap = { small: 0.12, medium: 0.18, large: 0.26 }
-  const scale = sizeMap[size] || 0.18
-  const wmH = Math.round(imgH * scale)
-  const wmW = Math.round(wmH * 2.2)
-  const pad = Math.round(imgW * 0.025)
+  // Size controls the canvas region used — relative to image
+  const sizeMap = { small: 0.18, medium: 0.28, large: 0.40 }
+  const regionFrac = sizeMap[size] || 0.28
+  const regionW = Math.round(imgW * regionFrac)
+  const regionH = Math.round(regionW * 0.7)  // ~4:3 ratio
+  const pad = Math.round(imgW * 0.03)
 
-  // Position
+  // Corner origin
   let ox = pad, oy = pad
-  if (position.includes('right'))  ox = imgW - wmW - pad
-  if (position.includes('bottom')) oy = imgH - wmH - pad
+  if (position.includes('right'))  ox = imgW - regionW - pad
+  if (position.includes('bottom')) oy = imgH - regionH - pad
 
-  // Background panel
-  ctx.save()
-  ctx.globalAlpha = 0.78
-  ctx.fillStyle = 'rgba(5,15,5,0.82)'
-  const r = wmH * 0.12
-  ctx.beginPath()
-  ctx.moveTo(ox+r, oy); ctx.lineTo(ox+wmW-r, oy)
-  ctx.quadraticCurveTo(ox+wmW, oy, ox+wmW, oy+r)
-  ctx.lineTo(ox+wmW, oy+wmH-r)
-  ctx.quadraticCurveTo(ox+wmW, oy+wmH, ox+wmW-r, oy+wmH)
-  ctx.lineTo(ox+r, oy+wmH)
-  ctx.quadraticCurveTo(ox, oy+wmH, ox, oy+wmH-r)
-  ctx.lineTo(ox, oy+r)
-  ctx.quadraticCurveTo(ox, oy, ox+r, oy)
-  ctx.closePath()
-  ctx.fill()
-  ctx.globalAlpha = 1
-
-  // Border
-  ctx.strokeStyle = 'rgba(77,186,77,0.4)'
-  ctx.lineWidth = 1
-  ctx.stroke()
-  ctx.restore()
-
-  if (participants.length === 2 && route?.points?.length >= 2) {
-    // ── 2-person: draw route line ────────────────────────────────────────────
-    const pts = route.points
-    const lats = pts.map(p=>p[0]), lons = pts.map(p=>p[1])
-    const bounds = {
-      minLat: Math.min(...lats) - 0.5,
-      maxLat: Math.max(...lats) + 0.5,
-      minLon: Math.min(...lons) - 0.5,
-      maxLon: Math.max(...lons) + 0.5,
+  // Sample the average brightness of the background region to pick inverted line colour
+  let avgBrightness = 128
+  try {
+    const sample = ctx.getImageData(ox, oy, regionW, regionH)
+    let sum = 0
+    for (let i = 0; i < sample.data.length; i += 16) {
+      sum += 0.299*sample.data[i] + 0.587*sample.data[i+1] + 0.114*sample.data[i+2]
     }
-    const mapW = wmW - 12, mapH = wmH - 24
-    const mx = ox + 6, my = oy + 6
+    avgBrightness = sum / (sample.data.length / 16)
+  } catch {}
+  // Invert: dark bg → bright line, light bg → dark line
+  const lineColor  = avgBrightness > 128 ? 'rgba(0,0,0,0.92)'   : 'rgba(255,255,255,0.92)'
+  const dotColor   = avgBrightness > 128 ? '#111111'             : '#ffffff'
+  const labelColor = avgBrightness > 128 ? 'rgba(0,0,0,0.85)'   : 'rgba(255,255,255,0.9)'
+  const shadowCol  = avgBrightness > 128 ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'
 
-    // Draw route
-    ctx.save()
-    ctx.rect(ox, oy, wmW, wmH); ctx.clip()
-    const lineCol = route.type === 'air' ? '#60a5fa' : route.type === 'road' ? '#4ade80' : '#a78bfa'
-    ctx.strokeStyle = lineCol
-    ctx.lineWidth = Math.max(1.5, wmH * 0.018)
-    ctx.setLineDash(route.type === 'air' ? [4,4] : [])
-    ctx.beginPath()
-    pts.forEach((p, i) => {
-      const [cx2, cy2] = project(p[0], p[1], bounds, mapW, mapH)
-      if (i===0) ctx.moveTo(mx+cx2, my+cy2); else ctx.lineTo(mx+cx2, my+cy2)
-    })
-    ctx.stroke()
-    ctx.setLineDash([])
-
-    // Draw endpoint dots
-    const [ax, ay] = project(pts[0][0], pts[0][1], bounds, mapW, mapH)
-    const [bx, by] = project(pts[pts.length-1][0], pts[pts.length-1][1], bounds, mapW, mapH)
-    const dotR = Math.max(3, wmH * 0.04)
-    ;[[ax,ay,'#4ade80'],[bx,by,'#60a5fa']].forEach(([x,y,c]) => {
-      ctx.fillStyle = c
-      ctx.beginPath(); ctx.arc(mx+x, my+y, dotR, 0, Math.PI*2); ctx.fill()
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke()
-    })
-    ctx.restore()
-
-    // Names below
-    ctx.save()
-    ctx.rect(ox, oy, wmW, wmH); ctx.clip()
-    ctx.font = `bold ${Math.max(8, wmH*0.13)}px sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#e0ffe0'
-    ctx.fillText(`${participants[0].name} ↔ ${participants[1].name}`, ox+wmW/2, oy+wmH-5)
-    ctx.restore()
-
-  } else if (participants.length >= 3) {
-    // ── 3+ people: polygon outline (no fill) ────────────────────────────────
-    const lats = participants.map(p=>p.lat), lons = participants.map(p=>p.lon)
-    const bounds = {
-      minLat: Math.min(...lats) - 0.3,
-      maxLat: Math.max(...lats) + 0.3,
-      minLon: Math.min(...lons) - 0.3,
-      maxLon: Math.max(...lons) + 0.3,
-    }
-    const mapW = wmW - 12, mapH = wmH - 22
-    const mx = ox + 6, my = oy + 5
-    const projPts = participants.map(p => project(p.lat, p.lon, bounds, mapW, mapH))
-
-    ctx.save()
-    ctx.rect(ox, oy, wmW, wmH); ctx.clip()
-
-    // Polygon edges — no fill
-    ctx.strokeStyle = '#4ade80'
-    ctx.lineWidth = Math.max(1.2, wmH * 0.015)
-    ctx.setLineDash([3,3])
-    ctx.beginPath()
-    projPts.forEach(([x,y],i) => {
-      if (i===0) ctx.moveTo(mx+x, my+y); else ctx.lineTo(mx+x, my+y)
-    })
-    ctx.closePath(); ctx.stroke()
-    ctx.setLineDash([])
-
-    // Node dots
-    projPts.forEach(([x,y]) => {
-      ctx.fillStyle = '#4ade80'
-      ctx.beginPath(); ctx.arc(mx+x, my+y, Math.max(2.5, wmH*0.035), 0, Math.PI*2); ctx.fill()
-    })
-    ctx.restore()
-
-    // Group names
-    ctx.save()
-    ctx.rect(ox, oy, wmW, wmH); ctx.clip()
-    ctx.font = `bold ${Math.max(7, wmH*0.11)}px sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#e0ffe0'
-    const nameStr = participants.map(p=>p.name).join(' · ')
-    ctx.fillText(nameStr.slice(0,40) + (nameStr.length>40?'…':''), ox+wmW/2, oy+wmH-5)
-    ctx.restore()
-
-  } else {
-    // ── 1 person or no coords: just name + 🌳 ───────────────────────────────
-    ctx.save()
-    ctx.font = `bold ${Math.max(10, wmH*0.22)}px sans-serif`
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#80d580'
-    ctx.fillText('🌳 TreeDegrees', ox+wmW/2, oy+wmH*0.5)
-    if (participants[0]) {
-      ctx.font = `${Math.max(8, wmH*0.15)}px sans-serif`
-      ctx.fillStyle = '#c0e8c0'
-      ctx.fillText(participants[0].name, ox+wmW/2, oy+wmH*0.8)
-    }
-    ctx.restore()
+  // Helper: draw text with shadow for legibility on any background
+  const drawLabel = (text, x, y, fontSize) => {
+    ctx.font = `bold ${fontSize}px sans-serif`
+    ctx.shadowColor = shadowCol
+    ctx.shadowBlur = 4
+    ctx.fillStyle = labelColor
+    ctx.fillText(text, x, y)
+    ctx.shadowBlur = 0
   }
+
+  // ── NO background box — draw directly on image ───────────────────────────
+  ctx.save()
+  // Clip to the region so nothing bleeds outside
+  ctx.beginPath()
+  ctx.rect(ox, oy, regionW, regionH)
+  ctx.clip()
+
+  const lineW = Math.max(1.5, regionW * 0.012)
+  const dotR  = Math.max(3, regionW * 0.025)
+  const fontSize = Math.max(8, regionH * 0.12)
+
+  if (participants.length >= 2) {
+    // Build points array — either route pts (2-person) or participant coords (3+)
+    let drawPts, isRoute2 = false
+    if (participants.length === 2 && route?.points?.length >= 2) {
+      drawPts = route.points  // [[lat,lon],...]
+      isRoute2 = true
+    } else {
+      // For polygon: connect each participant
+      drawPts = participants.filter(p=>p.lat&&p.lon).map(p=>[p.lat,p.lon])
+    }
+
+    if (drawPts.length >= 2) {
+      // Relative bounds — zoom to ACTUAL spread of the points, with a small margin
+      const lats = drawPts.map(p=>p[0])
+      const lons = drawPts.map(p=>p[1])
+      const latSpan = Math.max(Math.max(...lats)-Math.min(...lats), 0.001)
+      const lonSpan = Math.max(Math.max(...lons)-Math.min(...lons), 0.001)
+      // Add 25% margin so endpoints aren't at the very edge
+      const margin = 0.30
+      const bounds = {
+        minLat: Math.min(...lats) - latSpan*margin,
+        maxLat: Math.max(...lats) + latSpan*margin,
+        minLon: Math.min(...lons) - lonSpan*margin,
+        maxLon: Math.max(...lons) + lonSpan*margin,
+      }
+
+      // Leave bottom 18% for names
+      const mapH = Math.round(regionH * 0.80)
+      const projPts = drawPts.map(p => {
+        const [x, y] = project(p[0], p[1], bounds, regionW, mapH)
+        return [ox + x, oy + y]
+      })
+
+      // Draw line/route
+      ctx.strokeStyle = lineColor
+      ctx.lineWidth = lineW
+      ctx.setLineDash(isRoute2 && route?.type === 'air' ? [lineW*3, lineW*2] : [])
+      ctx.beginPath()
+      projPts.forEach(([x,y], i) => { if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y) })
+      if (!isRoute2) ctx.closePath()  // close polygon for 3+
+      ctx.stroke()
+      ctx.setLineDash([])
+
+      // Node dots + per-node name labels
+      const endPts = isRoute2
+        ? [[projPts[0][0], projPts[0][1]], [projPts[projPts.length-1][0], projPts[projPts.length-1][1]]]
+        : projPts
+
+      // Group overlapping dots (within 3x dotR) → show combined name
+      const labelGroups = []
+      const usedIdx = new Set()
+      endPts.forEach(([x,y], i) => {
+        if (usedIdx.has(i)) return
+        const grp = { x, y, names: [participants[i]?.name].filter(Boolean) }
+        endPts.forEach(([x2,y2], j) => {
+          if (j===i || usedIdx.has(j)) return
+          if (Math.sqrt((x2-x)**2+(y2-y)**2) < dotR*3.5) {
+            if (participants[j]?.name) grp.names.push(participants[j].name)
+            usedIdx.add(j)
+          }
+        })
+        usedIdx.add(i)
+        labelGroups.push(grp)
+      })
+
+      const centreX = ox + regionW/2
+      labelGroups.forEach(({ x, y, names }) => {
+        ctx.fillStyle = dotColor
+        ctx.beginPath(); ctx.arc(x, y, dotR, 0, Math.PI*2); ctx.fill()
+        ctx.strokeStyle = lineColor; ctx.lineWidth = 1; ctx.stroke()
+        const label = names.join(', ')
+        const labelX = x < centreX ? x - dotR - 3 : x + dotR + 3
+        ctx.textAlign = x < centreX ? 'right' : 'left'
+        drawLabel(label.slice(0,20)+(label.length>20?'…':''), labelX, y + dotR*0.4, Math.max(7,fontSize*0.82))
+      })
+    }
+  }
+
+  // Bottom summary strip
+  const nameStr = participants.map(p=>p.name).join(' · ')
+  ctx.textAlign = 'center'
+  drawLabel(nameStr.slice(0,40)+(nameStr.length>40?'…':''), ox+regionW/2, oy+regionH-4, fontSize*0.8)
+
+  ctx.restore()
 }
 
 // ── Compress + apply watermark ────────────────────────────────────────────────
@@ -233,13 +225,13 @@ function Lightbox({ moment, onClose, currentUserId, onLike, onComment, onDeleteC
   }
 
   return (
-    <div className="fixed inset-0 z-[2000] bg-black/92 flex flex-col" onClick={onClose}>
+    <div className="fixed inset-0 z-[2000] flex flex-col" onClick={onClose} style={{background:"rgba(0,0,0,0.97)",backdropFilter:"blur(12px)"}}>
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" onClick={e=>e.stopPropagation()}>
         <div className="flex items-center gap-2">
           {moment.note_emoji && <span className="text-xl">{moment.note_emoji}</span>}
-          <span className="text-white/80 text-sm font-medium">{moment.caption||''}</span>
+          <span className="text-sm font-medium" style={{color:"rgb(var(--f200))"}}>{moment.caption||''}</span>
         </div>
-        <button onClick={onClose} className="text-white/50 hover:text-white text-2xl leading-none">✕</button>
+        <button onClick={onClose} className="text-2xl leading-none" style={{color:"rgb(var(--f500))"}}>✕</button>
       </div>
 
       {/* Image with sticky notes */}
@@ -274,23 +266,23 @@ function Lightbox({ moment, onClose, currentUserId, onLike, onComment, onDeleteC
       </div>
 
       {/* Bottom bar */}
-      <div className="flex-shrink-0 px-4 pb-5 pt-2 space-y-2" onClick={e=>e.stopPropagation()}>
+      <div className="flex-shrink-0 px-4 pb-6 pt-3 space-y-2" onClick={e=>e.stopPropagation()} style={{background:"rgb(var(--f950))",borderTop:"1px solid rgb(var(--f800)/0.4)"}}>
         <div className="flex items-center gap-2">
           <button onClick={handleLike}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all
-              ${liked?'bg-red-500/20 text-red-400 border border-red-500/30':'bg-white/10 text-white/60 hover:bg-white/20 border border-white/10'}`}>
+              ${liked?'text-red-400':'text-forest-400'}`}>
             {liked?'❤️':'🤍'} {likeCount>0?likeCount:''}
           </button>
-          <span className="text-white/30 text-xs flex-1 truncate">
+          <span className="text-xs flex-1 truncate" style={{color:"rgb(var(--f500))"}}>
             {moment.tagged_names?.filter(Boolean).join(', ')}
           </span>
-          <span className="text-white/30 text-xs">
+          <span className="text-xs" style={{color:"rgb(var(--f600))"}}>
             {comments.length} note{comments.length!==1?'s':''}
           </span>
         </div>
         {myComment ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10">
-            <span className="text-white/50 text-sm flex-1 truncate">Your note: "{myComment.text}"</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full" style={{background:"rgb(var(--f900)/0.6)",border:"1px solid rgb(var(--f700)/0.4)"}}>
+            <span className="text-sm flex-1 truncate" style={{color:"rgb(var(--f400))"}}>Your note: "{myComment.text}"</span>
             <button onClick={handleDeleteComment} className="text-red-400/70 hover:text-red-400 text-xs">Delete</button>
           </div>
         ) : (
@@ -299,7 +291,7 @@ function Lightbox({ moment, onClose, currentUserId, onLike, onComment, onDeleteC
               <input value={comment} onChange={e=>setComment(e.target.value.slice(0,80))}
                 onKeyDown={e=>e.key==='Enter'&&handleComment()}
                 placeholder="Add a sticky note… 📝" maxLength={80}
-                className="flex-1 bg-white/10 border border-white/20 text-white placeholder-white/30 rounded-full px-4 py-2 text-sm outline-none focus:border-white/40"
+                className="flex-1 rounded-full px-4 py-2 text-sm outline-none" style={{background:"rgb(var(--f900))",border:"1px solid rgb(var(--f700)/0.5)",color:"rgb(var(--f100))"}}
               />
               <button onClick={handleComment} disabled={!comment.trim()||posting}
                 className="px-4 py-2 rounded-full text-sm font-medium transition-colors disabled:opacity-40"
@@ -308,7 +300,7 @@ function Lightbox({ moment, onClose, currentUserId, onLike, onComment, onDeleteC
               </button>
             </div>
             {commentError && <p className="text-red-400 text-xs px-2">{commentError}</p>}
-            <p className="text-white/20 text-xs px-2">1 sticky note per person · tap yours to remove</p>
+            <p className="text-xs px-2" style={{color:"rgb(var(--f700))"}} >1 note per person · tap yours to remove</p>
           </div>
         )}
       </div>
