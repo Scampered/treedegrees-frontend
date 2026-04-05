@@ -29,7 +29,7 @@ function weatherEmoji(theme) {
 
 // ── Flip card for friend notes ────────────────────────────────────────────────
 // ── Flip card for friend notes ────────────────────────────────────────────────
-function NoteCard({ note, isOwn, myReaction, onReact }) {
+function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
   const [flipped, setFlipped]   = useState(false)
   const [reacting, setReacting] = useState(false)
   const emoji        = note.mood || '🌿'
@@ -160,7 +160,7 @@ function NoteCard({ note, isOwn, myReaction, onReact }) {
           )}
 
           <div style={{ marginTop:5, color: textSub, fontSize:8, display:'flex', justifyContent:'space-between' }}>
-            <span>{note.displayName}</span>
+            <span onClick={e => { e.stopPropagation(); onProfileClick?.() }} style={{ cursor: onProfileClick ? 'pointer' : 'default', textDecoration: onProfileClick ? 'underline' : 'none' }}>{note.displayName}</span>
             <span>{timeStr}</span>
           </div>
         </div>
@@ -439,13 +439,9 @@ export default function DashboardPage() {
           <div className="px-5 flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {ownNote && <NoteCard key="own" note={ownNote} isOwn={true} myReaction={null} onReact={() => {}} />}
             {notesWithStreaks.map(n => (
-              <div key={n.id || n.userId} className="relative flex-shrink-0">
-                <NoteCard note={n} isOwn={false} myReaction={n.myReaction} onReact={handleReact} />
-                <button onClick={() => navigate(`/profile/${n.userId}`)}
-                  className="absolute bottom-1 left-1 text-[8px] text-forest-700 hover:text-forest-400 bg-forest-950/60 rounded px-1 py-0.5 leading-none">
-                  view
-                </button>
-              </div>
+              <NoteCard key={n.id || n.userId} note={n} isOwn={false}
+                myReaction={n.myReaction} onReact={handleReact}
+                onProfileClick={() => navigate(`/profile/${n.userId}`)} />
             ))}
           </div>
         </div>
