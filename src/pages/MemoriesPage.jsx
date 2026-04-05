@@ -135,22 +135,45 @@ async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
       })
 
       const centreX = ox + regionW/2
+      const centreY = oy + mapH/2
+      const labelFs = Math.max(7, fontSize * 0.84)
+      ctx.font = `bold ${labelFs}px sans-serif`
+
       labelGroups.forEach(({ x, y, names }) => {
         ctx.fillStyle = dotColor
         ctx.beginPath(); ctx.arc(x, y, dotR, 0, Math.PI*2); ctx.fill()
         ctx.strokeStyle = lineColor; ctx.lineWidth = 1.2; ctx.stroke()
+
         const label = names.join(', ')
-        const lx = x < centreX ? x-dotR-3 : x+dotR+3
-        ctx.textAlign = x < centreX ? 'right' : 'left'
-        drawLabel(label.slice(0,22)+(label.length>22?'…':''), lx, y+dotR*0.45, Math.max(6.5, fontSize*0.80))
+        const tw = ctx.measureText(label).width
+
+        // Above dot if in lower half, below if in upper half
+        const aboveDot = y > centreY
+        const ly = aboveDot ? y - dotR - 4 : y + dotR + labelFs + 2
+        ctx.textBaseline = aboveDot ? 'bottom' : 'top'
+
+        // Right of dot by default; flip left if it bleeds off edge
+        let lx = x + dotR + 3
+        ctx.textAlign = 'left'
+        if (lx + tw > ox + regionW - 2) {
+          lx = x - dotR - 3
+          ctx.textAlign = 'right'
+        }
+        drawLabel(label, lx, ly, labelFs)
       })
+      ctx.textBaseline = 'alphabetic'
     }
   }
 
-  // Bottom name summary
-  const nameStr = participants.map(p=>p.name).join(' · ')
+  // Bottom branding — TreeDegrees in Dosis bold
   ctx.textAlign = 'center'
-  drawLabel(nameStr.slice(0,42)+(nameStr.length>42?'…':''), ox+regionW/2, oy+regionH-5, fontSize*0.78)
+  ctx.textBaseline = 'alphabetic'
+  const brandFs = Math.max(8, fontSize * 0.85)
+  ctx.font = `bold ${brandFs}px Dosis, sans-serif`
+  ctx.shadowColor = shadowCol; ctx.shadowBlur = 5
+  ctx.fillStyle = labelColor
+  ctx.fillText('\u{1F333} TreeDegrees', ox + regionW/2, oy + regionH - 6)
+  ctx.shadowBlur = 0
 
   ctx.restore()
 }
@@ -434,11 +457,11 @@ function UploadModal({ friends, onClose, onUploaded, user }) {
     if (!file) { setError('Pick an image first'); return }
     setUploading(true); setError('')
     try {
-      // Build participants list
+      // Build participants — use nickname (short registered name)
       const taggedFriends = friends.filter(f => tagIds.includes(f.id))
       const participants = [
-        { name: user?.nickname||'You', lat: user?.latitude, lon: user?.longitude },
-        ...taggedFriends.map(f => ({ name: f.displayName||f.nickname, lat: f.latitude, lon: f.longitude })),
+        { name: user?.nickname || user?.fullName?.split(' ')[0] || 'You', lat: user?.latitude, lon: user?.longitude },
+        ...taggedFriends.map(f => ({ name: f.nickname || f.displayName || '', lat: f.latitude, lon: f.longitude })),
       ].filter(p => p.lat && p.lon)
 
       // Fetch route for 2-person
