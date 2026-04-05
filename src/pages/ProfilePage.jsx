@@ -41,7 +41,7 @@ async function fetchWeatherTheme(city, country) {
     const q = city ? `${city},${country||''}` : country
     const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(q)}&appid=${OWM_KEY}`)
     if (!r.ok) {
-      if (r.status === 429) return null  // rate limited — skip
+      if (r.status === 429) { _wxCache[key] = { val: null, ts: Date.now() }; return null }
       if (country && city) return fetchWeatherTheme(null, country)
       return null
     }
@@ -164,7 +164,6 @@ function MiniMap({ lat, lng, city, country, onClick }) {
       }}>
         tap to open map ↗
       </div>
-      {lightboxPost && <ProfileLightbox post={lightboxPost} onClose={() => setLightboxPost(null)} />}
     </div>
   )
 }
@@ -286,7 +285,7 @@ export default function ProfilePage() {
               }
               {profile.mood && (
                 <span className="text-sm text-forest-600 flex items-center gap-1">
-                  {wEmoji} <span className="capitalize">{weather?.replace('-',' ') || displayWeather?.replace('-',' ') || 'unknown'}</span>
+                  {wEmoji}{weather && <span className="capitalize ml-1">{weather.replace('-',' ')}</span>}
                 </span>
               )}
             </div>
@@ -305,9 +304,9 @@ export default function ProfilePage() {
                 )}
                 <span className="text-forest-700 text-xs">· {joinedDate(profile.createdAt)}</span>
               </div>
-              {!profile.mood && displayWeather && (
+              {!profile.mood && weather && (
                 <p className="text-forest-600 text-xs mt-1">
-                  {wEmoji} <span className="capitalize">{displayWeather.replace('-',' ')}</span>
+                  {wEmoji} <span className="capitalize">{weather.replace('-',' ')}</span>
                 </p>
               )}
             </div>
@@ -501,6 +500,9 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+      {lightboxPost && (
+        <ProfileLightbox post={lightboxPost} onClose={() => setLightboxPost(null)} />
+      )}
     </div>
   )
 }
