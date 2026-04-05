@@ -275,9 +275,10 @@ function Lightbox({ moment, onClose, currentUserId, isOwner, onLike, onComment, 
   const isMyOwnPost = moment.uploader_id === currentUserId
   const myComment = comments.find(c => c.userId === currentUserId)
 
-  // Load full comments for owner and anyone who commented
+  // Load comments: owner sees all, others see filtered (backend handles visibility)
   useEffect(() => {
-    if (!isOwner && !myComment && !isMyOwnPost) return
+    // Load if owner, own post, or might have commented
+    if (!isOwner && !isMyOwnPost && !moment.comment_count) return
     setLoadingComments(true)
     api.get(`/api/moments/${moment.id}/comments`)
       .then(r => setComments(r.data || []))
@@ -572,12 +573,12 @@ function UploadModal({ friends, onClose, onUploaded, user }) {
       onUploaded(data); onClose()
     } catch(e) {
       setFetchingRoute(false)
-      setError(e.response?.data?.error || 'Upload failed')
+      const msg = e.response?.data?.error || 'Upload failed'
+      setError(msg)
     } finally { setUploading(false) }
   }
 
   const taggedFriends = friends.filter(f => tagIds.includes(f.id))
-  const uploaderLabel = uploading ? (fetchingRoute ? 'Getting route…' : 'Processing…') : '📸 Post Memory'
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
@@ -658,7 +659,7 @@ function UploadModal({ friends, onClose, onUploaded, user }) {
             <button onClick={handleUpload} disabled={uploading||!file}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-40"
               style={{background:'rgb(var(--f600)/0.8)',color:'rgb(var(--f100))'}}>
-              {uploaderLabel}
+              {fetchingRoute ? '🗺️ Getting route…' : uploading ? '⏳ Uploading…' : '📸 Post Memory'}
             </button>
           </div>
           <p className="text-xs text-center" style={{color:'rgb(var(--f700))'}}>Memories expire in 7 days</p>
