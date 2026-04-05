@@ -1,5 +1,6 @@
 // src/pages/GrovePage.jsx — The Grove: Seeds & Stocks
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { groveApi, marketApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
