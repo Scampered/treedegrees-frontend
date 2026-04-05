@@ -191,6 +191,7 @@ export const jobsApi = {
   update:     (bio, hourlyRate)         => api.patch('/api/jobs/my', { bio, hourlyRate }),
   unregister: ()                        => api.delete('/api/jobs/my'),
   rate:       (jobId, rating, review)   => api.post(`/api/jobs/${jobId}/rate`, { rating, review }),
+  markServicesRead: ()                  => api.post('/api/jobs/mark-services-read'),
 }
 
 export const marketApi = {
