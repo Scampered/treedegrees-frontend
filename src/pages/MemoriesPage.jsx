@@ -263,31 +263,47 @@ async function processImage(file, participants, route, wmOptions) {
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({ moment, onClose, currentUserId, isOwner, onLike, onComment, onDeleteComment }) {
-  const [comment, setComment]   = useState('')
-  const [comments, setComments] = useState(moment.comments || [])
-  const [liked, setLiked]       = useState((moment.likes||[]).some(l=>l.userId===currentUserId))
+  const [comment, setComment]     = useState('')
+  const [comments, setComments]   = useState(moment.comments || [])
+  const initialLiked = moment.has_liked === true ||
+    (moment.liked_by||[]).some(l => l.userId===currentUserId||l.user_id===currentUserId)
+  const [liked, setLiked]         = useState(initialLiked)
   const [likeCount, setLikeCount] = useState(parseInt(moment.like_count||0, 10))
-  const [posting, setPosting]   = useState(false)
+  const [posting, setPosting]     = useState(false)
   const [commentError, setCommentError] = useState('')
+  const [loadingComments, setLoadingComments] = useState(false)
+  const isMyOwnPost = moment.uploader_id === currentUserId
   const myComment = comments.find(c => c.userId === currentUserId)
 
+  // Load full comments for owner and anyone who commented
+  useEffect(() => {
+    if (!isOwner && !myComment && !isMyOwnPost) return
+    setLoadingComments(true)
+    api.get(`/api/moments/${moment.id}/comments`)
+      .then(r => setComments(r.data || []))
+      .catch(() => {})
+      .finally(() => setLoadingComments(false))
+  }, [moment.id])
+
   const handleLike = async () => {
-    if (liked) return
-    setLiked(true); setLikeCount(c=>c+1)
-    onLike?.(moment.id)
+    if (liked || isMyOwnPost) return
+    setLiked(true); setLikeCount(c => c + 1) // optimistic
+    try {
+      const { data } = await api.post(`/api/moments/${moment.id}/like`)
+      if (data?.likeCount !== undefined) setLikeCount(parseInt(data.likeCount, 10))
+      onLike?.(moment.id)
+    } catch { setLiked(false); setLikeCount(c => Math.max(0, c - 1)) }
   }
 
   const handleComment = async () => {
-    if (!comment.trim() || posting) return
+    if (!comment.trim() || posting || isMyOwnPost) return
     setPosting(true); setCommentError('')
     try {
       const { data } = await api.post(`/api/moments/${moment.id}/comment`, { text: comment.trim() })
-      setComments(prev => [...prev, data])
-      setComment('')
+      setComments(prev => [...prev, data]); setComment('')
       onComment?.(moment.id, data)
-    } catch(e) {
-      setCommentError(e.response?.data?.error || 'Failed')
-    } finally { setPosting(false) }
+    } catch(e) { setCommentError(e.response?.data?.error || 'Failed') }
+    finally { setPosting(false) }
   }
 
   const handleDeleteComment = async () => {
@@ -298,66 +314,107 @@ function Lightbox({ moment, onClose, currentUserId, isOwner, onLike, onComment, 
   }
 
   return (
-    <div className="fixed inset-0 z-[2000] flex flex-col" onClick={onClose} style={{background:"rgba(0,0,0,0.97)",backdropFilter:"blur(12px)"}}>
+    <div className="fixed inset-0 z-[2000] flex flex-col" onClick={onClose}
+      style={{background:'rgba(0,0,0,0.97)',backdropFilter:'blur(12px)'}}>
+
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0" onClick={e=>e.stopPropagation()}>
         <div className="flex items-center gap-2">
           {moment.note_emoji && <span className="text-xl">{moment.note_emoji}</span>}
-          <span className="text-sm font-medium" style={{color:"rgb(var(--f200))"}}>{moment.caption||''}</span>
+          <span className="text-sm font-medium" style={{color:'rgb(var(--f200))'}}>{moment.caption||''}</span>
         </div>
-        <button onClick={onClose} className="text-2xl leading-none" style={{color:"rgb(var(--f500))"}}>✕</button>
+        <button onClick={onClose} className="text-2xl leading-none" style={{color:'rgb(var(--f500))'}}>✕</button>
       </div>
 
       {/* Image */}
-      <div className="flex-1 flex items-center justify-center px-4 overflow-hidden"
+      <div className="flex-shrink-0 flex items-center justify-center px-4" style={{height:'48vh'}}
         onClick={e=>e.stopPropagation()}>
-        <img src={moment.cdn_url} alt={moment.caption||''}
-          className="max-w-full max-h-full object-contain rounded-xl"
-          style={{maxHeight:'calc(100vh - 200px)', maxWidth:'calc(100vw - 32px)'}}
-        />
+        <img src={moment.cdn_url} alt={moment.caption||''} className="max-w-full max-h-full object-contain rounded-xl"/>
       </div>
 
-      {/* Bottom bar */}
-      <div className="flex-shrink-0 px-4 pb-6 pt-3 space-y-2" onClick={e=>e.stopPropagation()} style={{background:"rgb(var(--f950))",borderTop:"1px solid rgb(var(--f800)/0.4)"}}>
-        <div className="flex items-center gap-2">
-          <button onClick={handleLike}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all
-              ${liked?'text-red-400':'text-forest-400'}`}>
-            {liked?'❤️':'🤍'} {likeCount>0?likeCount:''}
-          </button>
-          <span className="text-xs flex-1 truncate" style={{color:"rgb(var(--f500))"}}>
-            {moment.tagged_names?.filter(Boolean).join(', ')}
-          </span>
-          <span className="text-xs" style={{color:"rgb(var(--f600))"}}>
-            {comments.length} note{comments.length!==1?'s':''}
-          </span>
+      {/* Comments — scrollable, visible to owner + anyone who commented */}
+      {(isOwner || myComment || isMyOwnPost) && (
+        <div className="flex-shrink-0 overflow-y-auto px-4 pt-2"
+          style={{maxHeight:'25vh', borderTop:'1px solid rgb(var(--f800)/0.4)'}}
+          onClick={e=>e.stopPropagation()}>
+          {loadingComments && <p className="text-xs py-2 text-center" style={{color:'rgb(var(--f600))'}}>⏳</p>}
+          {!loadingComments && comments.length===0 && isOwner && (
+            <p className="text-xs py-2 text-center" style={{color:'rgb(var(--f700))'}} >No notes yet</p>
+          )}
+          <div className="space-y-1.5 pb-2">
+            {comments.map(c => (
+              <div key={c.id||c.userId} className="flex items-start gap-2 px-3 py-2 rounded-xl"
+                style={{background:'rgb(var(--f900)/0.6)',border:'1px solid rgb(var(--f800)/0.4)'}}>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold mr-2" style={{color:'rgb(var(--f400))'}}>{c.authorName}</span>
+                  <span className="text-xs" style={{color:'rgb(var(--f100))'}}>{c.text}</span>
+                </div>
+                {c.userId===currentUserId && (
+                  <button onClick={handleDeleteComment} className="text-xs flex-shrink-0" style={{color:'rgb(var(--f600))'}}>✕</button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        {myComment ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-full" style={{background:"rgb(var(--f900)/0.6)",border:"1px solid rgb(var(--f700)/0.4)"}}>
-            <span className="text-sm flex-1 truncate" style={{color:"rgb(var(--f400))"}}>Your note: "{myComment.text}"</span>
-            <button onClick={handleDeleteComment} className="text-red-400/70 hover:text-red-400 text-xs">Delete</button>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <div className="flex gap-2">
-              <input value={comment} onChange={e=>setComment(e.target.value.slice(0,80))}
-                onKeyDown={e=>e.key==='Enter'&&handleComment()}
-                placeholder="Leave a note… 📝" maxLength={80}
-                className="flex-1 rounded-full px-4 py-2 text-sm outline-none" style={{background:"rgb(var(--f900))",border:"1px solid rgb(var(--f700)/0.5)",color:"rgb(var(--f100))"}}
-              />
-              <button onClick={handleComment} disabled={!comment.trim()||posting}
-                className="px-4 py-2 rounded-full text-sm font-medium transition-colors disabled:opacity-40"
-                style={{background:'rgb(var(--f600)/0.8)',color:'rgb(var(--f100))'}}>
-                Post
-              </button>
+      )}
+
+      {/* Bottom bar */}
+      <div className="flex-shrink-0 px-4 pb-5 pt-3 space-y-2 mt-auto"
+        style={{background:'rgb(var(--f950))',borderTop:'1px solid rgb(var(--f800)/0.4)'}}
+        onClick={e=>e.stopPropagation()}>
+
+        {/* Like row */}
+        <div className="flex items-center gap-2">
+          {!isMyOwnPost && (
+            <button onClick={handleLike} disabled={liked}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all"
+              style={liked
+                ? {background:'rgba(239,68,68,0.18)',border:'1px solid rgba(239,68,68,0.4)',color:'#f87171'}
+                : {background:'rgb(var(--f900)/0.6)',border:'1px solid rgb(var(--f700)/0.4)',color:'rgb(var(--f400))'} }>
+              {liked ? '❤️' : '🤍'}
+            </button>
+          )}
+          {isOwner && likeCount > 0 && (
+            <span className="text-xs" style={{color:'rgb(var(--f400))'}}
+              >{likeCount} like{likeCount!==1?'s':''}{moment.liked_by?.length>0?' · '+moment.liked_by.map(l=>l.name).join(', '):''}</span>
+          )}
+          <span className="flex-1"/>
+          {moment.tagged_names?.filter(Boolean).length>0 && (
+            <span className="text-xs truncate" style={{color:'rgb(var(--f600))'}} >with {moment.tagged_names.filter(Boolean).join(', ')}</span>
+          )}
+        </div>
+
+        {/* Comment input — hidden if own post */}
+        {!isMyOwnPost && (
+          myComment ? (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-full"
+              style={{background:'rgb(var(--f900)/0.6)',border:'1px solid rgb(var(--f700)/0.4)'}}>
+              <span className="text-sm flex-1 truncate" style={{color:'rgb(var(--f400))'}}>&ldquo;{myComment.text}&rdquo;</span>
+              <button onClick={handleDeleteComment} className="text-xs flex-shrink-0" style={{color:'rgb(var(--f600))'}} >Delete</button>
             </div>
-            {commentError && <p className="text-red-400 text-xs px-2">{commentError}</p>}
-            <p className="text-xs px-2" style={{color:"rgb(var(--f700))"}} >1 note per person · tap yours to remove</p>
-          </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex gap-2">
+                <input value={comment} onChange={e=>setComment(e.target.value.slice(0,80))}
+                  onKeyDown={e=>e.key==='Enter'&&handleComment()}
+                  placeholder="Leave a note… 📝" maxLength={80}
+                  className="flex-1 rounded-full px-4 py-2 text-sm outline-none"
+                  style={{background:'rgb(var(--f900))',border:'1px solid rgb(var(--f700)/0.5)',color:'rgb(var(--f100))'}}
+                />
+                <button onClick={handleComment} disabled={!comment.trim()||posting}
+                  className="px-4 py-2 rounded-full text-sm font-medium transition-colors disabled:opacity-40"
+                  style={{background:'rgb(var(--f600)/0.8)',color:'rgb(var(--f100))'}} >Post</button>
+              </div>
+              {commentError && <p className="text-red-400 text-xs px-2">{commentError}</p>}
+              <p className="text-xs px-2" style={{color:'rgb(var(--f700))'}} >1 note per person</p>
+            </div>
+          )
         )}
       </div>
     </div>
   )
 }
+
 
 // ── Polaroid card ─────────────────────────────────────────────────────────────
 function PolaroidCard({ moment, onDelete, isOwn, onOpen }) {
