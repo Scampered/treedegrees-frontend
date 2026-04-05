@@ -182,6 +182,7 @@ export const jobActionsApi = {
   farmerDeposit:     (farmerId, seeds)           => api.post('/api/job-actions/farmer/deposit', { farmerId, seeds }),
   myFarmerDeposits:  ()                         => api.get('/api/job-actions/farmer/my-deposits'),
   farmerHarvest:     (slotId)                   => api.post('/api/job-actions/farmer/harvest', { slotId }),
+  markServicesRead:  ()                         => api.post('/api/job-actions/mark-services-read'),
 }
 
 export const jobsApi = {
@@ -233,6 +234,8 @@ export const notesApi = {
 
 export const notificationsApi = {
   get:     () => api.get('/api/notifications'),
-  readAll: () => api.post('/api/notifications/read-all'),
+  readAll: () => api.patch('/api/notifications/read'),
+  readType: (type) => api.patch(`/api/notifications/read/${type}`),
+  clear:   () => api.delete('/api/notifications/clear'),
   unread:  () => api.get('/api/notifications/unread-count'),
 }

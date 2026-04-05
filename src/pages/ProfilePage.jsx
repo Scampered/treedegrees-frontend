@@ -206,8 +206,9 @@ export default function ProfilePage() {
   )
   if (!profile) return null
 
-  const displayWeather = isOwn ? (myTheme||weather) : weather
-  const wEmoji = weatherEmoji(displayWeather)
+  // For own profile: show actual weather emoji (not theme). Theme affects background only.
+  const displayWeather = weather || (isOwn ? myTheme : null)
+  const wEmoji = weatherEmoji(weather)  // always use real weather for emoji
   const avatarEmoji = profile.mood || wEmoji
   const noteIsFresh = profile.notePostedAt && (Date.now()-new Date(profile.notePostedAt))<86400000
 
@@ -235,7 +236,7 @@ export default function ProfilePage() {
               }
               {profile.mood && (
                 <span className="text-sm text-forest-600 flex items-center gap-1">
-                  {wEmoji} <span className="capitalize">{displayWeather?.replace('-',' ') || 'unknown'}</span>
+                  {wEmoji} <span className="capitalize">{weather?.replace('-',' ') || displayWeather?.replace('-',' ') || 'unknown'}</span>
                 </span>
               )}
             </div>
@@ -390,6 +391,36 @@ export default function ProfilePage() {
                        text-forest-100 font-medium py-3.5 rounded-2xl transition-colors text-base">
             ✉️ Write a letter
           </Link>
+        )}
+
+        {/* Mini location map */}
+        {profile.latitude && profile.longitude && !isNaN(Number(profile.latitude)) && (
+          <div
+            onClick={() => navigate('/map', { state: { flyTo: { lat: Number(profile.latitude), lng: Number(profile.longitude) } } })}
+            className="rounded-2xl overflow-hidden border border-forest-800 cursor-pointer hover:border-forest-600 transition-colors group relative"
+            style={{ height: 160 }}>
+            <img
+              src={`https://staticmap.openstreetmap.de/staticmap.php?center=${profile.latitude},${profile.longitude}&zoom=10&size=600x320&maptype=osm`}
+              alt="Location"
+              className="w-full h-full object-cover"
+              style={{ filter:'brightness(0.55) saturate(0.6)' }}
+              onError={e => { e.target.style.display='none' }}
+            />
+            <div className="absolute inset-0 bg-forest-950/25 group-hover:bg-forest-950/5 transition-colors"/>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-3 h-3 rounded-full bg-forest-400 border-2 border-white shadow-lg"/>
+            </div>
+            <div className="absolute top-3 left-3 bg-forest-950/75 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+              <span className="text-forest-400 text-xs">📍</span>
+              <span className="text-forest-100 text-xs font-medium">{profile.city || profile.country}</span>
+            </div>
+            <div className="absolute top-3 right-3 bg-forest-950/75 backdrop-blur-sm rounded-lg px-2 py-1.5">
+              <span className="text-forest-500 text-xs">~50km</span>
+            </div>
+            <div className="absolute bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <span className="bg-forest-950/80 backdrop-blur-sm rounded-lg px-3 py-1 text-forest-300 text-xs">Open on map →</span>
+            </div>
+          </div>
         )}
 
         {/* Memories placeholder */}
