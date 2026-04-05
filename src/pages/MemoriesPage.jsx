@@ -151,49 +151,68 @@ async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
         ctx.strokeStyle = lineColor; ctx.lineWidth = 1.2; ctx.stroke()
 
         const label = names.join(', ')
-        // Measure BEFORE drawing
         ctx.font = `bold ${labelFs}px Dosis, sans-serif`
         const tw = ctx.measureText(label).width
         const th = labelFs
-        const gap = dotR * 1.6
+        const gap = dotR * 1.8
+        // Brand zone: TreeDegrees sits at oy+regionH*0.88, avoid going below oy+regionH*0.74
+        const brandZoneY = oy + regionH * 0.74
 
-        // For each endpoint, place label on the OUTSIDE of the route:
-        // - first endpoint (index 0): label goes away from the next point
-        // - last endpoint: label goes away from the previous point
-        // We use the angle from the nearest route segment to pick direction.
-        // Simple heuristic: compare this dot's Y to the NEAREST OTHER dot Y.
-        // If this dot is ABOVE the other dot → label goes ABOVE (away from route going down)
-        // If this dot is BELOW the other dot → label goes BELOW
-        const otherDots = labelGroups.filter(g => g !== grp)
-        let placeAbove = false
-        if (otherDots.length > 0) {
-          const avgOtherY = otherDots.reduce((s,g)=>s+g.y,0)/otherDots.length
-          // This dot is higher (smaller y) than others → route goes down from here → label above
-          placeAbove = y < avgOtherY
+        // Direction: vector FROM this dot TOWARD the average of all other dots
+        // Label goes OPPOSITE that direction (away from route)
+        const others = labelGroups.filter(g => g !== grp)
+        let towardX = 0, towardY = 0
+        if (others.length > 0) {
+          towardX = others.reduce((s,g)=>s+g.x,0)/others.length - x
+          towardY = others.reduce((s,g)=>s+g.y,0)/others.length - y
+        }
+        // Dominant axis: is the route more horizontal or vertical?
+        const moreHoriz = Math.abs(towardX) > Math.abs(towardY)
+
+        let lx, ly, alignH, baselineV
+        if (moreHoriz) {
+          // Route goes left-right → label goes above or below (vertical placement)
+          const placeAbove = towardY >= 0  // route goes down → we go up
+          ly = placeAbove ? y - gap : y + gap
+          baselineV = placeAbove ? 'bottom' : 'top'
+          // Clamp: don't enter brand zone
+          if (!placeAbove && ly + th > brandZoneY) {
+            ly = y - gap; baselineV = 'bottom'
+          }
+          lx = x
+          alignH = 'center'
+          // Nudge horizontally if it bleeds
+          if (lx - tw/2 < ox + 2) lx = ox + tw/2 + 2
+          if (lx + tw/2 > ox + regionW - 2) lx = ox + regionW - tw/2 - 2
         } else {
-          // Only one dot visible — above if in lower half
-          placeAbove = y > centreY
+          // Route goes up-down → label goes left or right (horizontal placement)
+          const placeLeft = towardX >= 0  // route goes right → we go left
+          lx = placeLeft ? x - gap : x + gap
+          alignH = placeLeft ? 'right' : 'left'
+          ly = y + th * 0.35
+          baselineV = 'middle'
+          // Clamp horizontal
+          if (placeLeft && lx - tw < ox + 2) { lx = x + gap; alignH = 'left' }
+          if (!placeLeft && lx + tw > ox + regionW - 2) { lx = x - gap; alignH = 'right' }
+          // Clamp vertical into brand zone
+          if (ly + th/2 > brandZoneY) ly = brandZoneY - th/2
         }
 
-        const ly = placeAbove ? y - gap : y + gap + th
-        ctx.textBaseline = placeAbove ? 'bottom' : 'top'
+        ctx.textAlign = alignH
+        ctx.textBaseline = baselineV
 
-        // Horizontal: right of dot, clamp if bleeds
-        let lx = x + dotR + 4
-        ctx.textAlign = 'left'
-        if (lx + tw > ox + regionW - 3) {
-          lx = x - dotR - 4
-          ctx.textAlign = 'right'
-        }
-        if (lx < ox + 2) { lx = ox + 2; ctx.textAlign = 'left' }
-
-        // Semi-transparent pill behind text
-        const bx = ctx.textAlign === 'left' ? lx - 2 : lx - tw - 2
-        const by2 = placeAbove ? ly - th - 1 : ly - 2
+        // Pill background
+        const pillW = tw + 6, pillH = th + 4
+        const pillX = alignH === 'center' ? lx - pillW/2
+                    : alignH === 'right'  ? lx - pillW
+                    : lx - 2
+        const pillY = baselineV === 'bottom' ? ly - pillH
+                    : baselineV === 'top'    ? ly
+                    : ly - pillH/2
         ctx.save()
         ctx.globalAlpha = 0.5
         ctx.fillStyle = avgBrightness > 128 ? '#ffffff' : '#000000'
-        ctx.beginPath(); ctx.roundRect(bx, by2, tw + 4, th + 4, 3); ctx.fill()
+        ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, 3); ctx.fill()
         ctx.globalAlpha = 1
         ctx.restore()
 
