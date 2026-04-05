@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import api from '../api/client'
+import api, { groveApi } from '../api/client'
 
 const OWM_KEY = 'bd5e378503939ddaee76f12ad7a97608'
 const JOB_META = {
@@ -34,7 +34,7 @@ async function fetchWeatherTheme(city, country) {
   try {
     const q = city ? `${city},${country||''}` : country
     const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(q)}&appid=${OWM_KEY}`)
-    if (!r.ok) { if (country) return fetchWeatherTheme(null, country); return null }
+    if (!r.ok) { if (country && city) return fetchWeatherTheme(null, country); return null }
     const d = await r.json()
     const id = d.weather?.[0]?.id||800
     const isDay = Date.now()>=d.sys.sunrise*1000 && Date.now()<d.sys.sunset*1000
@@ -42,6 +42,117 @@ async function fetchWeatherTheme(city, country) {
     if (id>=600&&id<700) return 'snow'; if (id>=700&&id<800) return 'foggy'
     if (id===800) return isDay?'sunny':'night'; if (id<=802) return 'partly-cloudy'; return 'cloudy'
   } catch { return null }
+}
+
+// ── Mini static map widget using OpenStreetMap tiles ─────────────────────────
+function MiniMap({ lat, lng, city, country, onClick }) {
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) return null
+
+  // Convert lat/lng to tile coordinates at zoom 10
+  const zoom = 10
+  const toTile = (lat, lng, z) => {
+    const n = Math.pow(2, z)
+    const x = Math.floor((lng + 180) / 360 * n)
+    const latRad = lat * Math.PI / 180
+    const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * n)
+    return { x, y }
+  }
+
+  const { x: cx, y: cy } = toTile(lat, lng, zoom)
+  // Show a 3x2 grid of tiles centred on the location
+  const tileSize = 256
+  const cols = 3, rows = 2
+  const offsetX = Math.round((lng + 180) / 360 * Math.pow(2, zoom) % 1 * tileSize)
+  const offsetY = Math.round((1 - Math.log(Math.tan(lat*Math.PI/180) + 1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, zoom) % 1 * tileSize)
+
+  const tiles = []
+  for (let dy = -1; dy <= rows - 1; dy++) {
+    for (let dx = -1; dx <= cols - 1; dx++) {
+      const tx = cx + dx, ty = cy + dy
+      tiles.push({ tx, ty, dx, dy })
+    }
+  }
+
+  // Use a 50km box: at zoom 10, 1 tile ≈ 40km wide near equator
+  // We just show a 300×160 cropped static map
+  const W = 300, H = 160
+
+  return (
+    <div
+      onClick={onClick}
+      className="rounded-xl overflow-hidden border border-forest-700 cursor-pointer hover:border-forest-500 transition-colors relative"
+      style={{ width: '100%', height: H, background: '#0d1f0d' }}
+      title="Click to open on Globe Map"
+    >
+      {/* Tile grid */}
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', opacity: 0.75 }}>
+        {tiles.map(({ tx, ty, dx, dy }) => (
+          <img
+            key={`${tx}-${ty}`}
+            src={`https://a.basemaps.cartocdn.com/dark_all/${zoom}/${tx}/${ty}.png`}
+            alt=""
+            style={{
+              position: 'absolute',
+              left: (dx + 1) * tileSize - offsetX,
+              top:  (dy + 1) * tileSize - offsetY,
+              width: tileSize, height: tileSize,
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Dark vignette edges */}
+      <div style={{
+        position:'absolute', inset:0, pointerEvents:'none',
+        background:'radial-gradient(ellipse at center, transparent 40%, rgba(5,15,5,0.7) 100%)',
+      }}/>
+
+      {/* Centre dot — their location */}
+      <div style={{
+        position:'absolute', left:'50%', top:'50%',
+        transform:'translate(-50%,-50%)',
+        width:14, height:14, borderRadius:'50%',
+        background:'#4dba4d', border:'2.5px solid #80d580',
+        boxShadow:'0 0 10px rgba(77,186,77,0.7)',
+        zIndex:10,
+      }}/>
+
+      {/* City label top */}
+      <div style={{
+        position:'absolute', top:8, left:0, right:0,
+        textAlign:'center', zIndex:10,
+        pointerEvents:'none',
+      }}>
+        <span style={{
+          background:'rgba(5,20,5,0.75)', backdropFilter:'blur(4px)',
+          color:'#80d580', fontSize:11, fontWeight:600,
+          padding:'2px 10px', borderRadius:99,
+          border:'1px solid rgba(77,186,77,0.3)',
+          fontFamily:'Dosis,sans-serif',
+        }}>
+          📍 {city || country}
+        </span>
+      </div>
+
+      {/* ~50km scale indicator */}
+      <div style={{
+        position:'absolute', bottom:8, right:10, zIndex:10,
+        display:'flex', alignItems:'center', gap:4, pointerEvents:'none',
+      }}>
+        <div style={{ width:40, height:2, background:'rgba(77,186,77,0.5)', borderRadius:1 }}/>
+        <span style={{ color:'rgba(77,186,77,0.6)', fontSize:9, fontFamily:'monospace' }}>~50km</span>
+      </div>
+
+      {/* Click hint */}
+      <div style={{
+        position:'absolute', bottom:8, left:10, zIndex:10, pointerEvents:'none',
+        color:'rgba(255,255,255,0.4)', fontSize:9, fontFamily:'Dosis,sans-serif',
+      }}>
+        tap to open map ↗
+      </div>
+    </div>
+  )
 }
 
 export default function ProfilePage() {
@@ -53,9 +164,9 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError]   = useState('')
   const [weather, setWeather] = useState(null)
-  const [grove, setGrove] = useState(null)
+  const [grove, setGrove]   = useState(null)
 
   useEffect(() => {
     const endpoint = isOwn ? '/api/profile/me' : `/api/profile/${id}`
@@ -63,11 +174,15 @@ export default function ProfilePage() {
       .then(r => {
         setProfile(r.data)
         fetchWeatherTheme(r.data.city, r.data.country).then(setWeather)
-        // Fetch grove stock for connection profiles
+        // Fetch grove data — use connections list and find this person
         if (!isOwn) {
-          api.get(`/api/grove/connection/${r.data.id}`).then(g => setGrove(g.data)).catch(() => {})
+          groveApi.connections().then(g => {
+            const conns = Array.isArray(g.data) ? g.data : (g.data?.connections || [])
+            const match = conns.find(c => c.id === r.data.id)
+            if (match) setGrove(match)
+          }).catch(() => {})
         } else {
-          api.get('/api/grove/my').then(g => setGrove(g.data)).catch(() => {})
+          groveApi.me().then(g => setGrove(g.data)).catch(() => {})
         }
       })
       .catch(e => {
@@ -96,6 +211,10 @@ export default function ProfilePage() {
   const avatarEmoji = profile.mood || wEmoji
   const noteIsFresh = profile.notePostedAt && (Date.now()-new Date(profile.notePostedAt))<86400000
 
+  const openOnMap = () => navigate('/map', {
+    state: { flyTo: { lat: profile.latitude, lng: profile.longitude } }
+  })
+
   return (
     <div className="flex flex-col h-full overflow-y-auto">
 
@@ -103,8 +222,6 @@ export default function ProfilePage() {
       <div className="px-5 pt-8 pb-6 border-b border-forest-800 flex-shrink-0"
         style={{ background:'linear-gradient(160deg,rgb(var(--f900)/0.95),rgb(var(--f800)/0.7))' }}>
         <div className="max-w-xl mx-auto">
-
-          {/* Desktop: row. Mobile: column centred */}
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
 
             {/* Avatar */}
@@ -116,7 +233,6 @@ export default function ProfilePage() {
                   </Link>
                 : <div className="text-[80px] leading-none select-none">{avatarEmoji}</div>
               }
-              {/* Weather separate line if mood is showing as avatar */}
               {profile.mood && (
                 <span className="text-sm text-forest-600 flex items-center gap-1">
                   {wEmoji} <span className="capitalize">{displayWeather?.replace('-',' ') || 'unknown'}</span>
@@ -162,6 +278,20 @@ export default function ProfilePage() {
       {/* ── Body ── */}
       <div className="px-5 py-5 flex flex-col gap-4 max-w-xl mx-auto w-full pb-8">
 
+        {/* Mini map — their location */}
+        {(profile.latitude && profile.longitude) && (
+          <div>
+            <p className="text-forest-600 text-xs uppercase tracking-wide mb-2">Location</p>
+            <MiniMap
+              lat={Number(profile.latitude)}
+              lng={Number(profile.longitude)}
+              city={profile.city}
+              country={profile.country}
+              onClick={openOnMap}
+            />
+          </div>
+        )}
+
         {/* Today's note */}
         {noteIsFresh && profile.dailyNote && (
           <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
@@ -199,7 +329,7 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* Grove / Seeds chart */}
+        {/* Grove / stock */}
         {grove && (
           <div className="rounded-2xl bg-forest-900/40 border border-forest-800 p-5">
             <p className="text-forest-600 text-xs uppercase tracking-wide mb-3">Grove</p>
@@ -208,19 +338,8 @@ export default function ProfilePage() {
                 <p className="text-forest-50 font-display text-2xl">🌱 {grove.seeds ?? grove.currentSeeds ?? '—'}</p>
                 <p className="text-forest-600 text-xs mt-0.5">seeds balance</p>
               </div>
-              {grove.priceChange !== undefined && (
-                <div className="text-right">
-                  <p className={`text-sm font-medium ${grove.priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {grove.priceChange >= 0 ? '↑' : '↓'} {Math.abs(grove.priceChange).toFixed(1)}%
-                  </p>
-                  <p className="text-forest-600 text-xs">7-day change</p>
-                </div>
-              )}
               {!isOwn && (
-                <button onClick={() => window.location.href='/grove'}
-                  className="text-forest-500 text-xs hover:text-forest-300 ml-4">
-                  Invest →
-                </button>
+                <Link to="/grove" className="text-forest-500 text-xs hover:text-forest-300">Invest →</Link>
               )}
             </div>
           </div>
@@ -238,35 +357,44 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Streak with viewer */}
+        {/* Streak */}
         {!isOwn && profile.streak && (
           <div className="rounded-2xl bg-forest-900/40 border border-forest-800 px-5 py-4 flex items-center justify-between">
             <div>
               <p className="text-forest-600 text-xs uppercase tracking-wide mb-1">Your streak together</p>
-              {profile.streak.streak_days > 0
-                ? <div className="flex items-center gap-2"><span className="text-2xl">🔥</span><span className="text-forest-100 font-display text-xl">{profile.streak.streak_days} days</span></div>
+              {(profile.streak.streak_days || profile.streak.streakDays || 0) > 0
+                ? <div className="flex items-center gap-2">
+                    <span className="text-2xl">🔥</span>
+                    <span className="text-forest-100 font-display text-xl">
+                      {profile.streak.streak_days || profile.streak.streakDays} days
+                    </span>
+                  </div>
                 : <span className="text-forest-600 text-sm">No streak yet — write a letter!</span>
               }
             </div>
             <div className="flex gap-1.5">
               {[0,1,2].map(i => (
-                <div key={i} className={`w-3 h-3 rounded-full border-2 ${i<(profile.streak.fuel??0)?'bg-forest-500 border-forest-300':'bg-forest-900 border-forest-700'}`}/>
+                <div key={i} className={`w-3 h-3 rounded-full border-2
+                  ${i<(profile.streak.fuel??0)
+                    ? 'bg-forest-500 border-forest-300'
+                    : 'bg-forest-900 border-forest-700'}`}/>
               ))}
             </div>
           </div>
         )}
 
-        {/* Write letter button */}
+        {/* Write letter */}
         {!isOwn && (
           <Link to="/letters" state={{ selectFriend:{id:profile.id,displayName:profile.nickname} }}
-            className="flex items-center justify-center gap-2 w-full bg-forest-700 hover:bg-forest-600 text-forest-100 font-medium py-3.5 rounded-2xl transition-colors text-base">
+            className="flex items-center justify-center gap-2 w-full bg-forest-700 hover:bg-forest-600
+                       text-forest-100 font-medium py-3.5 rounded-2xl transition-colors text-base">
             ✉️ Write a letter
           </Link>
         )}
 
         {/* Memories placeholder */}
-        <div className="rounded-2xl border border-dashed border-forest-800 px-5 py-4 text-center opacity-50">
-          <p className="text-forest-600 text-sm">🌳 Wall & Memories — coming in next update</p>
+        <div className="rounded-2xl border border-dashed border-forest-800 px-5 py-4 text-center opacity-40">
+          <p className="text-forest-600 text-sm">🌳 Wall & Memories — coming soon</p>
         </div>
 
         {/* Friend code (own) */}
@@ -276,7 +404,9 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between gap-3">
               <p className="friend-code text-forest-100 text-xl tracking-[0.18em]">{profile.friendCode}</p>
               <button onClick={() => navigator.clipboard?.writeText(profile.friendCode)}
-                className="bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs px-3 py-1.5 rounded-lg transition-colors">Copy</button>
+                className="bg-forest-700 hover:bg-forest-600 text-forest-100 text-xs px-3 py-1.5 rounded-lg transition-colors">
+                Copy
+              </button>
             </div>
           </div>
         )}
