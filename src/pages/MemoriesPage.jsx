@@ -262,15 +262,14 @@ async function processImage(file, participants, route, wmOptions) {
 }
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
-function Lightbox({ moment, onClose, currentUserId, onLike, onComment, onDeleteComment }) {
+function Lightbox({ moment, onClose, currentUserId, isOwner, onLike, onComment, onDeleteComment }) {
   const [comment, setComment]   = useState('')
   const [comments, setComments] = useState(moment.comments || [])
   const [liked, setLiked]       = useState((moment.likes||[]).some(l=>l.userId===currentUserId))
-  const [likeCount, setLikeCount] = useState(moment.like_count||0)
+  const [likeCount, setLikeCount] = useState(parseInt(moment.like_count||0, 10))
   const [posting, setPosting]   = useState(false)
   const [commentError, setCommentError] = useState('')
   const myComment = comments.find(c => c.userId === currentUserId)
-  const STICKY = ['#fef08a','#bbf7d0','#bfdbfe','#fecaca','#e9d5ff']
 
   const handleLike = async () => {
     if (liked) return
@@ -308,35 +307,13 @@ function Lightbox({ moment, onClose, currentUserId, onLike, onComment, onDeleteC
         <button onClick={onClose} className="text-2xl leading-none" style={{color:"rgb(var(--f500))"}}>✕</button>
       </div>
 
-      {/* Image with sticky notes */}
-      <div className="flex-1 flex items-center justify-center relative px-4 overflow-hidden"
+      {/* Image */}
+      <div className="flex-1 flex items-center justify-center px-4 overflow-hidden"
         onClick={e=>e.stopPropagation()}>
-        <div className="relative inline-block">
-          <img src={moment.cdn_url} alt={moment.caption||''}
-            className="max-w-full max-h-full object-contain rounded-xl"
-            style={{ maxHeight:'calc(100vh - 200px)', maxWidth:'calc(100vw - 32px)' }}
-          />
-          {comments.map((c, i) => (
-            <div key={c.id||i} style={{
-              position:'absolute',
-              left:`${15+(i%3)*25}%`,
-              top:`${8+(i%2)*30}%`,
-              background: STICKY[i%STICKY.length],
-              padding:'6px 8px', borderRadius:3,
-              boxShadow:'2px 3px 8px rgba(0,0,0,0.45)',
-              transform:`rotate(${(i%2===0?-1:1)*(1+i*0.7)}deg)`,
-              maxWidth:110, zIndex:10, cursor: c.userId===currentUserId ? 'pointer':'default',
-            }}
-              title={c.userId===currentUserId ? 'Click your comment to delete it' : ''}
-              onClick={c.userId===currentUserId ? handleDeleteComment : undefined}>
-              <p style={{fontSize:9,fontWeight:700,color:'#1a1a1a',marginBottom:2}}>{c.authorName}</p>
-              <p style={{fontSize:10,color:'#2a2a2a',lineHeight:1.3}}>{c.text}</p>
-              {c.userId===currentUserId && (
-                <p style={{fontSize:8,color:'#666',marginTop:3,textAlign:'right'}}>tap to remove</p>
-              )}
-            </div>
-          ))}
-        </div>
+        <img src={moment.cdn_url} alt={moment.caption||''}
+          className="max-w-full max-h-full object-contain rounded-xl"
+          style={{maxHeight:'calc(100vh - 200px)', maxWidth:'calc(100vw - 32px)'}}
+        />
       </div>
 
       {/* Bottom bar */}
@@ -364,7 +341,7 @@ function Lightbox({ moment, onClose, currentUserId, onLike, onComment, onDeleteC
             <div className="flex gap-2">
               <input value={comment} onChange={e=>setComment(e.target.value.slice(0,80))}
                 onKeyDown={e=>e.key==='Enter'&&handleComment()}
-                placeholder="Add a sticky note… 📝" maxLength={80}
+                placeholder="Leave a note… 📝" maxLength={80}
                 className="flex-1 rounded-full px-4 py-2 text-sm outline-none" style={{background:"rgb(var(--f900))",border:"1px solid rgb(var(--f700)/0.5)",color:"rgb(var(--f100))"}}
               />
               <button onClick={handleComment} disabled={!comment.trim()||posting}
@@ -417,8 +394,8 @@ function PolaroidCard({ moment, onDelete, isOwn, onOpen }) {
           </div>
         )}
         <div className="absolute bottom-2 left-2 flex gap-1.5">
-          {(moment.like_count>0) && <span className="bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded-full">❤️{moment.like_count}</span>}
-          {(moment.comment_count>0) && <span className="bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded-full">📝{moment.comment_count}</span>}
+          {isOwn && (moment.like_count>0) && <span className="bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded-full">❤️{moment.like_count}</span>}
+          {isOwn && (moment.comment_count>0) && <span className="bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded-full">📝{moment.comment_count}</span>}
         </div>
       </div>
 
@@ -743,7 +720,7 @@ export default function MemoriesPage() {
       </div>
 
       {showUpload&&<UploadModal friends={friendsList} user={user} onClose={()=>setShowUpload(false)} onUploaded={()=>{load()}}/>}
-      {lightbox&&<Lightbox moment={lightbox} onClose={()=>setLightbox(null)} currentUserId={user?.id} onLike={handleLike} onComment={handleComment} onDeleteComment={handleDeleteComment}/>}
+      {lightbox&&<Lightbox moment={lightbox} onClose={()=>setLightbox(null)} currentUserId={user?.id} isOwner={mine.some(m=>m.id===lightbox.id)} onLike={handleLike} onComment={handleComment} onDeleteComment={handleDeleteComment}/>}
     </div>
   )
 }
