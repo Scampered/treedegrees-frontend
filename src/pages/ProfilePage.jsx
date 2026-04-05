@@ -29,18 +29,28 @@ function joinedDate(date) {
   if (!date) return ''
   return new Date(date).toLocaleDateString('en-GB',{month:'long',year:'numeric'})
 }
+const _wxCache = {}
 async function fetchWeatherTheme(city, country) {
   if (!city && !country) return null
+  const key = `${city||''},${country||''}`
+  if (_wxCache[key] && Date.now() - _wxCache[key].ts < 3600000) return _wxCache[key].val
   try {
     const q = city ? `${city},${country||''}` : country
     const r = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(q)}&appid=${OWM_KEY}`)
-    if (!r.ok) { if (country && city) return fetchWeatherTheme(null, country); return null }
+    if (!r.ok) {
+      if (r.status === 429) return null  // rate limited — skip
+      if (country && city) return fetchWeatherTheme(null, country)
+      return null
+    }
     const d = await r.json()
     const id = d.weather?.[0]?.id||800
     const isDay = Date.now()>=d.sys.sunrise*1000 && Date.now()<d.sys.sunset*1000
-    if (id>=200&&id<300) return 'storm'; if (id>=300&&id<600) return 'rain'
-    if (id>=600&&id<700) return 'snow'; if (id>=700&&id<800) return 'foggy'
-    if (id===800) return isDay?'sunny':'night'; if (id<=802) return 'partly-cloudy'; return 'cloudy'
+    let val = 'cloudy'
+    if (id>=200&&id<300) val='storm'; else if (id>=300&&id<600) val='rain'
+    else if (id>=600&&id<700) val='snow'; else if (id>=700&&id<800) val='foggy'
+    else if (id===800) val=isDay?'sunny':'night'; else if (id<=802) val='partly-cloudy'
+    _wxCache[key] = { val, ts: Date.now() }
+    return val
   } catch { return null }
 }
 
@@ -151,7 +161,6 @@ function MiniMap({ lat, lng, city, country, onClick }) {
       }}>
         tap to open map ↗
       </div>
-      {lightboxPost && <ProfileLightbox post={lightboxPost} onClose={() => setLightboxPost(null)} />}
     </div>
   )
 }
