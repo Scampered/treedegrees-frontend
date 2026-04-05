@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import api, { groveApi } from '../api/client'
+import api, { groveApi, momentsApi } from '../api/client'
 
 const OWM_KEY = 'bd5e378503939ddaee76f12ad7a97608'
 const JOB_META = {
@@ -151,6 +151,38 @@ function MiniMap({ lat, lng, city, country, onClick }) {
       }}>
         tap to open map ↗
       </div>
+      {lightboxPost && <ProfileLightbox post={lightboxPost} onClose={() => setLightboxPost(null)} />}
+    </div>
+  )
+}
+
+
+// ── Tiny inline lightbox for profile posts ────────────────────────────────────
+function ProfileLightbox({ post, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[2000] flex flex-col" onClick={onClose}
+      style={{background:'rgba(0,0,0,0.97)',backdropFilter:'blur(12px)'}}>
+      <div className="flex items-center justify-between px-4 py-3" onClick={e=>e.stopPropagation()}>
+        <span className="text-sm font-medium" style={{color:'rgb(var(--f200))'}}>
+          {post.note_emoji && <span className="mr-2">{post.note_emoji}</span>}
+          {post.caption||''}
+        </span>
+        <button onClick={onClose} className="text-2xl" style={{color:'rgb(var(--f500))'}}>✕</button>
+      </div>
+      <div className="flex-1 flex items-center justify-center px-4" onClick={e=>e.stopPropagation()}>
+        <img src={post.cdn_url} alt={post.caption||''}
+          className="max-w-full max-h-full object-contain rounded-xl"
+          style={{maxHeight:'calc(100vh - 120px)'}}/>
+      </div>
+      <div className="flex items-center gap-3 px-4 pb-6 pt-2" onClick={e=>e.stopPropagation()}>
+        <span className="text-xs" style={{color:'rgb(var(--f600))'}}>
+          ❤️ {post.like_count||0} · 📝 {post.comment_count||0}
+        </span>
+        <span className="text-xs" style={{color:'rgb(var(--f700))'}}>
+          {new Date(post.created_at).toLocaleDateString()}
+        </span>
+        {post.is_tagged && <span className="text-xs px-2 py-0.5 rounded-full" style={{background:'rgb(var(--f600)/0.4)',color:'rgb(var(--f100))'}}>@you</span>}
+      </div>
     </div>
   )
 }
@@ -167,6 +199,8 @@ export default function ProfilePage() {
   const [error, setError]   = useState('')
   const [weather, setWeather] = useState(null)
   const [grove, setGrove]   = useState(null)
+  const [posts, setPosts]   = useState([])
+  const [lightboxPost, setLightboxPost] = useState(null)
 
   useEffect(() => {
     const endpoint = isOwn ? '/api/profile/me' : `/api/profile/${id}`
@@ -174,6 +208,9 @@ export default function ProfilePage() {
       .then(r => {
         setProfile(r.data)
         fetchWeatherTheme(r.data.city, r.data.country).then(setWeather)
+        // Fetch their posts (own: mine, others: byUser)
+        const postEndpoint = isOwn ? momentsApi.mine() : momentsApi.byUser(r.data.id)
+        postEndpoint.then(p => setPosts((p.data||[]).slice(0,6))).catch(()=>{})
         // Fetch grove data — use connections list and find this person
         if (!isOwn) {
           groveApi.connections().then(g => {
@@ -304,6 +341,42 @@ export default function ProfilePage() {
               </p>
             </div>
             <p className="text-forest-700 text-xs mt-2 text-right">{timeAgo(profile.notePostedAt)}</p>
+          </div>
+        )}
+
+
+        {/* Posts grid — 6 latest */}
+        {posts.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-forest-600 text-xs uppercase tracking-wide">Posts</p>
+              <span className="text-forest-700 text-xs">{posts.length} recent</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {posts.map(p => (
+                <div key={p.id} onClick={() => setLightboxPost(p)}
+                  className="relative cursor-pointer rounded-xl overflow-hidden group"
+                  style={{background:'rgb(var(--f900)/0.5)'}}>
+                  <img src={p.cdn_url} alt={p.caption||''}
+                    className="w-full h-auto block transition-transform duration-200 group-hover:scale-105"
+                    style={{aspectRatio:'1/1',objectFit:'cover'}}
+                  />
+                  {p.is_tagged && (
+                    <div className="absolute top-1 left-1 text-[8px] font-bold px-1 py-0.5 rounded-full"
+                      style={{background:'rgb(var(--f600)/0.9)',color:'rgb(var(--f100))'}}>
+                      @
+                    </div>
+                  )}
+                  {(p.like_count>0||p.comment_count>0) && (
+                    <div className="absolute bottom-0 inset-x-0 px-1 py-0.5 flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{background:'rgba(0,0,0,0.5)'}}>
+                      {p.like_count>0 && <span className="text-[9px] text-white">❤️{p.like_count}</span>}
+                      {p.comment_count>0 && <span className="text-[9px] text-white">📝{p.comment_count}</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

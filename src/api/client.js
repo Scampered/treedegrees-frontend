@@ -219,10 +219,15 @@ export const profileApi = {
 }
 
 export const momentsApi = {
-  upload:  (data)  => api.post('/api/moments', data),
-  mine:    ()      => api.get('/api/moments/mine'),
-  tagged:  ()      => api.get('/api/moments/tagged'),
-  remove:  (id)    => api.delete(`/api/moments/${id}`),
+  upload:      (data)   => api.post('/api/moments', data),
+  mine:        ()       => api.get('/api/moments/mine'),
+  tagged:      ()       => api.get('/api/moments/tagged'),
+  connections: ()       => api.get('/api/moments/connections'),
+  byUser:      (userId) => api.get(`/api/moments/by/${userId}`),
+  like:        (id)     => api.post(`/api/moments/${id}/like`),
+  comment:     (id, text) => api.post(`/api/moments/${id}/comment`, { text }),
+  delComment:  (id)     => api.delete(`/api/moments/${id}/comment`),
+  remove:      (id)     => api.delete(`/api/moments/${id}`),
 }
 
 export const notesApi = {

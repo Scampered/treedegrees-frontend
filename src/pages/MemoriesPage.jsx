@@ -648,14 +648,12 @@ export default function MemoriesPage() {
   const load = useCallback(() => {
     Promise.all([
       momentsApi.mine().catch(()=>({data:[]})),
-      momentsApi.tagged().catch(()=>({data:[]})),
+      momentsApi.connections().catch(()=>({data:[]})),
       api.get('/api/friends').catch(()=>({data:[]})),
-    ]).then(([m, t, f]) => {
+    ]).then(([m, c, f]) => {
       setMine(m.data||[])
-      const tagged = (t.data||[]).map(x=>({...x,is_tagged:true}))
-      const byId = {}
-      tagged.forEach(x=>{byId[x.id]=x})
-      setFriends(Object.values(byId).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)))
+      // connections() already includes is_tagged flag from backend
+      setFriends((c.data||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)))
       setFriendsList(f.data||[])
     }).finally(()=>setLoading(false))
   }, [])
