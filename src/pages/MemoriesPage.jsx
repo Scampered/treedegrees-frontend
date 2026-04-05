@@ -1,5 +1,6 @@
 // src/pages/MemoriesPage.jsx
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api, { momentsApi } from '../api/client'
 
@@ -418,7 +419,7 @@ function Lightbox({ moment, onClose, currentUserId, isOwner, onLike, onComment, 
 
 
 // ── Polaroid card ─────────────────────────────────────────────────────────────
-function PolaroidCard({ moment, onDelete, isOwn, onOpen }) {
+function PolaroidCard({ moment, onDelete, isOwn, onOpen, onUploaderClick }) {
   const now = Date.now()
   const expiresMs = new Date(moment.expires_at) - now
   const createdMs = now - new Date(moment.created_at)
@@ -486,7 +487,12 @@ function PolaroidCard({ moment, onDelete, isOwn, onOpen }) {
             <span className={`text-[10px] ${urgent?'text-amber-400':''}`}
               style={urgent?{}:{color:'rgb(var(--f700))'}}>{expiresLabel}</span>
           </div>
-          {moment.uploader_name && !isOwn && <span className="text-[10px]" style={{color:'rgb(var(--f600))'}}>{moment.uploader_name}</span>}
+          {moment.uploader_name && !isOwn && (
+            <button onClick={e=>{e.stopPropagation();onUploaderClick?.(moment.uploader_id)}}
+              className="text-[10px] hover:underline text-left" style={{color:'rgb(var(--f500))'}}>
+              {moment.uploader_name}
+            </button>
+          )}
         </div>
       </div>
 
@@ -690,6 +696,7 @@ function UploadModal({ friends, onClose, onUploaded, user }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function MemoriesPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab]         = useState('mine')
   const [mine, setMine]       = useState([])
   const [friends, setFriends] = useState([])
@@ -788,7 +795,7 @@ export default function MemoriesPage() {
           <div className="columns-1 sm:columns-2 lg:columns-3 gap-3">
             {displayItems.map(m=>(
               <div key={m.id} className="break-inside-avoid mb-3">
-                <PolaroidCard moment={m} isOwn={mine.some(x=>x.id===m.id)} onDelete={handleDelete} onOpen={setLightbox}/>
+                <PolaroidCard moment={m} isOwn={mine.some(x=>x.id===m.id)} onDelete={handleDelete} onOpen={setLightbox} onUploaderClick={id => id && navigate(`/profile/${id}`)}/>
               </div>
             ))}
           </div>

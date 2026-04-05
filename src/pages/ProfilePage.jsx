@@ -30,9 +30,12 @@ function joinedDate(date) {
   return new Date(date).toLocaleDateString('en-GB',{month:'long',year:'numeric'})
 }
 const _wxCache = {}
+const _weatherCache = {}
 async function fetchWeatherTheme(city, country) {
   if (!city && !country) return null
   const key = `${city||''},${country||''}`
+  if (_weatherCache[key]) return _weatherCache[key]
+  const _key = `${city||''},${country||''}`
   if (_wxCache[key] && Date.now() - _wxCache[key].ts < 3600000) return _wxCache[key].val
   try {
     const q = city ? `${city},${country||''}` : country
@@ -161,6 +164,7 @@ function MiniMap({ lat, lng, city, country, onClick }) {
       }}>
         tap to open map ↗
       </div>
+      {lightboxPost && <ProfileLightbox post={lightboxPost} onClose={() => setLightboxPost(null)} />}
     </div>
   )
 }
@@ -476,34 +480,7 @@ export default function ProfilePage() {
         )}
 
         {/* Mini location map */}
-        {profile.latitude && profile.longitude && !isNaN(Number(profile.latitude)) && (
-          <div
-            onClick={() => navigate('/map', { state: { flyTo: { lat: Number(profile.latitude), lng: Number(profile.longitude) } } })}
-            className="rounded-2xl overflow-hidden border border-forest-800 cursor-pointer hover:border-forest-600 transition-colors group relative"
-            style={{ height: 160 }}>
-            <img
-              src={`https://staticmap.openstreetmap.de/staticmap.php?center=${profile.latitude},${profile.longitude}&zoom=10&size=600x320&maptype=osm`}
-              alt="Location"
-              className="w-full h-full object-cover"
-              style={{ filter:'brightness(0.55) saturate(0.6)' }}
-              onError={e => { e.target.style.display='none' }}
-            />
-            <div className="absolute inset-0 bg-forest-950/25 group-hover:bg-forest-950/5 transition-colors"/>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-3 h-3 rounded-full bg-forest-400 border-2 border-white shadow-lg"/>
-            </div>
-            <div className="absolute top-3 left-3 bg-forest-950/75 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5">
-              <span className="text-forest-400 text-xs">📍</span>
-              <span className="text-forest-100 text-xs font-medium">{profile.city || profile.country}</span>
-            </div>
-            <div className="absolute top-3 right-3 bg-forest-950/75 backdrop-blur-sm rounded-lg px-2 py-1.5">
-              <span className="text-forest-500 text-xs">~50km</span>
-            </div>
-            <div className="absolute bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <span className="bg-forest-950/80 backdrop-blur-sm rounded-lg px-3 py-1 text-forest-300 text-xs">Open on map →</span>
-            </div>
-          </div>
-        )}
+
 
         {/* Memories placeholder */}
         <div className="rounded-2xl border border-dashed border-forest-800 px-5 py-4 text-center opacity-40">
