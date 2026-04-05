@@ -136,42 +136,59 @@ async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
 
       const centreX = ox + regionW/2
       const centreY = oy + mapH/2
-      const labelFs = Math.max(7, fontSize * 0.84)
-      ctx.font = `bold ${labelFs}px sans-serif`
+      const labelFs = Math.max(7, fontSize * 0.75)
+      ctx.font = `bold ${labelFs}px Dosis, sans-serif`
 
-      labelGroups.forEach(({ x, y, names }) => {
+      labelGroups.forEach((grp) => {
+        const { x, y, names } = grp
         ctx.fillStyle = dotColor
         ctx.beginPath(); ctx.arc(x, y, dotR, 0, Math.PI*2); ctx.fill()
         ctx.strokeStyle = lineColor; ctx.lineWidth = 1.2; ctx.stroke()
 
         const label = names.join(', ')
+        // Measure BEFORE drawing
+        ctx.font = `bold ${labelFs}px Dosis, sans-serif`
         const tw = ctx.measureText(label).width
         const th = labelFs
+        const gap = dotR * 1.6
 
-        // Vertical: above dot if in lower half, below if upper half
-        // Push far enough that the label clears the route line (use dotR*2 gap)
-        const aboveDot = y > centreY
-        const gap = dotR * 2.2
-        const ly = aboveDot ? y - gap : y + gap
-        ctx.textBaseline = aboveDot ? 'bottom' : 'top'
+        // For each endpoint, place label on the OUTSIDE of the route:
+        // - first endpoint (index 0): label goes away from the next point
+        // - last endpoint: label goes away from the previous point
+        // We use the angle from the nearest route segment to pick direction.
+        // Simple heuristic: compare this dot's Y to the NEAREST OTHER dot Y.
+        // If this dot is ABOVE the other dot → label goes ABOVE (away from route going down)
+        // If this dot is BELOW the other dot → label goes BELOW
+        const otherDots = labelGroups.filter(g => g !== grp)
+        let placeAbove = false
+        if (otherDots.length > 0) {
+          const avgOtherY = otherDots.reduce((s,g)=>s+g.y,0)/otherDots.length
+          // This dot is higher (smaller y) than others → route goes down from here → label above
+          placeAbove = y < avgOtherY
+        } else {
+          // Only one dot visible — above if in lower half
+          placeAbove = y > centreY
+        }
 
-        // Horizontal: prefer right of dot, flip left if bleeds
+        const ly = placeAbove ? y - gap : y + gap + th
+        ctx.textBaseline = placeAbove ? 'bottom' : 'top'
+
+        // Horizontal: right of dot, clamp if bleeds
         let lx = x + dotR + 4
         ctx.textAlign = 'left'
-        if (lx + tw > ox + regionW - 2) {
+        if (lx + tw > ox + regionW - 3) {
           lx = x - dotR - 4
           ctx.textAlign = 'right'
         }
+        if (lx < ox + 2) { lx = ox + 2; ctx.textAlign = 'left' }
 
-        // Draw semi-transparent background pill behind text so it reads over any line
+        // Semi-transparent pill behind text
         const bx = ctx.textAlign === 'left' ? lx - 2 : lx - tw - 2
-        const by = aboveDot ? ly - th - 1 : ly - 1
+        const by2 = placeAbove ? ly - th - 1 : ly - 2
         ctx.save()
-        ctx.globalAlpha = 0.45
+        ctx.globalAlpha = 0.5
         ctx.fillStyle = avgBrightness > 128 ? '#ffffff' : '#000000'
-        ctx.beginPath()
-        ctx.roundRect(bx, by, tw + 4, th + 3, 3)
-        ctx.fill()
+        ctx.beginPath(); ctx.roundRect(bx, by2, tw + 4, th + 4, 3); ctx.fill()
         ctx.globalAlpha = 1
         ctx.restore()
 
