@@ -95,11 +95,24 @@ function PolaroidCard({ moment, onDelete, isOwn }) {
   return (
     <div className="relative rounded-xl overflow-hidden border border-forest-800 bg-forest-900/40 group">
       {/* Photo */}
-      <div className="aspect-square overflow-hidden">
+      <div className="aspect-square overflow-hidden relative bg-forest-900">
         <img src={moment.cdn_url} alt={moment.caption||'Moment'}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           crossOrigin="anonymous"
+          onLoad={e => { e.target.style.opacity=1; e.target.previousSibling?.remove() }}
+          onError={e => {
+            console.error('[Moment] Failed to load:', moment.cdn_url, e)
+            e.target.style.display='none'
+            e.target.parentElement.innerHTML += `<div style="padding:8px;font-size:10px;color:#f87171;word-break:break-all">❌ Failed:<br/>${moment.cdn_url}</div>`
+          }}
+          style={{ opacity: 0, transition: 'opacity 0.3s' }}
         />
+        <div style={{
+          position:'absolute', inset:0, display:'flex', alignItems:'center',
+          justifyContent:'center', fontSize:11, color:'#4d7a4d', padding:8, textAlign:'center'
+        }}>
+          ⏳ Loading…
+        </div>
       </div>
 
       {/* Polaroid bottom strip */}
