@@ -419,8 +419,23 @@ function Lightbox({ moment, onClose, currentUserId, isOwner, onLike, onComment, 
 
 // ── Polaroid card ─────────────────────────────────────────────────────────────
 function PolaroidCard({ moment, onDelete, isOwn, onOpen }) {
-  const expiresIn = Math.max(0, Math.ceil((new Date(moment.expires_at)-Date.now())/86400000))
-  const urgent = expiresIn<=1
+  const now = Date.now()
+  const expiresMs = new Date(moment.expires_at) - now
+  const createdMs = now - new Date(moment.created_at)
+  const urgent = expiresMs < 86400000 && expiresMs > 0
+
+  // "posted X ago"
+  const postedAgo = createdMs < 3600000
+    ? `${Math.floor(createdMs/60000)}m ago`
+    : createdMs < 86400000
+    ? `${Math.floor(createdMs/3600000)}h ago`
+    : `${Math.floor(createdMs/86400000)}d ago`
+
+  // "expires in X"
+  const expiresLabel = expiresMs <= 0 ? 'expired'
+    : expiresMs < 3600000 ? `${Math.floor(expiresMs/60000)}m left`
+    : expiresMs < 86400000 ? `${Math.floor(expiresMs/3600000)}h left`
+    : `${Math.floor(expiresMs/86400000)}d left`
   const [loaded, setLoaded] = useState(false)
   const [errored, setErrored] = useState(false)
 
@@ -465,9 +480,12 @@ function PolaroidCard({ moment, onDelete, isOwn, onOpen }) {
           </p>
         </div>
         <div className="flex items-center justify-between mt-1">
-          <span className={`text-[10px] font-medium ${urgent?'text-amber-400':''}`} style={urgent?{}:{color:'rgb(var(--f600))'}}>
-            {urgent?'⚠️ today':`${expiresIn}d`}
-          </span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px]" style={{color:'rgb(var(--f600))'}}>{postedAgo}</span>
+            <span className="text-[9px]" style={{color:'rgb(var(--f700))'}}>&middot;</span>
+            <span className={`text-[10px] ${urgent?'text-amber-400':''}`}
+              style={urgent?{}:{color:'rgb(var(--f700))'}}>{expiresLabel}</span>
+          </div>
           {moment.uploader_name && !isOwn && <span className="text-[10px]" style={{color:'rgb(var(--f600))'}}>{moment.uploader_name}</span>}
         </div>
       </div>
@@ -767,7 +785,7 @@ export default function MemoriesPage() {
           </div>
         )}
         {!loading&&displayItems.length>0&&(
-          <div className="columns-2 sm:columns-3 gap-3">
+          <div className="columns-1 sm:columns-2 lg:columns-3 gap-3">
             {displayItems.map(m=>(
               <div key={m.id} className="break-inside-avoid mb-3">
                 <PolaroidCard moment={m} isOwn={mine.some(x=>x.id===m.id)} onDelete={handleDelete} onOpen={setLightbox}/>
