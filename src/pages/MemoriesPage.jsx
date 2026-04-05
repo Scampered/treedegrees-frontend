@@ -97,7 +97,7 @@ async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
         maxLon: Math.max(...lons) + lonSpan*margin,
       }
 
-      const mapH = Math.round(regionH * 0.78)
+      const mapH = Math.round(regionH * 0.72)
       const projPts = drawPts.map(p => {
         const [x, y] = project(p[0], p[1], bounds, regionW, mapH)
         return [ox+x, oy+y]
@@ -146,19 +146,35 @@ async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
 
         const label = names.join(', ')
         const tw = ctx.measureText(label).width
+        const th = labelFs
 
-        // Above dot if in lower half, below if in upper half
+        // Vertical: above dot if in lower half, below if upper half
+        // Push far enough that the label clears the route line (use dotR*2 gap)
         const aboveDot = y > centreY
-        const ly = aboveDot ? y - dotR - 4 : y + dotR + labelFs + 2
+        const gap = dotR * 2.2
+        const ly = aboveDot ? y - gap : y + gap
         ctx.textBaseline = aboveDot ? 'bottom' : 'top'
 
-        // Right of dot by default; flip left if it bleeds off edge
-        let lx = x + dotR + 3
+        // Horizontal: prefer right of dot, flip left if bleeds
+        let lx = x + dotR + 4
         ctx.textAlign = 'left'
         if (lx + tw > ox + regionW - 2) {
-          lx = x - dotR - 3
+          lx = x - dotR - 4
           ctx.textAlign = 'right'
         }
+
+        // Draw semi-transparent background pill behind text so it reads over any line
+        const bx = ctx.textAlign === 'left' ? lx - 2 : lx - tw - 2
+        const by = aboveDot ? ly - th - 1 : ly - 1
+        ctx.save()
+        ctx.globalAlpha = 0.45
+        ctx.fillStyle = avgBrightness > 128 ? '#ffffff' : '#000000'
+        ctx.beginPath()
+        ctx.roundRect(bx, by, tw + 4, th + 3, 3)
+        ctx.fill()
+        ctx.globalAlpha = 1
+        ctx.restore()
+
         drawLabel(label, lx, ly, labelFs)
       })
       ctx.textBaseline = 'alphabetic'
@@ -172,7 +188,7 @@ async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
   ctx.font = `bold ${brandFs}px Dosis, sans-serif`
   ctx.shadowColor = shadowCol; ctx.shadowBlur = 5
   ctx.fillStyle = labelColor
-  ctx.fillText('\u{1F333} TreeDegrees', ox + regionW/2, oy + regionH - 6)
+  ctx.fillText('\u{1F333} TreeDegrees', ox + regionW/2, oy + Math.round(regionH * 0.88))
   ctx.shadowBlur = 0
 
   ctx.restore()
