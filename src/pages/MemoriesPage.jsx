@@ -26,137 +26,131 @@ function project(lat, lon, bounds, canvasW, canvasH) {
 async function drawWatermark(ctx, imgW, imgH, participants, route, options) {
   const { position = 'bottom-right', size = 'medium' } = options
 
-  // Size controls the canvas region used — relative to image
-  const sizeMap = { small: 0.18, medium: 0.28, large: 0.40 }
-  const regionFrac = sizeMap[size] || 0.28
+  // Watermark region — always same physical size relative to image
+  // Size (S/M/L) controls how much geographic context is shown (zoom level)
+  const regionFrac = 0.28
   const regionW = Math.round(imgW * regionFrac)
-  const regionH = Math.round(regionW * 0.7)  // ~4:3 ratio
-  const pad = Math.round(imgW * 0.03)
+  const regionH = Math.round(regionW * 0.7)
+  const pad = Math.round(imgW * 0.028)
 
   // Corner origin
   let ox = pad, oy = pad
   if (position.includes('right'))  ox = imgW - regionW - pad
   if (position.includes('bottom')) oy = imgH - regionH - pad
 
-  // Sample the average brightness of the background region to pick inverted line colour
+  // Sample background brightness for contrast-aware colours
   let avgBrightness = 128
   try {
     const sample = ctx.getImageData(ox, oy, regionW, regionH)
     let sum = 0
-    for (let i = 0; i < sample.data.length; i += 16) {
+    for (let i = 0; i < sample.data.length; i += 16)
       sum += 0.299*sample.data[i] + 0.587*sample.data[i+1] + 0.114*sample.data[i+2]
-    }
     avgBrightness = sum / (sample.data.length / 16)
   } catch {}
-  // Invert: dark bg → bright line, light bg → dark line
-  const lineColor  = avgBrightness > 128 ? 'rgba(0,0,0,0.92)'   : 'rgba(255,255,255,0.92)'
-  const dotColor   = avgBrightness > 128 ? '#111111'             : '#ffffff'
-  const labelColor = avgBrightness > 128 ? 'rgba(0,0,0,0.85)'   : 'rgba(255,255,255,0.9)'
-  const shadowCol  = avgBrightness > 128 ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'
+  const dark = avgBrightness > 128
+  const lineColor  = dark ? 'rgba(0,0,0,0.92)'     : 'rgba(255,255,255,0.95)'
+  const dotColor   = dark ? '#111111'               : '#ffffff'
+  const labelColor = dark ? 'rgba(0,0,0,0.88)'      : 'rgba(255,255,255,0.95)'
+  const shadowCol  = dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'
 
-  // Helper: draw text with shadow for legibility on any background
   const drawLabel = (text, x, y, fontSize) => {
     ctx.font = `bold ${fontSize}px sans-serif`
-    ctx.shadowColor = shadowCol
-    ctx.shadowBlur = 4
-    ctx.fillStyle = labelColor
-    ctx.fillText(text, x, y)
+    ctx.shadowColor = shadowCol; ctx.shadowBlur = 5
+    ctx.fillStyle = labelColor; ctx.fillText(text, x, y)
     ctx.shadowBlur = 0
   }
 
-  // ── NO background box — draw directly on image ───────────────────────────
   ctx.save()
-  // Clip to the region so nothing bleeds outside
-  ctx.beginPath()
-  ctx.rect(ox, oy, regionW, regionH)
-  ctx.clip()
+  ctx.beginPath(); ctx.rect(ox, oy, regionW, regionH); ctx.clip()
 
-  const lineW = Math.max(1.5, regionW * 0.012)
-  const dotR  = Math.max(3, regionW * 0.025)
-  const fontSize = Math.max(8, regionH * 0.12)
+  const lineW = Math.max(1.5, regionW * 0.014)
+  const dotR  = Math.max(3.5, regionW * 0.028)
+  const fontSize = Math.max(8, regionH * 0.115)
 
   if (participants.length >= 2) {
-    // Build points array — either route pts (2-person) or participant coords (3+)
     let drawPts, isRoute2 = false
     if (participants.length === 2 && route?.points?.length >= 2) {
-      drawPts = route.points  // [[lat,lon],...]
-      isRoute2 = true
+      drawPts = route.points; isRoute2 = true
     } else {
-      // For polygon: connect each participant
       drawPts = participants.filter(p=>p.lat&&p.lon).map(p=>[p.lat,p.lon])
     }
 
     if (drawPts.length >= 2) {
-      // Relative bounds — zoom to ACTUAL spread of the points, with a small margin
+      // ── Relative bounds — always zoom to fit the actual point spread ───────
+      // Size option controls the margin (context) around the spread:
+      //   small = tight zoom (10% margin) — points fill the box
+      //   medium = comfortable (30% margin)
+      //   large = zoomed out (70% margin) — shows more geographic context
+      const marginMap = { small: 0.12, medium: 0.32, large: 0.72 }
+      const margin = marginMap[size] || 0.32
+
       const lats = drawPts.map(p=>p[0])
       const lons = drawPts.map(p=>p[1])
-      const latSpan = Math.max(Math.max(...lats)-Math.min(...lats), 0.001)
-      const lonSpan = Math.max(Math.max(...lons)-Math.min(...lons), 0.001)
-      // Add 25% margin so endpoints aren't at the very edge
-      const margin = 0.30
+      const latSpan = Math.max(Math.max(...lats)-Math.min(...lats), 0.0002)
+      const lonSpan = Math.max(Math.max(...lons)-Math.min(...lons), 0.0002)
+      // Keep aspect ratio square-ish so route doesn't get squished
+      const span = Math.max(latSpan, lonSpan * 0.8)
       const bounds = {
-        minLat: Math.min(...lats) - latSpan*margin,
-        maxLat: Math.max(...lats) + latSpan*margin,
+        minLat: Math.min(...lats) - span*margin,
+        maxLat: Math.max(...lats) + span*margin,
         minLon: Math.min(...lons) - lonSpan*margin,
         maxLon: Math.max(...lons) + lonSpan*margin,
       }
 
-      // Leave bottom 18% for names
-      const mapH = Math.round(regionH * 0.80)
+      const mapH = Math.round(regionH * 0.78)
       const projPts = drawPts.map(p => {
         const [x, y] = project(p[0], p[1], bounds, regionW, mapH)
-        return [ox + x, oy + y]
+        return [ox+x, oy+y]
       })
 
-      // Draw line/route
+      // Draw route/polygon line
       ctx.strokeStyle = lineColor
       ctx.lineWidth = lineW
       ctx.setLineDash(isRoute2 && route?.type === 'air' ? [lineW*3, lineW*2] : [])
       ctx.beginPath()
       projPts.forEach(([x,y], i) => { if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y) })
-      if (!isRoute2) ctx.closePath()  // close polygon for 3+
+      if (!isRoute2) ctx.closePath()
       ctx.stroke()
       ctx.setLineDash([])
 
-      // Node dots + per-node name labels
+      // Endpoint dots — route uses first+last, polygon uses all
       const endPts = isRoute2
-        ? [[projPts[0][0], projPts[0][1]], [projPts[projPts.length-1][0], projPts[projPts.length-1][1]]]
+        ? [projPts[0], projPts[projPts.length-1]]
         : projPts
 
-      // Group overlapping dots (within 3x dotR) → show combined name
+      // Group visually overlapping dots → show combined label
       const labelGroups = []
-      const usedIdx = new Set()
+      const used = new Set()
       endPts.forEach(([x,y], i) => {
-        if (usedIdx.has(i)) return
+        if (used.has(i)) return
         const grp = { x, y, names: [participants[i]?.name].filter(Boolean) }
         endPts.forEach(([x2,y2], j) => {
-          if (j===i || usedIdx.has(j)) return
-          if (Math.sqrt((x2-x)**2+(y2-y)**2) < dotR*3.5) {
+          if (j===i||used.has(j)) return
+          if (Math.sqrt((x2-x)**2+(y2-y)**2) < dotR*4) {
             if (participants[j]?.name) grp.names.push(participants[j].name)
-            usedIdx.add(j)
+            used.add(j)
           }
         })
-        usedIdx.add(i)
-        labelGroups.push(grp)
+        used.add(i); labelGroups.push(grp)
       })
 
       const centreX = ox + regionW/2
       labelGroups.forEach(({ x, y, names }) => {
         ctx.fillStyle = dotColor
         ctx.beginPath(); ctx.arc(x, y, dotR, 0, Math.PI*2); ctx.fill()
-        ctx.strokeStyle = lineColor; ctx.lineWidth = 1; ctx.stroke()
+        ctx.strokeStyle = lineColor; ctx.lineWidth = 1.2; ctx.stroke()
         const label = names.join(', ')
-        const labelX = x < centreX ? x - dotR - 3 : x + dotR + 3
+        const lx = x < centreX ? x-dotR-3 : x+dotR+3
         ctx.textAlign = x < centreX ? 'right' : 'left'
-        drawLabel(label.slice(0,20)+(label.length>20?'…':''), labelX, y + dotR*0.4, Math.max(7,fontSize*0.82))
+        drawLabel(label.slice(0,22)+(label.length>22?'…':''), lx, y+dotR*0.45, Math.max(6.5, fontSize*0.80))
       })
     }
   }
 
-  // Bottom summary strip
+  // Bottom name summary
   const nameStr = participants.map(p=>p.name).join(' · ')
   ctx.textAlign = 'center'
-  drawLabel(nameStr.slice(0,40)+(nameStr.length>40?'…':''), ox+regionW/2, oy+regionH-4, fontSize*0.8)
+  drawLabel(nameStr.slice(0,42)+(nameStr.length>42?'…':''), ox+regionW/2, oy+regionH-5, fontSize*0.78)
 
   ctx.restore()
 }
