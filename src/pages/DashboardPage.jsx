@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { friendsApi, usersApi, lettersApi, jobsApi, notesApi } from '../api/client'
+import { friendsApi, usersApi, lettersApi, jobsApi, notesApi, momentsApi } from '../api/client'
 import MoodPicker from '../components/MoodPicker'
 import QRCodeCard from '../components/QRCodeCard'
 import InstallAppCard from '../components/InstallAppCard'
@@ -319,6 +319,7 @@ export default function DashboardPage() {
       const { data } = await usersApi.postDailyNote(note)
       updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt })
       setHoursLeft('24.0'); setNote('')
+      setNoteAttachment(null); setShowNotePicker(false)
       setNoteStatus('✓ Posted!')
     } catch (err) {
       setNoteStatus(err.response?.data?.error || 'Could not post note')
@@ -349,6 +350,7 @@ export default function DashboardPage() {
     userId: user.id, displayName: user.nickname || user.fullName?.split(' ')[0],
     note: user.dailyNote, notePostedAt: user.dailyNoteUpdatedAt,
     mood: user.mood, likes: myNoteLikes, streakDays: 0,
+    noteMomentCdnUrl: user.noteMomentCdnUrl || null,
   } : null
 
   const notesWithStreaks = friendNotes.map(n => {

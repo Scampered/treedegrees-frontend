@@ -184,19 +184,19 @@ function ChartCard({ userId, name, isMe, seedsNow }) {
   return (
     <div ref={wrapRef} style={{ marginBottom: 6, width: '100%' }}>
       {/* Window selector */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+      <div className="flex gap-1 px-4 pt-2 pb-1">
         {WINDOWS.map(ww => (
           <button key={ww.key} onClick={() => { setData(null); setLoad(true); setWin(ww.key) }}
+            className="px-3 py-1 rounded-xl text-xs font-semibold transition-all"
             style={{
-              padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-              background: win === ww.key ? '#14532d' : 'transparent',
-              border: `1px solid ${win === ww.key ? '#2d6a35' : '#1f2f1f'}`,
-              color: win === ww.key ? '#4ade80' : '#4b5563',
+              background: win === ww.key ? 'rgb(var(--f700)/0.8)' : 'transparent',
+              border: `1px solid ${win === ww.key ? 'rgb(var(--f500)/0.5)' : 'rgb(var(--f800)/0.4)'}`,
+              color: win === ww.key ? 'rgb(var(--f100))' : 'rgb(var(--f600))',
             }}>
             {ww.label}
           </button>
         ))}
-        {loading && <span style={{ fontSize: 9, color: '#374151', alignSelf: 'center' }}>updating…</span>}
+        {loading && <span className="text-xs ml-1 self-center" style={{color:'rgb(var(--f700))'}}>…</span>}
       </div>
       <StockChart data={data} win={win} w={chartW} h={90}/>
     </div>
