@@ -142,16 +142,19 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
           transform:'rotateY(180deg)',
           display:'flex', flexDirection:'column', padding:10, overflow:'hidden',
         }}>
-          <div style={{ fontSize:20, textAlign:'center', marginBottom:4 }}>{displayEmoji}</div>
+          <div style={{ fontSize:18, textAlign:'center', marginBottom:3 }}>{displayEmoji}</div>
           <p onClick={e => { e.stopPropagation(); navigate('/feed') }}
-            style={{ color: textMain, fontSize:11, lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp: note.noteMomentCdnUrl ? 3 : 5, WebkitBoxOrient:'vertical', cursor:'pointer' }}>
+            style={{ color: textMain, fontSize:10, lineHeight:1.4, overflow:'hidden', display:'-webkit-box',
+              WebkitLineClamp: note.noteMomentCdnUrl ? 2 : 5, WebkitBoxOrient:'vertical',
+              cursor:'pointer', wordBreak:'break-word', overflowWrap:'break-word', flexShrink:0 }}>
             {note.note}
           </p>
-          {/* Attached memory as mini polaroid */}
+          {/* Attached memory — fills card width, natural ratio, tight polaroid border */}
           {note.noteMomentCdnUrl && (
-            <div style={{display:'flex',justifyContent:'center',marginTop:5,marginBottom:2,flex:1}}>
-              <div style={{background:'#f5f0e8',padding:'3px 3px 10px 3px',borderRadius:4,boxShadow:'0 2px 8px rgba(0,0,0,0.45)',width:62,flexShrink:0,cursor:'pointer'}}
-                onClick={e => { e.stopPropagation(); window._openNoteImg && window._openNoteImg(note.noteMomentCdnUrl) }}>
+            <div style={{marginTop:4,flex:1,display:'flex',flexDirection:'column',justifyContent:'center'}}
+              onClick={e => e.stopPropagation()}>
+              <div style={{background:'#f5f0e8',padding:'3px 3px 7px 3px',borderRadius:4,
+                boxShadow:'0 2px 8px rgba(0,0,0,0.45)',width:'100%',cursor:'pointer'}}>
                 <img src={note.noteMomentCdnUrl} alt="" style={{width:'100%',height:'auto',borderRadius:2,display:'block'}}/>
               </div>
             </div>

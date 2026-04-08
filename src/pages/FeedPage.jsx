@@ -166,10 +166,13 @@ export default function FeedPage() {
                 </div>
                 <div>
                   <p className="text-forest-200 text-sm font-medium cursor-pointer hover:underline" onClick={() => navigate(`/profile/${n.userId||n.id}`)}>{n.displayName}</p>
-                  <p className="text-forest-600 text-xs">{n.city ? `${n.city}, ${n.country}` : n.country} · {timeAgo(n.postedAt)}</p>
+                  <p className="text-forest-600 text-xs">{n.city ? `${n.city}, ${n.country}` : n.country} · {timeAgo(n.notePostedAt)}</p>
                 </div>
               </div>
-              <p className="text-forest-300 text-sm italic leading-relaxed pl-11">"{n.note}"</p>
+              <p className="text-forest-300 text-sm italic leading-relaxed pl-11"
+                style={{wordBreak:'break-word',overflowWrap:'break-word',whiteSpace:'pre-wrap'}}>
+                "{n.note}"
+              </p>
               {n.noteMomentCdnUrl && (
                 <div className="pl-11 mt-3">
                   <div style={{background:'#f5f0e8',padding:'6px 6px 18px 6px',borderRadius:6,boxShadow:'0 2px 12px rgba(0,0,0,0.35)',display:'inline-block',maxWidth:160}}>
