@@ -800,8 +800,6 @@ export default function GrovePage() {
     })
 
   const myRank = leaderboard.findIndex(l => l.isMe) + 1
-
-  const myRank = leaderboard.findIndex(l => l.isMe) + 1
   const totalIn  = txLog.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0)
   const totalOut = txLog.filter(t=>t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0)
 
