@@ -200,16 +200,6 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick, onNavigate
           </div>
         </div>
       </div>
-      {/* Note image lightbox */}
-      {noteImgLightbox && (
-        <div className="fixed inset-0 z-[2000] flex flex-col items-center justify-center"
-          style={{background:'rgba(0,0,0,0.97)',backdropFilter:'blur(12px)'}}
-          onClick={() => setNoteImgLightbox(null)}>
-          <button className="absolute top-4 right-4 text-2xl text-white/60 hover:text-white">✕</button>
-          <img src={noteImgLightbox} alt="" className="max-w-full max-h-full object-contain rounded-xl"
-            style={{maxHeight:'90vh',maxWidth:'90vw'}} onClick={e => e.stopPropagation()}/>
-        </div>
-      )}
     </div>
   )
 }
@@ -694,6 +684,17 @@ export default function DashboardPage() {
         <QRCodeCard friendCode={user?.friendCode} />
         <InstallAppCard />
       </div>
+
+      {/* Note image lightbox */}
+      {noteImgLightbox && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center"
+          style={{background:'rgba(0,0,0,0.97)',backdropFilter:'blur(12px)'}}
+          onClick={() => setNoteImgLightbox(null)}>
+          <button className="absolute top-4 right-4 text-2xl text-white/60 hover:text-white">✕</button>
+          <img src={noteImgLightbox} alt="" className="object-contain rounded-xl"
+            style={{maxHeight:'90vh',maxWidth:'90vw'}} onClick={e => e.stopPropagation()}/>
+        </div>
+      )}
     </div>
   )
 }
