@@ -1,5 +1,5 @@
 // src/components/MoodPicker.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usersApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -40,7 +40,9 @@ export default function MoodPicker({ compact = false }) {
   const [saving, setSaving]     = useState(false)
   const [status, setStatus]     = useState('')
   const [cooldownMs, setCooldownMs] = useState(0)
-
+  const [customInput, setCustomInput] = useState('')
+  const [customError, setCustomError] = useState('')
+  const inputRef = useRef(null)
 
   useEffect(() => {
     const tick = () => setCooldownMs(getStoredCooldown())
@@ -76,7 +78,22 @@ export default function MoodPicker({ compact = false }) {
     setCustomError('')
   }
 
-
+  const handleCustom = (val) => {
+    setCustomInput(val)
+    setCustomError('')
+    if (!val || !val.trim()) {
+      // Clear custom if user deletes
+      if (staged && !MOODS.includes(staged)) setStaged(active)
+      return
+    }
+    const trimmed = val.trim()
+    if (isValidEmoji(trimmed)) {
+      setStaged(trimmed)  // directly set, bypassing locked check
+      setStatus('')
+    } else {
+      setCustomError('Type or paste an emoji')
+    }
+  }
 
   const handleUpdate = async () => {
     if (saving || locked || !hasChange || !staged) return
@@ -136,7 +153,37 @@ export default function MoodPicker({ compact = false }) {
           </button>
         ))}
 
-
+        {/* Custom emoji via keyboard input */}
+        {!locked && (
+          <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+            <input
+              ref={inputRef}
+              value={customInput}
+              onChange={e => handleCustom(e.target.value)}
+              placeholder="+"
+              maxLength={8}
+              style={{
+                width: compact ? 34 : 44,
+                height: compact ? 34 : 44,
+                fontSize: compact ? 18 : 22,
+                textAlign: 'center',
+                borderRadius: 10,
+                border: staged && !MOODS.includes(staged) && staged === customInput.trim()
+                  ? '2px solid #4dba4d'
+                  : '2px dashed rgba(255,255,255,0.2)',
+                background: 'transparent',
+                color: '#c8d8c8',
+                outline: 'none',
+                cursor: 'text',
+              }}
+              title="Type or paste any emoji"
+              onFocus={() => setCustomError('')}
+            />
+            {customError && (
+              <span style={{ fontSize:8, color:'#f87171', textAlign:'center', lineHeight:1 }}>{customError}</span>
+            )}
+          </div>
+        )}
 
         {/* Set button */}
         {!locked && hasChange && staged && (

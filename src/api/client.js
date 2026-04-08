@@ -69,7 +69,7 @@ export const graphApi = {
 
 export const usersApi = {
   updateProfile: (data)   => api.patch('/api/users/profile', data),
-  postDailyNote: (note)   => api.post('/api/users/daily-note', { note }),
+  postDailyNote: (note, momentId, momentCdnUrl) => api.post('/api/users/daily-note', { note, momentId, momentCdnUrl }),
   feed:          ()       => api.get('/api/users/feed'),
   setMood:       (mood)   => api.post('/api/users/daily-mood', { mood }),
   clearMood:     ()       => api.delete('/api/users/daily-mood'),

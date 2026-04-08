@@ -316,8 +316,8 @@ export default function DashboardPage() {
     if (!note.trim()) return
     setNoteLoading(true); setNoteStatus('')
     try {
-      const { data } = await usersApi.postDailyNote(note)
-      updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt })
+      const { data } = await usersApi.postDailyNote(note, noteAttachment?.id || null, noteAttachment?.cdn_url || null)
+      updateUser({ dailyNote: data.dailyNote, dailyNoteUpdatedAt: data.dailyNoteUpdatedAt, noteMomentCdnUrl: data.noteMomentCdnUrl || null })
       setHoursLeft('24.0'); setNote('')
       setNoteAttachment(null); setShowNotePicker(false)
       setNoteStatus('✓ Posted!')
