@@ -419,15 +419,21 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
               </span>
               <div className="flex gap-2 items-center">
                 <button onClick={() => setStep(1)} className="btn-ghost text-sm py-2 px-4 rounded-full">← Back</button>
-                <button onClick={() => setShowMomentPicker(s=>!s)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-lg transition-all"
-                  style={{
-                    background: attachedMoment ? 'rgb(var(--f600)/0.7)' : 'rgb(var(--f800)/0.6)',
-                    border: '1px solid rgb(var(--f700)/0.5)',
-                  }}
-                  title="Attach a memory">
-                  {attachedMoment ? '🖼️' : '+'}
-                </button>
+                {attachedMoment ? (
+                  <button onClick={() => { setAttachedMoment(null); setShowMomentPicker(false) }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all"
+                    style={{background:'rgba(239,68,68,0.2)',border:'1px solid rgba(239,68,68,0.4)',color:'#f87171'}}
+                    title="Remove attachment">
+                    ✕
+                  </button>
+                ) : (
+                  <button onClick={() => setShowMomentPicker(s=>!s)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-all"
+                    style={{background:'rgb(var(--f800)/0.6)',border:'1px solid rgb(var(--f700)/0.5)',color:'rgb(var(--f400))'}}
+                    title="Attach a memory">
+                    +
+                  </button>
+                )}
                 <button onClick={handleSend} disabled={sending || !content.trim()}
                   className="btn-primary text-sm py-2 px-5 rounded-full">
                   {sending ? 'Sending…' : attachedMoment ? 'Send 🖼️' : 'Send ✉️'}
