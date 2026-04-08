@@ -121,7 +121,7 @@ function EnvelopeLetter({ letter, onOpen, onRecall }) {
                   }}>
                   <img src={letter.momentCdnUrl} alt="Memory"
                     className="w-full rounded-sm"
-                    style={{aspectRatio:'1', objectFit:'cover'}}/>
+                    style={{height:'auto', display:'block'}}/>
                   <p style={{color:'#555',fontSize:10,textAlign:'center',marginTop:6,fontFamily:'Georgia,serif',fontStyle:'italic'}}>
                     🌳 TreeDegrees
                   </p>

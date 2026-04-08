@@ -61,7 +61,7 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
   }
 
   return (
-    <div className="flex-shrink-0 w-32 cursor-pointer select-none"
+    <div className="flex-shrink-0 cursor-pointer select-none" style={{width:"calc(50vw - 26px)"}}
       style={{ perspective: 900 }}
       onClick={() => { if (!reacting) { setFlipped(f => !f); if (!flipped) markRead() } }}>
       <div style={{
@@ -98,14 +98,14 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
           )}
 
           {/* Big emoji */}
-          <span style={{ fontSize:42, lineHeight:1.1 }}>{displayEmoji}</span>
+          <span style={{ fontSize:52, lineHeight:1.1 }}>{displayEmoji}</span>
 
           {/* Heart / reaction button — centred below emoji */}
           <button
             onClick={handleHeartClick}
             style={{
               marginTop:8, background:'transparent', border:'none', cursor: isOwn ? 'default' : 'pointer',
-              fontSize:18, opacity: isOwn ? 0 : 0.55, transition:'opacity 0.15s',
+              fontSize:22, opacity: isOwn ? 0 : 0.55, transition:'opacity 0.15s',
               display:'flex', alignItems:'center', justifyContent:'center',
             }}>
             {myReaction || '🤍'}
@@ -117,7 +117,7 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
               style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'center', marginTop:4 }}>
               {['🌿','❤️','🔥','😂','👀','💯'].map(r => (
                 <button key={r} onClick={() => { onReact(note.userId, r); setReacting(false) }}
-                  style={{ fontSize:16, background:'transparent', border:'none', cursor:'pointer', padding:1 }}>
+                  style={{ fontSize:18, background:'transparent', border:'none', cursor:'pointer', padding:1 }}>
                   {r}
                 </button>
               ))}
@@ -130,7 +130,7 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
 
           {/* Name — bold and clickable */}
           <div onClick={e=>{e.stopPropagation();if(!isOwn&&onProfileClick)onProfileClick()}}
-            style={{ position:'absolute', bottom:7, right:7, fontSize:9, fontWeight:700, maxWidth:60, textAlign:'right', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'rgb(var(--f200))', cursor:isOwn?'default':'pointer', textDecoration: isOwn?'none':'underline' }}>
+            style={{ position:'absolute', bottom:7, right:7, fontSize:11, fontWeight:700, maxWidth:70, textAlign:'right', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'rgb(var(--f200))', cursor:isOwn?'default':'pointer', textDecoration: isOwn?'none':'underline' }}>
             {note.displayName}
           </div>
         </div>
@@ -143,14 +143,16 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
           display:'flex', flexDirection:'column', padding:10, overflow:'hidden',
         }}>
           <div style={{ fontSize:20, textAlign:'center', marginBottom:4 }}>{displayEmoji}</div>
-          <p style={{ color: textMain, fontSize:10, lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp: note.noteMomentCdnUrl ? 3 : 6, WebkitBoxOrient:'vertical' }}>
+          <p onClick={e => { e.stopPropagation(); navigate('/feed') }}
+            style={{ color: textMain, fontSize:11, lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp: note.noteMomentCdnUrl ? 3 : 5, WebkitBoxOrient:'vertical', cursor:'pointer' }}>
             {note.note}
           </p>
           {/* Attached memory as mini polaroid */}
           {note.noteMomentCdnUrl && (
             <div style={{display:'flex',justifyContent:'center',marginTop:5,marginBottom:2,flex:1}}>
-              <div style={{background:'#f5f0e8',padding:'3px 3px 9px 3px',borderRadius:4,boxShadow:'0 2px 8px rgba(0,0,0,0.45)',width:50,flexShrink:0}}>
-                <img src={note.noteMomentCdnUrl} alt="" style={{width:'100%',aspectRatio:'1',objectFit:'cover',borderRadius:2,display:'block'}}/>
+              <div style={{background:'#f5f0e8',padding:'3px 3px 10px 3px',borderRadius:4,boxShadow:'0 2px 8px rgba(0,0,0,0.45)',width:62,flexShrink:0,cursor:'pointer'}}
+                onClick={e => { e.stopPropagation(); window._openNoteImg && window._openNoteImg(note.noteMomentCdnUrl) }}>
+                <img src={note.noteMomentCdnUrl} alt="" style={{width:'100%',height:'auto',borderRadius:2,display:'block'}}/>
               </div>
             </div>
           )}
@@ -484,7 +486,7 @@ export default function DashboardPage() {
             <p className="text-forest-500 text-xs font-medium uppercase tracking-wide">Today's notes</p>
             <Link to="/feed" className="text-forest-600 text-xs hover:text-forest-400">See all →</Link>
           </div>
-          <div className="px-5 flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+          <div className="px-5 flex gap-3 overflow-x-auto pb-3 scrollbar-none">
             {ownNote && <NoteCard key="own" note={ownNote} isOwn={true} myReaction={null} onReact={() => {}} />}
             {notesWithStreaks.map(n => (
               <NoteCard key={n.id || n.userId} note={n} isOwn={false}

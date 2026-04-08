@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { usersApi } from '../api/client'
+import MoodPicker from '../components/MoodPicker'
 
 function timeAgo(date) {
   const diff = (Date.now() - new Date(date).getTime()) / 1000
@@ -94,37 +95,9 @@ export default function FeedPage() {
             </div>
           </div>
 
-          {/* Mood picker */}
+          {/* Mood picker — same component as dashboard */}
           <div className="mb-3">
-            <p className="text-forest-600 text-xs mb-2 uppercase tracking-wide">Today's mood</p>
-            <div className="flex gap-2 flex-wrap">
-              {MOODS.map(emoji => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onPointerDown={e => { e.preventDefault(); e.stopPropagation(); if (!moodLoading) handleMood(emoji) }}
-                  title={MOOD_LABELS[emoji]}
-                  className="flex items-center justify-center rounded-xl transition-all select-none"
-                  style={{
-                    fontSize: 22, width: 44, height: 44,
-                    background: myMood === emoji ? 'rgba(74,186,74,0.25)' : 'rgba(255,255,255,0.04)',
-                    border: `2px solid ${myMood === emoji ? '#4dba4d' : 'rgba(255,255,255,0.1)'}`,
-                    transform: myMood === emoji ? 'scale(1.15)' : 'scale(1)',
-                    opacity: moodLoading ? 0.5 : 1,
-                    cursor: 'pointer',
-                  }}>
-                  {emoji}
-                </button>
-              ))}
-              {myMood && (
-                <button type="button"
-                  onPointerDown={e => { e.preventDefault(); handleMood(myMood) }}
-                  className="text-xs text-forest-600 hover:text-forest-400 px-2 self-center transition-colors">
-                  Clear
-                </button>
-              )}
-            </div>
-            {myMood && <p className="text-forest-500 text-xs mt-1">{myMood} showing on map · 24h</p>}
+            <MoodPicker compact />
           </div>
 
           {/* Show current note if fresh */}
@@ -197,6 +170,13 @@ export default function FeedPage() {
                 </div>
               </div>
               <p className="text-forest-300 text-sm italic leading-relaxed pl-11">"{n.note}"</p>
+              {n.noteMomentCdnUrl && (
+                <div className="pl-11 mt-3">
+                  <div style={{background:'#f5f0e8',padding:'6px 6px 18px 6px',borderRadius:6,boxShadow:'0 2px 12px rgba(0,0,0,0.35)',display:'inline-block',maxWidth:160}}>
+                    <img src={n.noteMomentCdnUrl} alt="" style={{width:'100%',height:'auto',borderRadius:4,display:'block'}}/>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
