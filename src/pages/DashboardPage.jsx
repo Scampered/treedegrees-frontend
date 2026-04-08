@@ -61,8 +61,8 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
   }
 
   return (
-    <div className="flex-shrink-0 cursor-pointer select-none" style={{width:"calc(50vw - 26px)"}}
-      style={{ perspective: 900 }}
+    <div className="flex-shrink-0 cursor-pointer select-none"
+      style={{ width:'calc(50vw - 26px)', perspective: 900 }}
       onClick={() => { if (!reacting) { setFlipped(f => !f); if (!flipped) markRead() } }}>
       <div style={{
         position:'relative', width:'100%', paddingBottom:'150%',
