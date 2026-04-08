@@ -29,7 +29,7 @@ function weatherEmoji(theme) {
 
 // ── Flip card for friend notes ────────────────────────────────────────────────
 // ── Flip card for friend notes ────────────────────────────────────────────────
-function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
+function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick, onNavigateFeed, onOpenImg }) {
   const storageKey = `note_read_${note.userId}_${note.notePostedAt}`
   const [flipped, setFlipped]   = useState(false)
   const [reacting, setReacting] = useState(false)
@@ -143,12 +143,16 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
           display:'flex', flexDirection:'column', padding:10, overflow:'hidden',
         }}>
           <div style={{ fontSize:18, textAlign:'center', marginBottom:3 }}>{displayEmoji}</div>
-          <p onClick={e => { e.stopPropagation(); navigate('/feed') }}
+          <p
             style={{ color: textMain, fontSize:10, lineHeight:1.4, overflow:'hidden', display:'-webkit-box',
               WebkitLineClamp: note.noteMomentCdnUrl ? 2 : 5, WebkitBoxOrient:'vertical',
-              cursor:'pointer', wordBreak:'break-word', overflowWrap:'break-word', flexShrink:0 }}>
+              wordBreak:'break-word', overflowWrap:'break-word', flexShrink:0 }}>
             {note.note}
           </p>
+          <span onClick={e => { e.stopPropagation(); onNavigateFeed?.() }}
+            style={{ fontSize:8, color:'rgb(var(--f500))', cursor:'pointer', marginTop:1, flexShrink:0, alignSelf:'flex-end' }}>
+            read →
+          </span>
           {/* Attached memory — fills card width, natural ratio, tight polaroid border */}
           {note.noteMomentCdnUrl && (
             <div style={{marginTop:4,flex:1,display:'flex',flexDirection:'column',justifyContent:'center'}}
@@ -196,6 +200,16 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
           </div>
         </div>
       </div>
+      {/* Note image lightbox */}
+      {noteImgLightbox && (
+        <div className="fixed inset-0 z-[2000] flex flex-col items-center justify-center"
+          style={{background:'rgba(0,0,0,0.97)',backdropFilter:'blur(12px)'}}
+          onClick={() => setNoteImgLightbox(null)}>
+          <button className="absolute top-4 right-4 text-2xl text-white/60 hover:text-white">✕</button>
+          <img src={noteImgLightbox} alt="" className="max-w-full max-h-full object-contain rounded-xl"
+            style={{maxHeight:'90vh',maxWidth:'90vw'}} onClick={e => e.stopPropagation()}/>
+        </div>
+      )}
     </div>
   )
 }
@@ -267,6 +281,7 @@ export default function DashboardPage() {
   const [letterStats, setLetterStats] = useState(null)
   const [friendNotes, setFriendNotes] = useState([])
   const [streaks, setStreaks]        = useState([])
+  const [noteImgLightbox, setNoteImgLightbox] = useState(null)
   const [note, setNote]             = useState('')
   const [noteStatus, setNoteStatus] = useState('')
   const [noteLoading, setNoteLoading] = useState(false)
@@ -490,11 +505,13 @@ export default function DashboardPage() {
             <Link to="/feed" className="text-forest-600 text-xs hover:text-forest-400">See all →</Link>
           </div>
           <div className="px-5 flex gap-3 overflow-x-auto pb-3 scrollbar-none">
-            {ownNote && <NoteCard key="own" note={ownNote} isOwn={true} myReaction={null} onReact={() => {}} />}
+            {ownNote && <NoteCard key="own" note={ownNote} isOwn={true} myReaction={null} onReact={() => {}} onNavigateFeed={() => navigate('/feed')} onOpenImg={setNoteImgLightbox} />}
             {notesWithStreaks.map(n => (
               <NoteCard key={n.id || n.userId} note={n} isOwn={false}
                 myReaction={n.myReaction} onReact={handleReact}
-                onProfileClick={() => navigate(`/profile/${n.userId}`)} />
+                onProfileClick={() => navigate(`/profile/${n.userId}`)}
+                onNavigateFeed={() => navigate('/feed')}
+                onOpenImg={setNoteImgLightbox} />
             ))}
           </div>
         </div>
