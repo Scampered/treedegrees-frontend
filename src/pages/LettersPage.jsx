@@ -1,8 +1,7 @@
 // src/pages/LettersPage.jsx
 import React, { useEffect, useState, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { lettersApi, momentsApi } from '../api/client'
-import { lettersApi, friendsApi } from '../api/client'
+import { lettersApi, momentsApi, friendsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 const VEHICLE_INFO = {
