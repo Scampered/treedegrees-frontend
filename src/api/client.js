@@ -83,7 +83,7 @@ export const nicknamesApi = {
 
 // ── Letters ───────────────────────────────────────────────────────────────────
 export const lettersApi = {
-  send:      (recipientId, content) => api.post('/api/letters', { recipientId, content, senderLocalDate: new Date().toLocaleDateString('sv-SE') }),
+  send:      (recipientId, content, momentId, momentCdnUrl) => api.post('/api/letters', { recipientId, content, momentId, momentCdnUrl, senderLocalDate: new Date().toLocaleDateString('sv-SE') }),
   list:      ()                     => api.get('/api/letters'),
   stats:     ()                     => api.get('/api/letters/stats'),
   inTransit: ()                     => api.get('/api/letters/in-transit'),
@@ -204,6 +204,7 @@ export const marketApi = {
 }
 
 export const groveApi = {
+  seedsLog:    ()                     => api.get('/api/grove/seeds-log'),
   seeds:       ()                       => api.get('/api/grove/seeds'),
   me:          ()                    => api.get('/api/grove/me'),
   connections: ()                    => api.get('/api/grove/connections'),

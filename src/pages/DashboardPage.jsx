@@ -128,8 +128,9 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
             {reacting ? 'pick a react' : 'tap to read'}
           </span>
 
-          {/* Name */}
-          <div style={{ position:'absolute', bottom:7, right:7, color: textSub, fontSize:9, fontWeight:500, maxWidth:60, textAlign:'right', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {/* Name — bold and clickable */}
+          <div onClick={e=>{e.stopPropagation();if(!isOwn&&onProfileClick)onProfileClick()}}
+            style={{ position:'absolute', bottom:7, right:7, fontSize:9, fontWeight:700, maxWidth:60, textAlign:'right', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'rgb(var(--f200))', cursor:isOwn?'default':'pointer', textDecoration: isOwn?'none':'underline' }}>
             {note.displayName}
           </div>
         </div>
@@ -142,9 +143,17 @@ function NoteCard({ note, isOwn, myReaction, onReact, onProfileClick }) {
           display:'flex', flexDirection:'column', padding:10, overflow:'hidden',
         }}>
           <div style={{ fontSize:20, textAlign:'center', marginBottom:4 }}>{displayEmoji}</div>
-          <p style={{ color: textMain, fontSize:10, lineHeight:1.5, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:6, WebkitBoxOrient:'vertical' }}>
+          <p style={{ color: textMain, fontSize:10, lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp: note.noteMomentCdnUrl ? 3 : 6, WebkitBoxOrient:'vertical' }}>
             {note.note}
           </p>
+          {/* Attached memory as mini polaroid */}
+          {note.noteMomentCdnUrl && (
+            <div style={{display:'flex',justifyContent:'center',marginTop:5,marginBottom:2,flex:1}}>
+              <div style={{background:'#f5f0e8',padding:'3px 3px 9px 3px',borderRadius:4,boxShadow:'0 2px 8px rgba(0,0,0,0.45)',width:50,flexShrink:0}}>
+                <img src={note.noteMomentCdnUrl} alt="" style={{width:'100%',aspectRatio:'1',objectFit:'cover',borderRadius:2,display:'block'}}/>
+              </div>
+            </div>
+          )}
 
           {/* For own note: show reactions from connections */}
           {isOwn && likes.length > 0 && (
@@ -257,6 +266,9 @@ export default function DashboardPage() {
   const [noteStatus, setNoteStatus] = useState('')
   const [noteLoading, setNoteLoading] = useState(false)
   const [hoursLeft, setHoursLeft]   = useState(null)
+  const [noteAttachment, setNoteAttachment] = useState(null)
+  const [showNotePicker, setShowNotePicker] = useState(false)
+  const [noteMoments, setNoteMoments] = useState([])
   const [loading, setLoading]       = useState(true)
   const [myJob, setMyJob]           = useState(null)
   const [myNoteLikes, setMyNoteLikes] = useState([])
@@ -312,6 +324,14 @@ export default function DashboardPage() {
       setNoteStatus(err.response?.data?.error || 'Could not post note')
       if (err.response?.data?.hoursLeft) setHoursLeft(err.response.data.hoursLeft)
     } finally { setNoteLoading(false) }
+  }
+
+  const openNotePicker = async () => {
+    if (noteMoments.length === 0) {
+      const r = await momentsApi.mine().catch(()=>({data:[]}))
+      setNoteMoments(r.data||[])
+    }
+    setShowNotePicker(s=>!s)
   }
 
   // Enrich friend notes with streak data
@@ -499,10 +519,42 @@ export default function DashboardPage() {
                   onChange={e => setNote(e.target.value)}
                   placeholder={user?.dailyNote ? 'Write a new note…' : "What's on your mind?"}
                 />
+                {/* Note attachment preview */}
+                {noteAttachment && (
+                  <div className="mt-2 flex items-center gap-2 p-2 rounded-xl" style={{background:'rgb(var(--f900)/0.6)',border:'1px solid rgb(var(--f800)/0.4)'}}>
+                    <img src={noteAttachment.cdn_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0"/>
+                    <span className="text-xs flex-1 truncate" style={{color:'rgb(var(--f500))'}}>Memory attached</span>
+                    <button onClick={()=>setNoteAttachment(null)} className="text-xs" style={{color:'rgb(var(--f600))'}}>✕</button>
+                  </div>
+                )}
+                {/* Note moment picker */}
+                {showNotePicker && (
+                  <div className="mt-2 rounded-xl overflow-hidden" style={{background:'rgb(var(--f900)/0.8)',border:'1px solid rgb(var(--f700)/0.4)'}}>
+                    <p className="px-3 py-2 text-xs" style={{color:'rgb(var(--f500))'}}>Pick a memory</p>
+                    {noteMoments.length === 0 ? (
+                      <p className="px-3 pb-3 text-xs" style={{color:'rgb(var(--f600))'}}>No memories yet</p>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-1 p-2">
+                        {noteMoments.slice(0,8).map(m => (
+                          <button key={m.id} onClick={()=>{setNoteAttachment(m);setShowNotePicker(false)}}
+                            className="rounded-lg overflow-hidden" style={{aspectRatio:'1'}}>
+                            <img src={m.cdn_url} alt="" className="w-full h-full object-cover"/>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center justify-between mt-2">
                   <span className={`text-xs ${noteStatus.startsWith('✓') ? 'text-forest-400' : 'text-red-400'}`}>{noteStatus}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-forest-700 text-xs">{note.length}/280</span>
+                    <button onClick={openNotePicker}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-sm transition-colors"
+                      style={{background: noteAttachment ? 'rgb(var(--f600)/0.7)' : 'rgb(var(--f800)/0.5)', border:'1px solid rgb(var(--f700)/0.5)'}}
+                      title="Attach a memory">
+                      {noteAttachment ? '🖼️' : '+'}
+                    </button>
                     <button onClick={postNote} disabled={noteLoading || !note.trim()}
                       className="bg-forest-600 hover:bg-forest-500 disabled:opacity-40 text-white text-sm px-4 py-1.5 rounded-full transition-colors">
                       {noteLoading ? 'Posting…' : 'Post'}

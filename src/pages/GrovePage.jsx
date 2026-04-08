@@ -735,28 +735,56 @@ function StockCard({ person, mySeeds, onInvest, onWithdraw }) {
 }
 
 // ── Main GrovePage ────────────────────────────────────────────────────────────
+// ── Seeds transaction log entry ───────────────────────────────────────────────
+function TxRow({ tx }) {
+  const isCredit = tx.amount > 0
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b last:border-0"
+      style={{borderColor:'rgb(var(--f800)/0.4)'}}>
+      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg"
+        style={{background: isCredit ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)'}}>
+        {tx.label.split(' ')[0]}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate" style={{color:'rgb(var(--f200))'}}>
+          {tx.label.split(' ').slice(1).join(' ')}
+        </p>
+        <p className="text-xs" style={{color:'rgb(var(--f600))'}}>
+          {new Date(tx.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+        </p>
+      </div>
+      <span className={`font-mono font-bold text-sm ${isCredit ? 'text-green-400' : 'text-red-400'}`}>
+        {isCredit ? '+' : ''}{tx.amount} 🌱
+      </span>
+    </div>
+  )
+}
+
 export default function GrovePage() {
   const navigate = useNavigate()
   const { user }  = useAuth()
   const [me, setMe]                   = useState(null)
   const [connections, setConnections] = useState([])
   const [leaderboard, setLeaderboard] = useState([])
+  const [txLog, setTxLog]             = useState([])
   const [loading, setLoading]         = useState(true)
-  const [tab, setTab]                 = useState('stocks')
+  const [tab, setTab]                 = useState('wallet')
   const [investing, setInvesting]     = useState(null)
-  const [withdrawing, setWithdrawing]   = useState(null)
+  const [withdrawing, setWithdrawing] = useState(null)
   const [sort, setSort]               = useState('seeds')
 
   const reload = useCallback(async () => {
     try {
-      const [meRes, connRes, lbRes] = await Promise.all([
+      const [meRes, connRes, lbRes, logRes] = await Promise.all([
         groveApi.me(),
         groveApi.connections(),
         groveApi.leaderboard(),
+        groveApi.seedsLog().catch(() => ({data:[]})),
       ])
       setMe(meRes.data)
       setConnections(connRes.data || [])
       setLeaderboard(lbRes.data || [])
+      setTxLog(logRes.data || [])
     } catch {} finally { setLoading(false) }
   }, [])
 
@@ -773,46 +801,73 @@ export default function GrovePage() {
 
   const myRank = leaderboard.findIndex(l => l.isMe) + 1
 
+  const myRank = leaderboard.findIndex(l => l.isMe) + 1
+  const totalIn  = txLog.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0)
+  const totalOut = txLog.filter(t=>t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0)
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-forest-800 glass-dark flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl text-forest-50">🪴 The Grove</h1>
-            <p className="text-forest-600 text-xs mt-0.5">Seeds, stocks &amp; connection value</p>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-900/80 border border-forest-700">
-              <span className="text-xl">🌱</span>
-              <span className="text-forest-50 font-bold text-xl font-mono">
-                {loading ? '…' : (me?.seeds ?? 0)}
-              </span>
+    <div className="flex flex-col h-full" style={{background:'rgb(var(--f950))'}}>
+
+      {/* ── Bank card header ── */}
+      <div className="flex-shrink-0 px-5 pt-6 pb-4">
+        <div className="rounded-2xl p-5 relative overflow-hidden"
+          style={{
+            background:'linear-gradient(135deg, rgb(var(--f700)/0.9) 0%, rgb(var(--f800)/0.95) 50%, rgb(var(--f900)) 100%)',
+            border:'1px solid rgb(var(--f600)/0.4)',
+            boxShadow:'0 8px 32px rgb(var(--f900)/0.6)',
+          }}>
+          {/* Decorative circles */}
+          <div style={{position:'absolute',top:-20,right:-20,width:100,height:100,borderRadius:'50%',background:'rgb(var(--f600)/0.1)'}}/>
+          <div style={{position:'absolute',bottom:-30,right:20,width:60,height:60,borderRadius:'50%',background:'rgb(var(--f500)/0.08)'}}/>
+
+          <div className="flex items-start justify-between relative">
+            <div>
+              <p className="text-xs font-medium tracking-widest uppercase" style={{color:'rgb(var(--f400))'}}>Grove Wallet</p>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="font-display text-4xl font-bold" style={{color:'rgb(var(--f50))'}}>
+                  {loading ? '…' : (me?.seeds ?? 0)}
+                </span>
+                <span className="text-lg" style={{color:'rgb(var(--f300))'}}>🌱</span>
+              </div>
+              <p className="text-xs mt-1" style={{color:'rgb(var(--f500))'}}>
+                {myRank > 0 ? `#${myRank} in your network` : 'seeds balance'}
+              </p>
             </div>
-            {myRank > 0 && (
-              <p className="text-forest-700 text-xs">#{myRank} in your network</p>
-            )}
+            <div className="text-3xl">🪴</div>
+          </div>
+
+          {/* Mini stats row */}
+          <div className="flex gap-4 mt-4 pt-4" style={{borderTop:'1px solid rgb(var(--f600)/0.25)'}}>
+            <div>
+              <p className="text-xs" style={{color:'rgb(var(--f500))'}}>Earned</p>
+              <p className="text-sm font-bold text-green-400 font-mono">+{totalIn}</p>
+            </div>
+            <div>
+              <p className="text-xs" style={{color:'rgb(var(--f500))'}}>Spent</p>
+              <p className="text-sm font-bold text-red-400 font-mono">-{totalOut}</p>
+            </div>
+            <div>
+              <p className="text-xs" style={{color:'rgb(var(--f500))'}}>Investors</p>
+              <p className="text-sm font-bold font-mono" style={{color:'rgb(var(--f200))'}}>{me?.investorCount ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-xs" style={{color:'rgb(var(--f500))'}}>Staked in you</p>
+              <p className="text-sm font-bold font-mono" style={{color:'rgb(var(--f200))'}}>🌱{me?.totalInvested ?? 0}</p>
+            </div>
           </div>
         </div>
-
-        {/* My own chart */}
-        {me && user?.id && (
-          <div className="mt-3 rounded-xl bg-forest-900/40 border border-forest-800 px-4 py-2">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-forest-500 text-xs">Your score</span>
-              <span className="text-forest-600 text-xs">{me.investorCount} investor{me.investorCount!==1?'s':''} · 🌱{me.totalInvested} staked</span>
-            </div>
-            <ChartCard userId={user.id} name="you" isMe seedsNow={me.seeds} />
-          </div>
-        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 px-5 py-2 border-b border-forest-800 flex-shrink-0">
-        {[['stocks','📈 Stocks'],['markets','📊 Markets'],['leaders','🏆 Leaders']].map(([k,l]) => (
+      {/* ── Tabs ── */}
+      <div className="flex gap-1 px-5 pb-2 flex-shrink-0">
+        {[['wallet','💳 Wallet'],['stocks','📈 Invest'],['markets','📊 Markets'],['leaders','🏆 Leaders']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors
-              ${tab===k?'bg-forest-700 text-forest-100':'text-forest-500 hover:text-forest-300 hover:bg-forest-900'}`}>
+            className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+            style={{
+              background: tab===k ? 'rgb(var(--f700)/0.8)' : 'transparent',
+              color: tab===k ? 'rgb(var(--f100))' : 'rgb(var(--f600))',
+              border: `1px solid ${tab===k ? 'rgb(var(--f600)/0.5)' : 'transparent'}`,
+            }}>
             {l}
           </button>
         ))}
@@ -820,8 +875,11 @@ export default function GrovePage() {
           <div className="ml-auto flex gap-1">
             {[['seeds','Value'],['rising','Rising'],['invested','Invested']].map(([k,l]) => (
               <button key={k} onClick={() => setSort(k)}
-                className={`px-3 py-1 rounded-lg text-xs transition-colors
-                  ${sort===k?'bg-forest-800 text-forest-200':'text-forest-700 hover:text-forest-500'}`}>
+                className="px-2 py-1 rounded-lg text-xs transition-colors"
+                style={{
+                  background: sort===k ? 'rgb(var(--f800)/0.8)' : 'transparent',
+                  color: sort===k ? 'rgb(var(--f200))' : 'rgb(var(--f700))',
+                }}>
                 {l}
               </button>
             ))}
@@ -829,9 +887,47 @@ export default function GrovePage() {
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {loading && <p className="text-forest-600 text-sm text-center py-12">Loading Grove…</p>}
+      {/* ── Content ── */}
+      <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3">
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin"
+              style={{borderColor:'rgb(var(--f700))',borderTopColor:'transparent'}}/>
+          </div>
+        )}
+
+        {/* Wallet tab — transaction history */}
+        {!loading && tab === 'wallet' && (
+          <div>
+            {/* Own chart */}
+            {me && user?.id && (
+              <div className="rounded-2xl mb-3 overflow-hidden"
+                style={{background:'rgb(var(--f900)/0.5)',border:'1px solid rgb(var(--f800)/0.4)'}}>
+                <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wide" style={{color:'rgb(var(--f500))'}}>Your score chart</span>
+                </div>
+                <ChartCard userId={user.id} name="you" isMe seedsNow={me.seeds} />
+              </div>
+            )}
+
+            {/* Transaction history */}
+            <div className="rounded-2xl overflow-hidden"
+              style={{background:'rgb(var(--f900)/0.5)',border:'1px solid rgb(var(--f800)/0.4)'}}>
+              <div className="px-4 py-3" style={{borderBottom:'1px solid rgb(var(--f800)/0.4)'}}>
+                <p className="text-xs uppercase tracking-wide font-semibold" style={{color:'rgb(var(--f500))'}}>
+                  Transaction History
+                </p>
+              </div>
+              {txLog.length === 0 ? (
+                <p className="text-center py-8 text-sm" style={{color:'rgb(var(--f600))'}}>
+                  No transactions yet — earn seeds by posting, writing letters & more
+                </p>
+              ) : (
+                txLog.map(tx => <TxRow key={tx.id} tx={tx} />)
+              )}
+            </div>
+          </div>
+        )}
 
         {tab === 'markets' && (
           <div className="space-y-3">
@@ -845,17 +941,14 @@ export default function GrovePage() {
             {sorted.length === 0 && (
               <div className="text-center py-16">
                 <div className="text-5xl mb-4">🪴</div>
-                <p className="text-forest-300 font-medium text-lg">No connections yet</p>
-                <p className="text-forest-600 text-sm mt-2 max-w-xs mx-auto">
-                  Add connections to see their stock cards and invest seeds.
+                <p className="font-medium text-lg" style={{color:'rgb(var(--f300))'}}>No connections yet</p>
+                <p className="text-sm mt-2 max-w-xs mx-auto" style={{color:'rgb(var(--f600))'}}>
+                  Add connections to invest seeds and grow together.
                 </p>
-                <p className="text-forest-700 text-xs mt-4">Check the Guide → The Grove to learn how Seeds work</p>
               </div>
             )}
             {sorted.map(person => (
-              <StockCard
-                key={person.id}
-                person={person}
+              <StockCard key={person.id} person={person}
                 mySeeds={me?.seeds || 0}
                 onInvest={p => setInvesting(p)}
                 onWithdraw={p => setWithdrawing(p)}
@@ -865,24 +958,28 @@ export default function GrovePage() {
         )}
 
         {!loading && tab === 'leaders' && (
-          <div className="rounded-2xl bg-forest-900/40 border border-forest-800 overflow-hidden">
-            <div className="px-5 py-3 border-b border-forest-800">
-              <p className="text-forest-400 text-xs uppercase tracking-wide">Your network — top 10</p>
+          <div className="rounded-2xl overflow-hidden"
+            style={{background:'rgb(var(--f900)/0.5)',border:'1px solid rgb(var(--f800)/0.4)'}}>
+            <div className="px-5 py-3" style={{borderBottom:'1px solid rgb(var(--f800)/0.4)'}}>
+              <p className="text-xs uppercase tracking-wide" style={{color:'rgb(var(--f500))'}}>Your network — top 10</p>
             </div>
             {leaderboard.map((l, i) => (
               <div key={l.id}
-                className={`flex items-center gap-3 px-5 py-3 border-b border-forest-900 last:border-0
-                  ${l.isMe ? 'bg-forest-800/30' : ''}`}>
-                <span className="text-forest-600 font-mono text-sm w-6 text-center">
+                className="flex items-center gap-3 px-5 py-3"
+                style={{
+                  borderBottom:'1px solid rgb(var(--f900)/0.6)',
+                  background: l.isMe ? 'rgb(var(--f800)/0.3)' : 'transparent',
+                }}>
+                <span className="font-mono text-sm w-6 text-center" style={{color:'rgb(var(--f600))'}}>
                   {i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${l.isMe?'text-forest-200':'text-forest-300'} truncate`}>
+                  <p className="text-sm font-medium truncate" style={{color:l.isMe?'rgb(var(--f200))':'rgb(var(--f300))'}}>
                     {l.name}{l.isMe?' (you)':''}
                   </p>
-                  <p className="text-forest-700 text-xs">{l.country}</p>
+                  <p className="text-xs" style={{color:'rgb(var(--f700))'}}>{l.country}</p>
                 </div>
-                <span className="text-forest-100 font-bold font-mono text-sm">🌱 {l.seeds}</span>
+                <span className="font-bold font-mono text-sm" style={{color:'rgb(var(--f100))'}}>🌱 {l.seeds}</span>
               </div>
             ))}
           </div>

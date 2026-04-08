@@ -1,6 +1,7 @@
 // src/pages/LettersPage.jsx
 import React, { useEffect, useState, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { lettersApi, momentsApi } from '../api/client'
 import { lettersApi, friendsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -61,7 +62,7 @@ function EnvelopeLetter({ letter, onOpen, onRecall }) {
         {/* Icon */}
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0
           ${letter.inTransit ? 'bg-forest-800/40' : expanded ? 'bg-forest-700' : 'bg-forest-800'}`}>
-          {letter.inTransit ? v.emoji : (expanded ? '💌' : '✉️')}
+          {letter.inTransit ? v.emoji : letter.momentCdnUrl ? '🖼️' : (expanded ? '💌' : '✉️')}
         </div>
 
         {/* Info */}
@@ -108,6 +109,26 @@ function EnvelopeLetter({ letter, onOpen, onRecall }) {
               </svg>
             </div>
             <p className="text-forest-100 text-sm leading-relaxed whitespace-pre-wrap">{letter.content}</p>
+            {/* Attached memory — polaroid style */}
+            {letter.momentCdnUrl && (
+              <div className="mt-4">
+                <div className="w-px h-6 mx-auto mb-3" style={{background:'rgb(var(--f700)/0.4)'}}/>
+                <div className="mx-auto rounded-xl overflow-hidden"
+                  style={{
+                    background:'#f5f0e8',
+                    padding:'8px 8px 28px 8px',
+                    boxShadow:'0 4px 20px rgba(0,0,0,0.4)',
+                    maxWidth:240,
+                  }}>
+                  <img src={letter.momentCdnUrl} alt="Memory"
+                    className="w-full rounded-sm"
+                    style={{aspectRatio:'1', objectFit:'cover'}}/>
+                  <p style={{color:'#555',fontSize:10,textAlign:'center',marginTop:6,fontFamily:'Georgia,serif',fontStyle:'italic'}}>
+                    🌳 TreeDegrees
+                  </p>
+                </div>
+              </div>
+            )}
             <p className="text-forest-700 text-xs mt-3 text-right">
               {new Date(letter.sentAt).toLocaleDateString()} · {v.emoji} {v.label}
               {letter.streakAtSend > 0 && ` · 🔥 Day ${letter.streakAtSend}`}
@@ -254,7 +275,23 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError]     = useState('')
+  const [attachedMoment, setAttachedMoment] = useState(null)
+  const [showMomentPicker, setShowMomentPicker] = useState(false)
+  const [myMoments, setMyMoments] = useState([])
   const sel = streaks.find(s => s.friendId === selected?.id)
+
+  // Load moments when reaching step 2
+  useEffect(() => {
+    if (step !== 2) return
+    Promise.all([
+      momentsApi.mine().catch(()=>({data:[]})),
+      momentsApi.tagged().catch(()=>({data:[]})),
+    ]).then(([m,t]) => {
+      const all = [...(m.data||[]), ...(t.data||[])
+        .filter(x => !(m.data||[]).find(y=>y.id===x.id))]
+      setMyMoments(all)
+    })
+  }, [step])
 
   const handleSend = async () => {
     if (!selected?.id || !content.trim()) {
@@ -264,7 +301,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
     setSending(true)
     setError('')
     try {
-      await lettersApi.send(selected.id, content)
+      await lettersApi.send(selected.id, content, attachedMoment?.id||null, attachedMoment?.cdn_url||null)
       onSend()
       onClose()
     } catch (err) {
@@ -338,15 +375,63 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
               maxLength={500} value={content}
               onChange={e => setContent(e.target.value)} autoFocus
             />
+            {/* Attached moment preview */}
+            {attachedMoment && (
+              <div className="rounded-xl overflow-hidden border" style={{border:'1px solid rgb(var(--f700)/0.4)'}}>
+                <div className="flex items-center gap-2 px-3 py-2" style={{background:'rgb(var(--f900)/0.6)'}}>
+                  <span className="text-xs" style={{color:'rgb(var(--f500))'}}>📎 Attached memory</span>
+                  <button onClick={()=>setAttachedMoment(null)}
+                    className="ml-auto text-xs" style={{color:'rgb(var(--f600))'}}>Remove</button>
+                </div>
+                <img src={attachedMoment.cdn_url} alt=""
+                  className="w-full object-cover"
+                  style={{maxHeight:120, objectFit:'cover'}}/>
+              </div>
+            )}
+
+            {/* Moment picker */}
+            {showMomentPicker && (
+              <div className="rounded-xl overflow-hidden" style={{border:'1px solid rgb(var(--f700)/0.4)',background:'rgb(var(--f900)/0.8)'}}>
+                <p className="px-3 py-2 text-xs border-b" style={{color:'rgb(var(--f500))',borderColor:'rgb(var(--f800)/0.4)'}}>
+                  Select a memory to attach
+                </p>
+                {myMoments.length === 0 ? (
+                  <p className="px-3 py-3 text-xs" style={{color:'rgb(var(--f600))'}}>No memories yet</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1 p-2">
+                    {myMoments.slice(0,9).map(m => (
+                      <button key={m.id} onClick={() => { setAttachedMoment(m); setShowMomentPicker(false) }}
+                        className="relative rounded-lg overflow-hidden"
+                        style={{
+                          aspectRatio:'1',
+                          border: attachedMoment?.id===m.id ? '2px solid rgb(var(--f400))' : '2px solid transparent',
+                        }}>
+                        <img src={m.cdn_url} alt="" className="w-full h-full object-cover"/>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <span className={`text-xs ${content.length > 450 ? 'text-bark-400' : 'text-forest-700'}`}>
                 {content.length}/500
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <button onClick={() => setStep(1)} className="btn-ghost text-sm py-2 px-4 rounded-full">← Back</button>
+                <button onClick={() => setShowMomentPicker(s=>!s)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-lg transition-all"
+                  style={{
+                    background: attachedMoment ? 'rgb(var(--f600)/0.7)' : 'rgb(var(--f800)/0.6)',
+                    border: '1px solid rgb(var(--f700)/0.5)',
+                  }}
+                  title="Attach a memory">
+                  {attachedMoment ? '🖼️' : '+'}
+                </button>
                 <button onClick={handleSend} disabled={sending || !content.trim()}
                   className="btn-primary text-sm py-2 px-5 rounded-full">
-                  {sending ? 'Sending…' : 'Send ✉️'}
+                  {sending ? 'Sending…' : attachedMoment ? 'Send 🖼️' : 'Send ✉️'}
                 </button>
               </div>
             </div>
