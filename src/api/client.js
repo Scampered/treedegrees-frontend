@@ -182,6 +182,7 @@ export const jobActionsApi = {
   farmerDeposit:     (farmerId, seeds)           => api.post('/api/job-actions/farmer/deposit', { farmerId, seeds }),
   myFarmerDeposits:  ()                         => api.get('/api/job-actions/farmer/my-deposits'),
   farmerHarvest:     (slotId)                   => api.post('/api/job-actions/farmer/harvest', { slotId }),
+  farmerBuyPlot:     ()                         => api.post('/api/job-actions/farmer/buy-plot'),
   markServicesRead:  ()                         => api.post('/api/job-actions/mark-services-read'),
 }
 
