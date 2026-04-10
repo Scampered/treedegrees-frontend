@@ -1,5 +1,5 @@
 // src/pages/VerifyEmailPage.jsx
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api, { authApi } from '../api/client'
@@ -18,7 +18,6 @@ export default function VerifyEmailPage() {
   const [resendMsg, setResendMsg] = useState('')
   const [countdown, setCountdown] = useState(0)
   const [showBack, setShowBack]   = useState(false)
-  const [backPw, setBackPw]       = useState('')
   const [backErr, setBackErr]     = useState('')
   const [backing, setBacking]     = useState(false)
 
@@ -60,7 +59,7 @@ export default function VerifyEmailPage() {
   const handleGoBack = async () => {
     setBacking(true); setBackErr('')
     try {
-      await api.delete('/api/auth/account', { data: { password: backPw } })
+      await api.delete('/api/auth/account/unverified')
       // Store their info in sessionStorage so register page can prefill it
       const savedEmail = user?.email || email || ''
       sessionStorage.setItem('td_prefill_email', savedEmail)
@@ -193,19 +192,12 @@ export default function VerifyEmailPage() {
                 This deletes your unverified account so you can sign up with the correct email.
                 Your email will be pre-filled on the signup page.
               </p>
-              <input
-                type="password"
-                placeholder="Enter your password to confirm"
-                value={backPw}
-                onChange={e => { setBackPw(e.target.value); setBackErr('') }}
-                className="input text-sm w-full"
-              />
               {backErr && <p className="text-red-400 text-xs">{backErr}</p>}
-              <button onClick={handleGoBack} disabled={backing || !backPw}
+              <button onClick={handleGoBack} disabled={backing}
                 className="btn-ghost rounded-full px-5 py-2 w-full text-sm disabled:opacity-40">
                 {backing ? 'Deleting account…' : '← Delete & re-register'}
               </button>
-              <button onClick={() => { setShowBack(false); setBackPw(''); setBackErr('') }}
+              <button onClick={() => { setShowBack(false); setBackErr('') }}
                 className="text-forest-700 text-xs w-full text-center hover:text-forest-500 transition-colors">
                 Cancel
               </button>
