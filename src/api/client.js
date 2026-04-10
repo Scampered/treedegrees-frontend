@@ -213,7 +213,7 @@ export const groveApi = {
   invest:      (targetId, amount)    => api.post('/api/grove/invest', { targetId, amount }),
   withdraw:    (targetId, amount)     => api.post('/api/grove/withdraw', { targetId, ...(amount !== undefined && { withdrawAmount: amount }) }),
   history:     (userId, window)      => api.get(`/api/grove/history/${userId}?window=${window}`),
-  spendSeeds:  (amount, reason)       => api.post('/api/grove/spend', { amount, reason }),
+  spendSeeds:  (amount, reason, themeId) => api.post('/api/grove/spend', { amount, reason, themeId }),
 }
 
 export const profileApi = {

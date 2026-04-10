@@ -17,6 +17,7 @@ const sidebarItems = [
   { to: '/map',         icon: '🗺️',  fullLabel: 'Globe Map'   },
   { to: '/friends',     icon: '🌱',  fullLabel: 'Connections' },
   { to: '/letters',     icon: '✉️',   fullLabel: 'Letters'     },
+  { to: '/my-world',    icon: '📷',  fullLabel: 'My World'    },
   { to: '/feed',        icon: '📝',  fullLabel: 'Notes'       },
   { to: '/groups',      icon: '☘️',  fullLabel: 'Groups',     extra: '🎮', extraTo: '/games' },
   { to: '/guide',       icon: '📖',  fullLabel: 'Guide'       },

@@ -26,6 +26,9 @@ import VerifyEmailPage from './pages/VerifyEmailPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import JobsPage from './pages/JobsPage'
+import ProfilePage from './pages/ProfilePage'
+import MyWorldPage from './pages/MyWorldPage'
+import MemoriesPage from './pages/MemoriesPage'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
 import Layout from './components/Layout'
@@ -119,6 +122,10 @@ export default function App() {
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
             <Route path="/guide" element={<GuidePage />} />
             <Route path="/groups" element={<GroupsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/:id" element={<ProfilePage />} />
+            <Route path="/my-world" element={<MyWorldPage />} />
+            <Route path="/memories" element={<MemoriesPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

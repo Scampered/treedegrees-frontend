@@ -97,7 +97,9 @@ export default function MarketplacePage() {
   const [seeds, setSeeds]       = useState(user?.seeds || 0)
   const [tab, setTab]           = useState('themes')
   const [buying, setBuying]     = useState(null)
-  const [owned, setOwned]       = useState(() => {
+  // Use DB-backed owned themes from user context (falls back to localStorage for instant UI)
+  const [owned, setOwned] = useState(() => {
+    if (user?.ownedThemes?.length) return user.ownedThemes
     try { return JSON.parse(localStorage.getItem('td_owned_themes') || '[]') } catch { return [] }
   })
   const [msg, setMsg]           = useState('')
@@ -106,6 +108,10 @@ export default function MarketplacePage() {
   useEffect(() => {
     groveApi.seeds().then(r => setSeeds(r.data?.seeds ?? 0)).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (user?.ownedThemes?.length) setOwned(user.ownedThemes)
+  }, [user?.ownedThemes])
 
   const handleBuyTheme = async (theme) => {
     if (owned.includes(theme.id)) {
@@ -123,10 +129,10 @@ export default function MarketplacePage() {
     setBuying(theme.id)
     try {
       // Deduct seeds via grove API
-      await groveApi.spendSeeds(theme.price, `theme_purchase_${theme.id}`)
+      await groveApi.spendSeeds(theme.price, `theme_purchase_${theme.id}`, theme.id)
       const newOwned = [...owned, theme.id]
       setOwned(newOwned)
-      localStorage.setItem('td_owned_themes', JSON.stringify(newOwned))
+      localStorage.setItem('td_owned_themes', JSON.stringify(newOwned)) // cache locally too
       setSeeds(s => s - theme.price)
       setPreference(theme.id, user)
       setMsg(`✓ ${theme.name} theme unlocked and applied!`)
