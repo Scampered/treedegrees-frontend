@@ -17,6 +17,10 @@ export default function VerifyEmailPage() {
   const [resending, setResending] = useState(false)
   const [resendMsg, setResendMsg] = useState('')
   const [countdown, setCountdown] = useState(0)
+  const [showBack, setShowBack]   = useState(false)
+  const [backPw, setBackPw]       = useState('')
+  const [backErr, setBackErr]     = useState('')
+  const [backing, setBacking]     = useState(false)
 
   // ── Block back navigation until verified ─────────────────────────────────────
   useEffect(() => {
@@ -60,7 +64,7 @@ export default function VerifyEmailPage() {
       // Store their info in sessionStorage so register page can prefill it
       const savedEmail = user?.email || email || ''
       sessionStorage.setItem('td_prefill_email', savedEmail)
-      navigate('/register', { replace: true, state: { prefillEmail: savedEmail } })
+      navigate('/signup', { replace: true, state: { prefillEmail: savedEmail } })
     } catch (err) {
       setBackErr(err.response?.data?.error || 'Incorrect password. Try again.')
       setBacking(false)
