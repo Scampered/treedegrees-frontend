@@ -11,32 +11,35 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
 const sidebarItems = [
-  { to: '/dashboard', icon: '🌳', fullLabel: 'Home'        },
-  { to: '/letters',   icon: '✉️',  fullLabel: 'Letters'     },
-  { to: '/map',       icon: '🗺️', fullLabel: 'Globe Map'   },
-  { to: '/my-world',  icon: '📸', fullLabel: 'My World'    },
-  { to: '/grove',     icon: '🪴', fullLabel: 'Grove',      extra: '💼', extraLabel: 'Jobs', extraTo: '/jobs' },
-  { to: '/feed',      icon: '📝', fullLabel: 'Notes'       },
-  { to: '/friends',   icon: '🌱', fullLabel: 'Connections' },
+  { to: '/dashboard',   icon: '🌿', fullLabel: 'Dashboard'   },
+  { to: '/grove',       icon: '🪴',  fullLabel: 'Grove'       },
+  { to: '/marketplace', icon: '🛒', fullLabel: 'Marketplace' },
+  { to: '/map',         icon: '🗺️',  fullLabel: 'Globe Map'   },
+  { to: '/friends',     icon: '🌱',  fullLabel: 'Connections' },
+  { to: '/letters',     icon: '✉️',   fullLabel: 'Letters'     },
+  { to: '/feed',        icon: '📝',  fullLabel: 'Notes'       },
+  { to: '/groups',      icon: '☘️',  fullLabel: 'Groups',     extra: '🎮', extraTo: '/games' },
+  { to: '/guide',       icon: '📖',  fullLabel: 'Guide'       },
+  { to: '/profile/',    icon: '👤',  fullLabel: 'My Profile', isDynamic: true },
 ]
 
 const mobileNavItems = [
-  { to: '/letters',   icon: '✉️',  label: 'Letters'  },
-  { to: '/map',       icon: '🗺️', label: 'Map'      },
-  { to: '/dashboard', icon: '🌳', label: 'Home',    isCenter: true },
-  { to: '/my-world',  icon: '📸', label: 'My World' },
-  { key: 'more',      icon: '☰',  label: 'More',    isMore: true },
+  { to: '/grove',     icon: '🪴', label: 'Grove'   },
+  { to: '/map',       icon: '🗺️', label: 'Map'     },
+  { to: '/dashboard', icon: '🌳', label: 'Home',   isCenter: true },
+  { to: '/letters',   icon: '✉️',  label: 'Letters' },
+  { key: 'more',      icon: '☰',  label: 'More',   isMore: true },
 ]
 
 const moreItems = [
-  { to: '/profile',  icon: '👤', label: 'My Profile'  },
-  { to: '/jobs',     icon: '💼', label: 'Jobs'        },
-  { to: '/friends',  icon: '🌿', label: 'Connections' },
-  { to: '/grove',    icon: '🪴', label: 'Grove'       },
-  { to: '/groups',   icon: '☘️', label: 'Groups'      },
-  { to: '/games',    icon: '🎮', label: 'Games'       },
-  { to: '/guide',    icon: '📖', label: 'Guide'       },
-  { to: '/settings', icon: '⚙️', label: 'Settings'    },
+  { to: '/marketplace', icon: '🛒', label: 'Marketplace' },
+  { to: '/jobs',        icon: '💼', label: 'My Job'       },
+  { to: '/friends',     icon: '🌿', label: 'Connections'  },
+  { to: '/groups',      icon: '☘️', label: 'Groups'       },
+  { to: '/games',       icon: '🎮', label: 'Games'        },
+  { to: '/guide',       icon: '📖', label: 'Guide'        },
+  { to: '/profile',     icon: '👤', label: 'My Profile',  isDynamic: true },
+  { to: '/settings',    icon: '⚙️', label: 'Settings'     },
 ]
 
 export default function Layout() {
@@ -61,34 +64,6 @@ export default function Layout() {
   }, [])
 
   useEffect(() => { registerSW() }, [])
-  // ── Live location auto-update (once per hour, only if moved >2km) ──────────
-  useEffect(() => {
-    if (!user?.id) return
-    const stored = localStorage.getItem('td_loc_ts')
-    if (stored && Date.now() - parseInt(stored) < 3600000) return
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const { latitude, longitude } = pos.coords
-      if (user.latitude && user.longitude) {
-        const dlat = latitude - user.latitude, dlng = longitude - user.longitude
-        const dist = Math.sqrt(dlat*dlat + dlng*dlng) * 111
-        if (dist < 2) { localStorage.setItem('td_loc_ts', Date.now().toString()); return }
-      }
-      try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`, { headers: { 'Accept-Language': 'en' } })
-        const d = await r.json()
-        const city = d.address?.city||d.address?.town||d.address?.village||d.address?.suburb||''
-        const country = d.address?.country||''
-        if (city || country) {
-          await usersApi.updateProfile({ city, country, latitude, longitude })
-          updateUser({ city, country, latitude, longitude })
-        }
-        localStorage.setItem('td_loc_ts', Date.now().toString())
-      } catch {}
-    }, () => {}, { timeout: 8000, maximumAge: 300000 })
-  }, [user?.id]) // eslint-disable-line
-
-
   useEffect(() => { if (user) applyForUser(user) }, [user?.id, user?.city, user?.country]) // eslint-disable-line
   useEffect(() => { setShowMore(false) }, [location.pathname])
 
@@ -213,7 +188,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {sidebarItems.map(({ to, icon, fullLabel, extra, extraTo, extraLabel }) => (
+          {sidebarItems.map(({ to, icon, fullLabel, extra, extraTo, extraLabel, isDynamic }) => (
             <div key={to} className={extra && extraLabel ? "flex items-center gap-1" : "flex items-center gap-1"}>
               {extra && extraLabel ? (
                 // Grove + Jobs: two equal 50/50 buttons side by side
@@ -237,7 +212,7 @@ export default function Layout() {
                 </div>
               ) : (
                 <>
-                  <NavLink to={to}
+                  <NavLink to={isDynamic ? `${to}${user?.id || ''}` : to}
                     className={({ isActive }) =>
                       `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
                        ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
@@ -361,7 +336,7 @@ export default function Layout() {
               </div>
               <div className="p-2">
                 {moreItems.map(item => (
-                  <Link key={item.to} to={item.to}
+                  <Link key={item.to} to={item.isDynamic ? `${item.to}${user?.id || ''}` : item.to}
                     className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors
                       ${location.pathname === item.to ? 'bg-forest-700' : 'hover:bg-forest-900'}`}>
                     <span className="text-2xl w-8 text-center">{item.icon}</span>

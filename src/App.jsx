@@ -19,6 +19,7 @@ import GroupsPage from './pages/GroupsPage'
 import GrovePage from './pages/GrovePage'
 import GamesPage from './pages/GamesPage'
 import TrumpCardGame from './pages/TrumpCardGame'
+import MarketplacePage    from './pages/MarketplacePage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsOfServicePage from './pages/TermsOfServicePage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="/map" element={<MaintenanceGuard pageKey="map"><MapPage /></MaintenanceGuard>} />
             <Route path="/friends" element={<MaintenanceGuard pageKey="friends"><FriendsPage /></MaintenanceGuard>} />
             <Route path="/grove" element={<GrovePage />} />
+            <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/jobs" element={<JobsPage />} />
                 <Route path="/games" element={<GamesPage />} />
             <Route path="/games/trump-card/:id" element={<TrumpCardGame />} />

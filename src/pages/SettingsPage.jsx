@@ -342,6 +342,18 @@ export default function SettingsPage() {
               }
             </div>
           )}
+          {/* Buy more themes link */}
+          <Link to="/marketplace"
+            className="flex items-center justify-between px-4 py-3 rounded-xl border border-forest-800 bg-forest-900/30 hover:border-forest-600 transition-colors group">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🛒</span>
+              <div>
+                <p className="text-forest-200 text-sm font-medium">Buy more themes</p>
+                <p className="text-forest-600 text-xs">Unlock Storm, Snow & more with grove seeds</p>
+              </div>
+            </div>
+            <span className="text-forest-600 group-hover:text-forest-400 transition-colors">›</span>
+          </Link>
         </div>
       </div>
 
