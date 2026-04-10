@@ -54,6 +54,7 @@ export default function Layout() {
   const [unreadLetters, setUnreadLetters] = useState(0)
   const [groupInvites, setGroupInvites]   = useState(0)
   const [showMore, setShowMore]           = useState(false)
+  const [showOthers, setShowOthers]       = useState(false)
   const [showNotif, setShowNotif]         = useState(false)
   const [unreadCount, setUnreadCount]     = useState(0)
 
@@ -244,43 +245,50 @@ export default function Layout() {
             </div>
           ))}
           </div>
-          {/* Others section */}
+          {/* Others section — collapsible */}
           <div className="mt-3 pt-3 border-t border-forest-800/60">
-            <p className="px-3 pb-1 text-forest-700 text-[10px] uppercase tracking-widest font-medium">Others</p>
-            <div className="space-y-1">
-            {sidebarOtherItems.map(({ to, icon, fullLabel, extra, extraTo, extraLabel, isDynamic }) => (
-              <div key={to} className="flex items-center gap-1">
-                {extra ? (
-                  <div className="flex-1 flex gap-1">
-                    <NavLink to={to}
+            <button
+              onClick={() => setShowOthers(s => !s)}
+              className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-forest-900/50 transition-colors group">
+              <span className="text-forest-600 text-[10px] uppercase tracking-widest font-medium group-hover:text-forest-400 transition-colors">Others</span>
+              <span className={`text-forest-700 text-xs transition-transform duration-200 ${showOthers ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            {showOthers && (
+              <div className="space-y-1 mt-1">
+              {sidebarOtherItems.map(({ to, icon, fullLabel, extra, extraTo, isDynamic }) => (
+                <div key={to} className="flex items-center gap-1">
+                  {extra ? (
+                    <div className="flex-1 flex gap-1">
+                      <NavLink to={to}
+                        className={({ isActive }) =>
+                          `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                           ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
+                        }>
+                        <span className="text-base">{icon}</span>
+                        <span>{fullLabel}</span>
+                      </NavLink>
+                      <NavLink to={extraTo}
+                        className={({ isActive }) =>
+                          `w-10 flex items-center justify-center rounded-lg text-sm transition-colors flex-shrink-0
+                           ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-600 hover:text-forest-300 hover:bg-forest-900'}`
+                        }>
+                        {extra}
+                      </NavLink>
+                    </div>
+                  ) : (
+                    <NavLink to={isDynamic ? `${to}${user?.id || ''}` : to}
                       className={({ isActive }) =>
-                        `flex-1 flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
+                        `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
                          ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
                       }>
                       <span className="text-base">{icon}</span>
-                      <span>{fullLabel}</span>
+                      <span className="flex-1">{fullLabel}</span>
                     </NavLink>
-                    <NavLink to={extraTo}
-                      className={({ isActive }) =>
-                        `w-10 flex items-center justify-center rounded-lg text-sm transition-colors flex-shrink-0
-                         ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-600 hover:text-forest-300 hover:bg-forest-900'}`
-                      }>
-                      {extra}
-                    </NavLink>
-                  </div>
-                ) : (
-                  <NavLink to={isDynamic ? `${to}${user?.id || ''}` : to}
-                    className={({ isActive }) =>
-                      `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150
-                       ${isActive ? 'bg-forest-700 text-forest-100' : 'text-forest-400 hover:text-forest-200 hover:bg-forest-900'}`
-                    }>
-                    <span className="text-base">{icon}</span>
-                    <span className="flex-1">{fullLabel}</span>
-                  </NavLink>
-                )}
+                  )}
+                </div>
+              ))}
               </div>
-            ))}
-            </div>
+            )}
           </div>
         </nav>
 
