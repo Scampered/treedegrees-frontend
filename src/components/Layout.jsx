@@ -25,10 +25,10 @@ const sidebarItems = [
 ]
 
 const mobileNavItems = [
-  { to: '/grove',     icon: '🪴', label: 'Grove'   },
+  { to: '/letters',   icon: '✉️',  label: 'Letters' },
   { to: '/map',       icon: '🗺️', label: 'Map'     },
   { to: '/dashboard', icon: '🌳', label: 'Home',   isCenter: true },
-  { to: '/letters',   icon: '✉️',  label: 'Letters' },
+  { to: '/my-world',  icon: '📷', label: 'My World' },
   { key: 'more',      icon: '☰',  label: 'More',   isMore: true },
 ]
 
