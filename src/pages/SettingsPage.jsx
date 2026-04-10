@@ -300,22 +300,19 @@ export default function SettingsPage() {
         <div className="px-5 py-4 space-y-3">
           <div className="flex flex-col gap-2">
             {[
-              {
-                key: 'dark',
-                label: '🪨 Dark',
-                desc: 'Slate dark — calm, desaturated, easy on the eyes',
-              },
-              {
-                key: 'light',
-                label: '🌿 Light',
-                desc: 'Soft sage — bright, airy, mint greens',
-              },
-              {
-                key: 'adaptive',
-                label: '🌦️ Adaptive',
-                desc: 'Changes with your local weather — rain, sun, snow and more',
-              },
-            ].map(({ key, label, desc }) => (
+              { key: 'dark',     label: '🪨 Dark',     desc: 'Slate dark — calm, desaturated, easy on the eyes' },
+              { key: 'light',    label: '🌿 Light',    desc: 'Soft sage — bright, airy, mint greens' },
+              { key: 'adaptive', label: '🌦️ Adaptive', desc: 'Changes with your local weather — rain, sun, snow and more' },
+              // Purchased themes
+              ...((user?.ownedThemes || JSON.parse(localStorage.getItem('td_owned_themes') || '[]')).map(id => ({
+                key: id,
+                label: id === 'storm' ? '⛈️ Storm' : id === 'snow' ? '❄️ Snow' : `✨ ${id.charAt(0).toUpperCase() + id.slice(1)}`,
+                desc: id === 'storm' ? 'Dark electric skies, violet rain — purchased theme'
+                    : id === 'snow'  ? 'Crisp winter whites, icy blues — purchased theme'
+                    : 'Purchased theme',
+                purchased: true,
+              }))),
+            ].map(({ key, label, desc, purchased }) => (
               <button key={key}
                 onClick={() => setPreference(key, user)}
                 className={`flex items-start gap-3 px-4 py-3 rounded-xl border text-left transition-all
@@ -324,8 +321,11 @@ export default function SettingsPage() {
                     : 'border-forest-800 bg-forest-900/30 hover:border-forest-700'}`}>
                 <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5
                   ${themePref === key ? 'border-forest-400 bg-forest-400' : 'border-forest-600'}`}/>
-                <div>
-                  <p className="text-forest-200 text-sm font-medium">{label}</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-forest-200 text-sm font-medium">{label}</p>
+                    {purchased && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-forest-800 text-forest-400 border border-forest-700">owned</span>}
+                  </div>
                   <p className="text-forest-600 text-xs mt-0.5">{desc}</p>
                 </div>
               </button>
