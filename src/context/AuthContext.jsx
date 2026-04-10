@@ -26,9 +26,9 @@ export function AuthProvider({ children }) {
       // Update the cache with fresh data
       localStorage.setItem('td_user_cache', JSON.stringify(data))
     } catch (err) {
-      // Only clear session if the token was genuinely rejected (401)
+      // Clear session if token rejected (401) or user deleted from DB (404)
       // Network errors / timeouts (no err.response) keep the user logged in
-      if (err.response?.status === 401) {
+      if (err.response?.status === 401 || err.response?.status === 404) {
         localStorage.removeItem('td_token')
         localStorage.removeItem('td_user_cache')
         setUser(null)

@@ -58,16 +58,21 @@ export default function VerifyEmailPage() {
   // ── Go back — delete unverified account, return to register with email prefilled ──
   const handleGoBack = async () => {
     setBacking(true); setBackErr('')
+    const savedEmail = user?.email || email || ''
     try {
       await api.delete('/api/auth/account/unverified')
-      // Store their info in sessionStorage so register page can prefill it
-      const savedEmail = user?.email || email || ''
-      sessionStorage.setItem('td_prefill_email', savedEmail)
-      navigate('/signup', { replace: true, state: { prefillEmail: savedEmail } })
     } catch (err) {
-      setBackErr(err.response?.data?.error || 'Incorrect password. Try again.')
-      setBacking(false)
+      // 404 = user already deleted from DB — still proceed and clear token
+      if (err?.response?.status !== 404) {
+        setBackErr(err?.response?.data?.error || 'Failed. Please try again.')
+        setBacking(false)
+        return
+      }
     }
+    // Clear local token so AuthContext doesn't keep trying to load deleted user
+    localStorage.removeItem('td_token')
+    sessionStorage.setItem('td_prefill_email', savedEmail)
+    navigate('/signup', { replace: true, state: { prefillEmail: savedEmail } })
   }
 
   // ── Resend ───────────────────────────────────────────────────────────────────
