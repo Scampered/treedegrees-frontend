@@ -2,7 +2,7 @@
 import { Link } from 'react-router-dom'
 
 const LAST_UPDATED = 'April 10, 2026'
-const CONTACT_EMAIL = 'support@treedegrees.app'
+const CONTACT_EMAIL = 'tree3degrees@gmail.com'
 
 function Section({ title, children }) {
   return (

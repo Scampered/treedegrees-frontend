@@ -515,6 +515,15 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* Legal links */}
+      <div className="border-t border-forest-800 pt-4 pb-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+        <Link to="/privacy" className="text-forest-700 text-xs hover:text-forest-400 transition-colors">Privacy Policy</Link>
+        <span className="text-forest-800 text-xs">·</span>
+        <Link to="/terms" className="text-forest-700 text-xs hover:text-forest-400 transition-colors">Terms of Service</Link>
+        <span className="text-forest-800 text-xs">·</span>
+        <a href="mailto:tree3degrees@gmail.com" className="text-forest-700 text-xs hover:text-forest-400 transition-colors">Contact</a>
+      </div>
+
       {showConnectionsModal && <ConnectionsModal onClose={() => setShowConnectionsModal(false)} />}
     </div>
   )

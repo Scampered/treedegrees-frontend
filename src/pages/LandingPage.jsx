@@ -178,7 +178,14 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-forest-900 py-8 px-6 text-center">
-        <p className="text-forest-700 text-sm">🌳 TreeDegrees — your social graph, your way</p>
+        <p className="text-forest-700 text-sm mb-3">🌳 TreeDegrees — your social graph, your way</p>
+        <div className="flex items-center justify-center gap-4 text-xs text-forest-800">
+          <Link to="/privacy" className="hover:text-forest-500 transition-colors">Privacy Policy</Link>
+          <span>·</span>
+          <Link to="/terms" className="hover:text-forest-500 transition-colors">Terms of Service</Link>
+          <span>·</span>
+          <a href="mailto:tree3degrees@gmail.com" className="hover:text-forest-500 transition-colors">Contact</a>
+        </div>
       </footer>
     </div>
   )
