@@ -1,6 +1,6 @@
 // src/pages/SignupPage.jsx
 import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 async function geocodeCity(city, country) {
@@ -32,16 +32,8 @@ async function reverseGeocode(lat, lon) {
 export default function SignupPage() {
   const { signup } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
-
-  // Read prefilled email from VerifyEmailPage go-back flow
-  const prefillEmail = location.state?.prefillEmail
-    || sessionStorage.getItem('td_prefill_email')
-    || ''
-  if (prefillEmail) sessionStorage.removeItem('td_prefill_email')
-
   const [form, setForm] = useState({
-    fullName: '', nickname: '', email: prefillEmail, password: '', confirmPassword: '',
+    fullName: '', nickname: '', email: '', password: '', confirmPassword: '',
     dateOfBirth: '', city: '', country: '',
   })
   const [coords, setCoords] = useState(null)
@@ -50,6 +42,7 @@ export default function SignupPage() {
   const [gpsLoading, setGpsLoading] = useState(false)
   const [gpsStatus, setGpsStatus] = useState('')
   const [step, setStep] = useState(1)
+  const [ageGate, setAgeGate] = useState(false)
 
   const set = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }))
 
@@ -103,7 +96,7 @@ export default function SignupPage() {
     }
   }
 
-  const step1Complete = form.fullName && form.email && form.password && form.confirmPassword
+  const step1Complete = form.fullName && form.email && form.password && form.confirmPassword && ageGate
 
   return (
     <div className="min-h-screen bg-forest-950 flex items-center justify-center px-4 py-12">
@@ -182,6 +175,29 @@ export default function SignupPage() {
                   <input type="password" className="input" placeholder="••••••••"
                     value={form.confirmPassword} onChange={set('confirmPassword')} required />
                 </div>
+                {/* Age gate + terms */}
+                <label className="flex items-start gap-3 cursor-pointer group mt-1">
+                  <input
+                    type="checkbox"
+                    checked={ageGate}
+                    onChange={e => setAgeGate(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded accent-forest-500 flex-shrink-0 cursor-pointer"
+                  />
+                  <span className="text-forest-500 text-xs leading-relaxed group-hover:text-forest-400 transition-colors">
+                    I confirm I am at least 13 years old and I agree to the{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer"
+                      className="text-forest-400 underline hover:text-forest-200"
+                      onClick={e => e.stopPropagation()}>
+                      Terms of Service
+                    </a>
+                    {' '}and{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer"
+                      className="text-forest-400 underline hover:text-forest-200"
+                      onClick={e => e.stopPropagation()}>
+                      Privacy Policy
+                    </a>.
+                  </span>
+                </label>
                 <button type="submit" className="btn-primary w-full rounded-full mt-2" disabled={!step1Complete}>
                   Continue →
                 </button>
