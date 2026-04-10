@@ -1,6 +1,6 @@
 // src/pages/SignupPage.jsx
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 async function geocodeCity(city, country) {
@@ -32,8 +32,16 @@ async function reverseGeocode(lat, lon) {
 export default function SignupPage() {
   const { signup } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Read prefilled email from VerifyEmailPage go-back flow
+  const prefillEmail = location.state?.prefillEmail
+    || sessionStorage.getItem('td_prefill_email')
+    || ''
+  if (prefillEmail) sessionStorage.removeItem('td_prefill_email')
+
   const [form, setForm] = useState({
-    fullName: '', nickname: '', email: '', password: '', confirmPassword: '',
+    fullName: '', nickname: '', email: prefillEmail, password: '', confirmPassword: '',
     dateOfBirth: '', city: '', country: '',
   })
   const [coords, setCoords] = useState(null)

@@ -17,9 +17,6 @@ export default function VerifyEmailPage() {
   const [resending, setResending] = useState(false)
   const [resendMsg, setResendMsg] = useState('')
   const [countdown, setCountdown] = useState(0)
-  const [showBack, setShowBack]   = useState(false)
-  const [backing, setBacking]     = useState(false)
-  const [backErr, setBackErr]     = useState('')
 
   // ── Block back navigation until verified ─────────────────────────────────────
   useEffect(() => {
@@ -59,9 +56,7 @@ export default function VerifyEmailPage() {
   const handleGoBack = async () => {
     setBacking(true); setBackErr('')
     try {
-      const pw = window.prompt('Enter your password to cancel and re-register with a different email:')
-      if (!pw) { setBacking(false); return }
-      await api.delete('/api/auth/account', { data: { password: pw } })
+      await api.delete('/api/auth/account', { data: { password: backPw } })
       // Store their info in sessionStorage so register page can prefill it
       const savedEmail = user?.email || email || ''
       sessionStorage.setItem('td_prefill_email', savedEmail)
@@ -188,21 +183,36 @@ export default function VerifyEmailPage() {
               Wrong email address?
             </button>
           ) : (
-            <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-4 text-left">
-              <p className="text-forest-400 text-sm mb-1 font-medium">Go back and re-register?</p>
-              <p className="text-forest-600 text-xs mb-4 leading-relaxed">
-                This will delete your unverified account so you can sign up again with the correct email.
-                Your email address will be pre-filled on the register page.
+            <div className="rounded-xl bg-forest-900/50 border border-forest-800 p-4 text-left space-y-3">
+              <p className="text-forest-300 text-sm font-medium">Go back and re-register</p>
+              <p className="text-forest-500 text-xs leading-relaxed">
+                This deletes your unverified account so you can sign up with the correct email.
+                Your email will be pre-filled on the signup page.
               </p>
-              <button onClick={handleGoBack} disabled={backing}
-                className="btn-ghost rounded-full px-5 py-2 w-full text-sm mb-2">
-                {backing ? 'Please wait…' : '← Delete & re-register'}
+              <input
+                type="password"
+                placeholder="Enter your password to confirm"
+                value={backPw}
+                onChange={e => { setBackPw(e.target.value); setBackErr('') }}
+                className="input text-sm w-full"
+              />
+              {backErr && <p className="text-red-400 text-xs">{backErr}</p>}
+              <button onClick={handleGoBack} disabled={backing || !backPw}
+                className="btn-ghost rounded-full px-5 py-2 w-full text-sm disabled:opacity-40">
+                {backing ? 'Deleting account…' : '← Delete & re-register'}
               </button>
-              <button onClick={() => { setShowBack(false); setBackErr('') }}
+              <button onClick={() => { setShowBack(false); setBackPw(''); setBackErr('') }}
                 className="text-forest-700 text-xs w-full text-center hover:text-forest-500 transition-colors">
                 Cancel
               </button>
-              {backErr && <p className="text-red-400 text-xs mt-2 text-center">{backErr}</p>}
+              <p className="text-forest-700 text-xs text-center">
+                Forgot your password?{' '}
+                <button onClick={() => navigate('/login', { replace: true })}
+                  className="text-forest-500 underline hover:text-forest-300">
+                  Go to login
+                </button>
+                {' '}to reset it first.
+              </p>
             </div>
           )}
         </div>
