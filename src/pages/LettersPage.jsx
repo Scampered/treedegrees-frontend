@@ -395,6 +395,16 @@ export default function LettersPage() {
   // eslint-disable-next-line
   }, [])
 
+  const handleUseSaver = async (friendId) => {
+    try {
+      const r = await lettersApi.useStreakSaver(friendId)
+      setStreakSavers(r.data.saversLeft)
+      await reload()
+    } catch(e) {
+      alert(e.response?.data?.error || 'Could not use streak saver')
+    }
+  }
+
   const reload = useCallback(async () => {
     try {
       const [l, s, f] = await Promise.all([
@@ -403,9 +413,13 @@ export default function LettersPage() {
         friendsApi.list(),
       ])
       setLetters(l.data)
-      setStreaks(s.data)
+      const streakResp = s.data
+      const streakList = Array.isArray(streakResp) ? streakResp : (streakResp?.streaks || [])
+      const saversCount = streakResp?.savers ?? 3
+      setStreaks(streakList)
+      setStreakSavers(saversCount)
       // Sort by streak descending
-      const streakData = s.data || []
+      const streakData = streakList
       const sorted = (f.data || []).sort((a, b) => {
         const aStreak = streakData.find(st => st.friendId === a.id)?.streakDays || 0
         const bStreak = streakData.find(st => st.friendId === b.id)?.streakDays || 0
