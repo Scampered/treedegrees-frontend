@@ -19,16 +19,13 @@ import GroupsPage from './pages/GroupsPage'
 import GrovePage from './pages/GrovePage'
 import GamesPage from './pages/GamesPage'
 import TrumpCardGame from './pages/TrumpCardGame'
-import MarketplacePage    from './pages/MarketplacePage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsOfServicePage from './pages/TermsOfServicePage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import JobsPage from './pages/JobsPage'
-import ProfilePage from './pages/ProfilePage'
-import MyWorldPage from './pages/MyWorldPage'
-import MemoriesPage from './pages/MemoriesPage'
+import MapPage3D from './pages/MapPage3D'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
 import Layout from './components/Layout'
@@ -112,7 +109,6 @@ export default function App() {
             <Route path="/map" element={<MaintenanceGuard pageKey="map"><MapPage /></MaintenanceGuard>} />
             <Route path="/friends" element={<MaintenanceGuard pageKey="friends"><FriendsPage /></MaintenanceGuard>} />
             <Route path="/grove" element={<GrovePage />} />
-            <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/jobs" element={<JobsPage />} />
                 <Route path="/games" element={<GamesPage />} />
             <Route path="/games/trump-card/:id" element={<TrumpCardGame />} />
@@ -122,10 +118,7 @@ export default function App() {
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
             <Route path="/guide" element={<GuidePage />} />
             <Route path="/groups" element={<GroupsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/profile/:id" element={<ProfilePage />} />
-            <Route path="/my-world" element={<MyWorldPage />} />
-            <Route path="/memories" element={<MemoriesPage />} />
+            <Route path="/3dmap" element={<MapPage3D />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

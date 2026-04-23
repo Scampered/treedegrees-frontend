@@ -262,6 +262,57 @@ function ConnectionCard({ friend, myId, onViewMap, onWriteLetter, onViewProfile 
   )
 }
 
+
+// ── Letter progress bar ────────────────────────────────────────────────────────
+const VEHICLE_EMOJI_DB = {
+  car: '🚗', sportscar: '🏎️', airliner: '🛩️', jet: '✈️', spaceship: '🚀', radio: '🗼',
+}
+
+function LetterProgressBar({ letter, myId }) {
+  const [progress, setProgress] = useState(0)
+  const isSending = letter.senderId === myId
+
+  useEffect(() => {
+    const tick = () => {
+      const sent = new Date(letter.sentAt).getTime()
+      const arrives = new Date(letter.arrivesAt).getTime()
+      const now = Date.now()
+      setProgress(Math.min(1, Math.max(0, (now - sent) / (arrives - sent))))
+    }
+    tick()
+    const iv = setInterval(tick, 10000)
+    return () => clearInterval(iv)
+  }, [letter.sentAt, letter.arrivesAt])
+
+  const emoji = VEHICLE_EMOJI_DB[letter.vehicleTier] || '🚗'
+  const pct = Math.round(progress * 100)
+  const hoursLeft = Math.max(0, (new Date(letter.arrivesAt) - Date.now()) / 3600000)
+  const timeLabel = hoursLeft < 1 ? `${Math.round(hoursLeft * 60)}m` : `${hoursLeft.toFixed(1)}h`
+
+  return (
+    <div className="px-3 py-2 rounded-xl border border-forest-800 bg-forest-900/40">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-forest-400 text-xs">
+          {isSending ? `✉️ To ${letter.senderName || 'them'}` : `✉️ From ${letter.senderName}`}
+        </span>
+        <span className="text-forest-600 text-xs">{timeLabel} left</span>
+      </div>
+      <div className="relative h-5 bg-forest-950 rounded-full overflow-hidden border border-forest-800">
+        {/* Track fill */}
+        <div className="absolute inset-y-0 left-0 bg-forest-800/50 rounded-full transition-all duration-1000"
+          style={{ width: `${pct}%` }} />
+        {/* Vehicle */}
+        <div className="absolute top-1/2 -translate-y-1/2 transition-all duration-1000 text-sm leading-none"
+          style={{ left: `calc(${pct}% - 10px)` }}>
+          {emoji}
+        </div>
+        {/* Destination dot */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-forest-500" />
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const { user, updateUser } = useAuth()
   const { active: weatherTheme } = useTheme()
@@ -270,6 +321,7 @@ export default function DashboardPage() {
   const [requests, setRequests]     = useState([])
   const [letterStats, setLetterStats] = useState(null)
   const [friendNotes, setFriendNotes] = useState([])
+  const [inTransit, setInTransit]     = useState([])
   const [streaks, setStreaks]        = useState([])
   const [noteImgLightbox, setNoteImgLightbox] = useState(null)
   const [note, setNote]             = useState('')
@@ -300,11 +352,12 @@ export default function DashboardPage() {
       lettersApi.stats().catch(() => ({ data: null })),
       usersApi.feed().catch(() => ({ data: [] })),
       lettersApi.streaks().catch(() => ({ data: [] })),
-    ]).then(([f, r, s, feed, st]) => {
+    ]).then(([f, r, s, feed, st, it]) => {
       setFriends(f.data || [])
       setRequests(r.data || [])
       setLetterStats(s.data)
       setFriendNotes(feed.data || [])
+      setInTransit(Array.isArray(it?.data) ? it.data : [])
       const stData = st.data
       setStreaks(Array.isArray(stData) ? stData : (stData?.streaks || []))
     }).finally(() => setLoading(false))
@@ -503,6 +556,18 @@ export default function DashboardPage() {
                 onProfileClick={() => navigate(`/profile/${n.userId}`)}
                 onNavigateFeed={() => navigate('/feed')}
                 onOpenImg={setNoteImgLightbox} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Letters in transit progress bars ── */}
+      {inTransit.length > 0 && (
+        <div className="px-5 mb-2 flex-shrink-0">
+          <p className="text-forest-500 text-xs font-medium uppercase tracking-wide mb-2">Letters in transit</p>
+          <div className="flex flex-col gap-2">
+            {inTransit.slice(0, 4).map(l => (
+              <LetterProgressBar key={l.id} letter={l} myId={user?.id} />
             ))}
           </div>
         </div>
