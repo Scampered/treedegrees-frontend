@@ -263,7 +263,7 @@ function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
   )
 }
 
-function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId, initialFriendData }) {
+function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId, initialFriendData, streakSavers = 3 }) {
   const [step, setStep]       = useState(1)
   const [selected, setSelected] = useState(null)
 
@@ -278,7 +278,8 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError]     = useState('')
-  const sel = streaks.find(s => s.friendId === selected?.id)
+  const streakList = Array.isArray(streaks) ? streaks : (streaks?.streaks || [])
+  const sel = streakList.find(s => s.friendId === selected?.id)
 
   const handleSend = async () => {
     if (!selected?.id || !content.trim()) {
@@ -311,7 +312,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
           <div className="p-5 max-h-72 overflow-y-auto space-y-2">
             {friends.length === 0 && <p className="text-forest-500 text-sm text-center py-6">No connections yet</p>}
             {friends.map(f => {
-              const s = streaks.find(st => st.friendId === f.id)
+              const s = streakList.find(st => st.friendId === f.id)
               const hasInTransit = letters.some(l => !l.isInbox && l.inTransit && l.recipientId === f.id)
               return (
                 <button key={f.id}
@@ -419,12 +420,12 @@ export default function LettersPage() {
       ])
       setLetters(l.data)
       const streakResp = s.data
-      const streakList = Array.isArray(streakResp) ? streakResp : (streakResp?.streaks || [])
+      const streakArr = Array.isArray(streakResp) ? streakResp : (streakResp?.streaks || [])
       const saversCount = streakResp?.savers ?? 3
-      setStreaks(streakList)
+      setStreaks(streakArr)
       setStreakSavers(saversCount)
       // Sort by streak descending
-      const streakData = streakList
+      const streakData = streakArr
       const sorted = (f.data || []).sort((a, b) => {
         const aStreak = streakData.find(st => st.friendId === a.id)?.streakDays || 0
         const bStreak = streakData.find(st => st.friendId === b.id)?.streakDays || 0
@@ -628,6 +629,7 @@ export default function LettersPage() {
           onSend={reload} onClose={() => setShowSend(false)}
           initialFriendId={initialFriendId}
           initialFriendData={initialFriendData}
+          streakSavers={streakSavers}
         />
       )}
     </div>
