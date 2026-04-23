@@ -130,6 +130,7 @@ export default function MapPage3D() {
 
     // ── Globe group (everything attached rotates together) ─────────────
     const group = new THREE.Group()
+    group.rotation.y = Math.PI  // start facing Pacific so auto-rotate sweeps east→west naturally
     groupRef.current = group
     scene.add(group)
 
@@ -168,11 +169,7 @@ export default function MapPage3D() {
     })
     group.add(new THREE.Mesh(new THREE.SphereGeometry(1.03, 64, 64), atmMat))
 
-    // Outer glow ring
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: 0x0a2a0a, transparent: true, opacity: 0.5, side: THREE.BackSide,
-    })
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), glowMat))
+    // (outer glow ring removed)
 
     // ── Stars ──────────────────────────────────────────────────────────
     const sv = []
@@ -389,30 +386,61 @@ export default function MapPage3D() {
     })
   }, [mapData, filter])
 
-  // ── Rebuild vehicle dots ──────────────────────────────────────────────────
+  // ── Rebuild vehicle nodes (pure 3D, part of group so rotation works) ────
   useEffect(() => {
     const group = groupRef.current; if (!group) return
     group.children.filter(c => c.userData?.isVehicle).forEach(c => group.remove(c))
 
     vehiclePos.forEach(v => {
-      const pos = latLonToVec3(v.currentLat, v.currentLon, 1.03)
-      // Glowing yellow dot
+      // ── Vehicle sphere (yellow, larger than connection nodes) ──────────
+      const pos = latLonToVec3(v.currentLat, v.currentLon, 1.028)
       const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(0.022, 10, 10),
-        new THREE.MeshPhongMaterial({ color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 0.9, depthTest: true })
+        new THREE.SphereGeometry(0.028, 12, 12),
+        new THREE.MeshPhongMaterial({
+          color: 0xffee44, emissive: 0xffaa00, emissiveIntensity: 1.0,
+          depthTest: true, depthWrite: true,
+        })
       )
       dot.position.copy(pos); dot.userData = { isVehicle: true }
       group.add(dot)
-      // Draw arc trail on transit path
-      const src = latLonToVec3(+v.senderLat, +v.senderLon, 1.016)
-      const tgt = latLonToVec3(+v.recipientLat, +v.recipientLon, 1.016)
-      const mid = src.clone().add(tgt).normalize().multiplyScalar(1.12)
-      const curve = new THREE.QuadraticBezierCurve3(src, mid, tgt)
-      const arcGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(64))
-      const arcMat = new THREE.LineBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.5, depthTest: true })
-      const arcLine = new THREE.Line(arcGeo, arcMat)
-      arcLine.userData = { isVehicle: true }
-      group.add(arcLine)
+
+      // ── Pulse ring around vehicle ──────────────────────────────────────
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.033, 0.042, 20),
+        new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+      )
+      ring.position.copy(pos)
+      ring.lookAt(new THREE.Vector3(0, 0, 0))
+      ring.userData = { isVehicle: true }
+      group.add(ring)
+
+      // ── Arc trail showing full delivery path ──────────────────────────
+      if (v.senderLat && v.recipientLat) {
+        const src = latLonToVec3(+v.senderLat, +v.senderLon, 1.012)
+        const tgt = latLonToVec3(+v.recipientLat, +v.recipientLon, 1.012)
+        const mid = src.clone().add(tgt).normalize().multiplyScalar(1.14)
+        const curve = new THREE.QuadraticBezierCurve3(src, mid, tgt)
+        const arcGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(64))
+        // Dashed-style: draw traveled portion bright, remaining dim
+        const allPts = curve.getPoints(64)
+        const splitIdx = Math.floor(v.progress * 64)
+        // Traveled arc — bright
+        if (splitIdx > 0) {
+          const travelGeo = new THREE.BufferGeometry().setFromPoints(allPts.slice(0, splitIdx + 1))
+          const travelMat = new THREE.LineBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.9, depthTest: true })
+          const travelLine = new THREE.Line(travelGeo, travelMat)
+          travelLine.userData = { isVehicle: true }
+          group.add(travelLine)
+        }
+        // Remaining arc — dim
+        if (splitIdx < 63) {
+          const remGeo = new THREE.BufferGeometry().setFromPoints(allPts.slice(splitIdx))
+          const remMat = new THREE.LineBasicMaterial({ color: 0xaa8800, transparent: true, opacity: 0.35, depthTest: true })
+          const remLine = new THREE.Line(remGeo, remMat)
+          remLine.userData = { isVehicle: true }
+          group.add(remLine)
+        }
+      }
     })
   }, [vehiclePos])
 
@@ -454,27 +482,7 @@ export default function MapPage3D() {
         )}
         <canvas ref={canvasRef} className="w-full h-full" />
 
-        {/* Vehicle emoji overlay — HTML layer over canvas */}
-        {vehiclePos.map(v => {
-          // Project 3D position to screen
-          if (!cameraRef.current || !canvasRef.current || !groupRef.current) return null
-          const pos3d = latLonToVec3(v.currentLat, v.currentLon, 1.03).clone()
-          pos3d.applyEuler(groupRef.current.rotation)
-          // Only show if facing camera (positive Z after rotation)
-          const camDir = new THREE.Vector3(0, 0, 1)
-          if (pos3d.dot(camDir) < 0.1) return null
-          const projected = pos3d.project(cameraRef.current)
-          const rect = canvasRef.current.getBoundingClientRect()
-          const sx = (projected.x + 1) / 2 * rect.width
-          const sy = (1 - projected.y) / 2 * rect.height
-          return (
-            <div key={v.id} className="absolute pointer-events-none z-10 select-none"
-              style={{ left: sx - 12, top: sy - 12, fontSize: 20,
-                filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.9))' }}>
-              {VEHICLE_EMOJI[v.vehicleTier] || '🚗'}
-            </div>
-          )
-        })}
+        {/* vehicles rendered as 3D nodes */}
       </div>
 
       {/* Hover tooltip */}
