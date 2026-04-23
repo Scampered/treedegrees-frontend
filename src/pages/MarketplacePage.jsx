@@ -33,7 +33,13 @@ const FREE_THEMES = [
   { id: 'adaptive', name: 'Adaptive', emoji: '🌦️', desc: 'Changes with your local weather automatically.' },
 ]
 
-// ── Hired services ────────────────────────────────────────────────────────────
+// ── Consumables ──────────────────────────────────────────────────────────────
+const CONSUMABLES = [
+  { id: 'streak_saver', name: 'Streak Saver', emoji: '💝', price: 200,
+    desc: 'Restore a broken streak within 3 days. Everyone starts with 3 free.' },
+]
+
+// ── Hired services ──────────────────────────────────────────────────────────────
 const HIRED_SERVICES = [
   {
     role: 'courier',
@@ -97,9 +103,7 @@ export default function MarketplacePage() {
   const [seeds, setSeeds]       = useState(user?.seeds || 0)
   const [tab, setTab]           = useState('themes')
   const [buying, setBuying]     = useState(null)
-  // Use DB-backed owned themes from user context (falls back to localStorage for instant UI)
-  const [owned, setOwned] = useState(() => {
-    if (user?.ownedThemes?.length) return user.ownedThemes
+  const [owned, setOwned]       = useState(() => {
     try { return JSON.parse(localStorage.getItem('td_owned_themes') || '[]') } catch { return [] }
   })
   const [msg, setMsg]           = useState('')
@@ -108,10 +112,6 @@ export default function MarketplacePage() {
   useEffect(() => {
     groveApi.seeds().then(r => setSeeds(r.data?.seeds ?? 0)).catch(() => {})
   }, [])
-
-  useEffect(() => {
-    if (user?.ownedThemes?.length) setOwned(user.ownedThemes)
-  }, [user?.ownedThemes])
 
   const handleBuyTheme = async (theme) => {
     if (owned.includes(theme.id)) {
@@ -129,10 +129,10 @@ export default function MarketplacePage() {
     setBuying(theme.id)
     try {
       // Deduct seeds via grove API
-      await groveApi.spendSeeds(theme.price, `theme_purchase_${theme.id}`, theme.id)
+      await groveApi.spendSeeds(theme.price, `theme_purchase_${theme.id}`)
       const newOwned = [...owned, theme.id]
       setOwned(newOwned)
-      localStorage.setItem('td_owned_themes', JSON.stringify(newOwned)) // cache locally too
+      localStorage.setItem('td_owned_themes', JSON.stringify(newOwned))
       setSeeds(s => s - theme.price)
       setPreference(theme.id, user)
       setMsg(`✓ ${theme.name} theme unlocked and applied!`)
@@ -141,6 +141,23 @@ export default function MarketplacePage() {
       setMsg(e.response?.data?.error || 'Purchase failed. Try again.')
       setMsgType('err')
     } finally { setBuying(null) }
+  }
+
+  const handleBuySaver = async () => {
+    if (seeds < 200) { setMsg('Not enough seeds — you need 200 🌱'); setMsgType('err'); return }
+    setBuying('streak_saver')
+    try {
+      await groveApi.spendSeeds(200, 'streak_saver_purchase')
+      // Award via backend
+      const token = localStorage.getItem('td_token')
+      const r = await fetch('https://treedegrees-api.onrender.com/api/users/award-streak-saver',
+        { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
+      if (!r.ok) throw new Error('Failed to award saver')
+      setSeeds(s => s - 200)
+      setMsg('✓ Streak saver added!')
+      setMsgType('ok')
+    } catch(e) { setMsg('Purchase failed. Try again.'); setMsgType('err') }
+    finally { setBuying(null) }
   }
 
   const handleApplyFree = (themeId) => {
@@ -167,6 +184,7 @@ export default function MarketplacePage() {
       <div className="px-5 flex gap-2 overflow-x-auto pb-3 scrollbar-none flex-shrink-0">
         <Pill label="🎨 Themes"   active={tab === 'themes'}   onClick={() => setTab('themes')} />
         <Pill label="🤝 Services" active={tab === 'services'} onClick={() => setTab('services')} />
+        <Pill label="💝 Savers"    active={tab === 'savers'}   onClick={() => setTab('savers')} />
       </div>
 
       {/* Status message */}
@@ -267,6 +285,31 @@ export default function MarketplacePage() {
           </>
         )}
 
+        {tab === 'savers' && (
+          <div className="space-y-4">
+            <p className="text-forest-500 text-xs uppercase tracking-wide">Streak Savers</p>
+            <div className="rounded-2xl border border-forest-800 bg-forest-900/40 p-5">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 rounded-xl bg-forest-800 flex items-center justify-center text-3xl flex-shrink-0">💝</div>
+                <div className="flex-1">
+                  <p className="text-forest-100 font-medium">Streak Saver</p>
+                  <p className="text-forest-500 text-xs mt-0.5 leading-relaxed">Restore a broken streak within 3 days. Tap the 💔 pill on the Letters page to use one.</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-forest-400 text-sm font-medium">200 🌱 each</span>
+                <button onClick={handleBuySaver} disabled={buying === 'streak_saver' || seeds < 200}
+                  className={`px-5 py-2 rounded-xl text-sm font-medium transition-all
+                    ${seeds >= 200 ? 'bg-forest-600 hover:bg-forest-500 text-white' : 'bg-forest-900 text-forest-600 cursor-not-allowed'}`}>
+                  {buying === 'streak_saver' ? '…' : 'Buy saver'}
+                </button>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-dashed border-forest-800 p-5 text-center">
+              <p className="text-forest-600 text-xs leading-relaxed">Everyone starts with 3 free streak savers. One saver restores one broken streak. You have 3 days after a streak breaks to use it.</p>
+            </div>
+          </div>
+        )}
         {/* ── SERVICES TAB ───────────────────────────────────────────────── */}
         {tab === 'services' && (
           <>

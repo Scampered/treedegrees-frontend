@@ -1,7 +1,7 @@
 // src/pages/LettersPage.jsx
 import React, { useEffect, useState, useCallback } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { lettersApi, momentsApi, friendsApi } from '../api/client'
+import { useLocation } from 'react-router-dom'
+import { lettersApi, friendsApi } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 const VEHICLE_INFO = {
@@ -61,7 +61,7 @@ function EnvelopeLetter({ letter, onOpen, onRecall }) {
         {/* Icon */}
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0
           ${letter.inTransit ? 'bg-forest-800/40' : expanded ? 'bg-forest-700' : 'bg-forest-800'}`}>
-          {letter.inTransit ? v.emoji : letter.momentCdnUrl ? '🖼️' : (expanded ? '💌' : '✉️')}
+          {letter.inTransit ? v.emoji : (expanded ? '💌' : '✉️')}
         </div>
 
         {/* Info */}
@@ -108,26 +108,6 @@ function EnvelopeLetter({ letter, onOpen, onRecall }) {
               </svg>
             </div>
             <p className="text-forest-100 text-sm leading-relaxed whitespace-pre-wrap">{letter.content}</p>
-            {/* Attached memory — polaroid style */}
-            {letter.momentCdnUrl && (
-              <div className="mt-4">
-                <div className="w-px h-6 mx-auto mb-3" style={{background:'rgb(var(--f700)/0.4)'}}/>
-                <div className="mx-auto rounded-xl overflow-hidden"
-                  style={{
-                    background:'#f5f0e8',
-                    padding:'8px 8px 28px 8px',
-                    boxShadow:'0 4px 20px rgba(0,0,0,0.4)',
-                    maxWidth:240,
-                  }}>
-                  <img src={letter.momentCdnUrl} alt="Memory"
-                    className="w-full rounded-sm"
-                    style={{height:'auto', display:'block'}}/>
-                  <p style={{color:'#555',fontSize:10,textAlign:'center',marginTop:6,fontFamily:'Georgia,serif',fontStyle:'italic'}}>
-                    🌳 TreeDegrees
-                  </p>
-                </div>
-              </div>
-            )}
             <p className="text-forest-700 text-xs mt-3 text-right">
               {new Date(letter.sentAt).toLocaleDateString()} · {v.emoji} {v.label}
               {letter.streakAtSend > 0 && ` · 🔥 Day ${letter.streakAtSend}`}
@@ -139,13 +119,13 @@ function EnvelopeLetter({ letter, onOpen, onRecall }) {
   )
 }
 
-// ── Fuel dots ─────────────────────────────────────────────────────────────────
-function FuelDots({ fuel }) {
+// ── Saver dots (streak savers indicator) ─────────────────────────────────────
+function SaverDots({ count }) {
   return (
     <div className="flex gap-1">
       {[0,1,2].map(i => (
         <div key={i} className={`w-2.5 h-2.5 rounded-full border transition-all
-          ${i < fuel ? 'bg-forest-400 border-forest-300' : 'bg-forest-900 border-forest-700'}`} />
+          ${i < count ? 'bg-amber-400 border-amber-300' : 'bg-forest-900 border-forest-700'}`} />
       ))}
     </div>
   )
@@ -172,38 +152,63 @@ function useMidnightCountdown() {
   return label
 }
 
-function StreakDropdown({ streaks }) {
+function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
   const [open, setOpen] = React.useState(false)
+  const [saving, setSaving] = React.useState(null)
   const midnight = useMidnightCountdown()
-  if (!streaks.some(s => s.streakDays > 0)) return null
 
-  const active  = [...streaks].filter(s => s.streakDays > 0).sort((a,b) => b.streakDays - a.streakDays)
-  const warning = active.filter(s => s.fuel === 1)
+  const active = [...streaks].filter(s => s.streakDays > 0).sort((a,b) => b.streakDays - a.streakDays)
+  const broken = [...streaks].filter(s => s.brokenAt && s.streakDays === 0)
+  const all = [...active, ...broken]
+  if (all.length === 0) return null
+
+  const handleSave = async (s) => {
+    setSaving(s.friendId)
+    try { await onUseSaver(s.friendId) } finally { setSaving(null) }
+  }
 
   return (
     <div className="border-b border-forest-800 flex-shrink-0">
+      {/* Saver count badge */}
+      <div className="px-5 pt-2 flex items-center gap-2">
+        <SaverDots count={Math.min(streakSavers, 3)} />
+        <span className="text-forest-600 text-xs">{streakSavers} streak saver{streakSavers !== 1 ? 's' : ''}</span>
+      </div>
       {/* Scrollable pill row */}
       <div className="px-5 py-2.5 flex gap-3 overflow-x-auto">
-        {active.map(s => {
-          const nearBreak = s.fuel <= 1 && s.streakDays > 0
+        {all.map(s => {
+          const isBroken = !!s.brokenAt && s.streakDays === 0
+          const daysSinceBroken = isBroken
+            ? (Date.now() - new Date(s.brokenAt).getTime()) / 86400000
+            : 0
+          const canSave = isBroken && daysSinceBroken < 3 && streakSavers > 0
+
           return (
-            <div key={s.friendId}
-              className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors
-                ${nearBreak ? 'bg-bark-900/30 border-bark-800' : 'bg-forest-900/50 border-forest-800'}`}>
-              <span>{s.tierEmoji}</span>
+            <button key={s.friendId}
+              onClick={isBroken ? (canSave ? () => handleSave(s) : undefined) : undefined}
+              disabled={saving === s.friendId}
+              className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all
+                ${isBroken
+                  ? canSave
+                    ? 'bg-red-950/40 border-red-800 hover:border-red-600 cursor-pointer'
+                    : 'bg-forest-900/30 border-forest-800/50 opacity-60 cursor-default'
+                  : 'bg-forest-900/50 border-forest-800'}`}>
+              <span>{isBroken ? '💔' : s.tierEmoji}</span>
               <div>
-                <div className="flex items-baseline gap-1.5 leading-none">
-                  <p className="text-forest-200 text-xs font-medium leading-none">{s.displayName}</p>
-                  <span className="text-forest-700 text-xs italic font-normal">{midnight}</span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <FuelDots fuel={s.fuel} />
-                  <span className={`text-xs ${nearBreak ? 'text-bark-400' : 'text-forest-600'}`}>
-                    {s.iSentToday ? '🔥' : '❄️'}{s.streakDays}
-                  </span>
+                <p className="text-forest-200 text-xs font-medium leading-none">{s.displayName}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  {isBroken ? (
+                    <span className="text-red-400 text-xs">
+                      {saving === s.friendId ? '…' : canSave ? `${s.brokenStreakDays}d · tap to save` : `${s.brokenStreakDays}d · expired`}
+                    </span>
+                  ) : (
+                    <span className="text-forest-600 text-xs">
+                      {s.iSentToday ? '🔥' : '❄️'}{s.streakDays}
+                    </span>
+                  )}
                 </div>
               </div>
-            </div>
+            </button>
           )
         })}
       </div>
@@ -246,13 +251,7 @@ function StreakDropdown({ streaks }) {
               )
             })}
           </div>
-          {warning.length > 0 && (
-            <p className="text-bark-400 text-xs text-center italic">
-              ⌛ {warning.length === 1
-                ? `${warning[0].displayName}'s streak is about to break — send a letter before midnight!`
-                : `${warning.length} streaks are about to break — send letters before midnight!`}
-            </p>
-          )}
+    
         </div>
       )}
     </div>
@@ -274,23 +273,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
   const [content, setContent] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError]     = useState('')
-  const [attachedMoment, setAttachedMoment] = useState(null)
-  const [showMomentPicker, setShowMomentPicker] = useState(false)
-  const [myMoments, setMyMoments] = useState([])
   const sel = streaks.find(s => s.friendId === selected?.id)
-
-  // Load moments when reaching step 2
-  useEffect(() => {
-    if (step !== 2) return
-    Promise.all([
-      momentsApi.mine().catch(()=>({data:[]})),
-      momentsApi.tagged().catch(()=>({data:[]})),
-    ]).then(([m,t]) => {
-      const all = [...(m.data||[]), ...(t.data||[])
-        .filter(x => !(m.data||[]).find(y=>y.id===x.id))]
-      setMyMoments(all)
-    })
-  }, [step])
 
   const handleSend = async () => {
     if (!selected?.id || !content.trim()) {
@@ -300,7 +283,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
     setSending(true)
     setError('')
     try {
-      await lettersApi.send(selected.id, content, attachedMoment?.id||null, attachedMoment?.cdn_url||null)
+      await lettersApi.send(selected.id, content)
       onSend()
       onClose()
     } catch (err) {
@@ -361,7 +344,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
                 <div>
                   <p className="text-forest-300 text-sm">{sel.tierLabel} delivery</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <FuelDots fuel={sel.fuel} />
+                    <SaverDots count={streakSavers} />
                     <span className="text-forest-600 text-xs">🔥 {sel.streakDays} day streak</span>
                   </div>
                 </div>
@@ -374,69 +357,15 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
               maxLength={500} value={content}
               onChange={e => setContent(e.target.value)} autoFocus
             />
-            {/* Attached moment preview */}
-            {attachedMoment && (
-              <div className="rounded-xl overflow-hidden border" style={{border:'1px solid rgb(var(--f700)/0.4)'}}>
-                <div className="flex items-center gap-2 px-3 py-2" style={{background:'rgb(var(--f900)/0.6)'}}>
-                  <span className="text-xs" style={{color:'rgb(var(--f500))'}}>📎 Attached memory</span>
-                  <button onClick={()=>setAttachedMoment(null)}
-                    className="ml-auto text-xs" style={{color:'rgb(var(--f600))'}}>Remove</button>
-                </div>
-                <img src={attachedMoment.cdn_url} alt=""
-                  className="w-full object-cover"
-                  style={{maxHeight:120, objectFit:'cover'}}/>
-              </div>
-            )}
-
-            {/* Moment picker */}
-            {showMomentPicker && (
-              <div className="rounded-xl overflow-hidden" style={{border:'1px solid rgb(var(--f700)/0.4)',background:'rgb(var(--f900)/0.8)'}}>
-                <p className="px-3 py-2 text-xs border-b" style={{color:'rgb(var(--f500))',borderColor:'rgb(var(--f800)/0.4)'}}>
-                  Select a memory to attach
-                </p>
-                {myMoments.length === 0 ? (
-                  <p className="px-3 py-3 text-xs" style={{color:'rgb(var(--f600))'}}>No memories yet</p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-1 p-2">
-                    {myMoments.slice(0,9).map(m => (
-                      <button key={m.id} onClick={() => { setAttachedMoment(m); setShowMomentPicker(false) }}
-                        className="relative rounded-lg overflow-hidden"
-                        style={{
-                          aspectRatio:'1',
-                          border: attachedMoment?.id===m.id ? '2px solid rgb(var(--f400))' : '2px solid transparent',
-                        }}>
-                        <img src={m.cdn_url} alt="" className="w-full h-full object-cover"/>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="flex items-center justify-between">
               <span className={`text-xs ${content.length > 450 ? 'text-bark-400' : 'text-forest-700'}`}>
                 {content.length}/500
               </span>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2">
                 <button onClick={() => setStep(1)} className="btn-ghost text-sm py-2 px-4 rounded-full">← Back</button>
-                {attachedMoment ? (
-                  <button onClick={() => { setAttachedMoment(null); setShowMomentPicker(false) }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all"
-                    style={{background:'rgba(239,68,68,0.2)',border:'1px solid rgba(239,68,68,0.4)',color:'#f87171'}}
-                    title="Remove attachment">
-                    ✕
-                  </button>
-                ) : (
-                  <button onClick={() => setShowMomentPicker(s=>!s)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-all"
-                    style={{background:'rgb(var(--f800)/0.6)',border:'1px solid rgb(var(--f700)/0.5)',color:'rgb(var(--f400))'}}
-                    title="Attach a memory">
-                    +
-                  </button>
-                )}
                 <button onClick={handleSend} disabled={sending || !content.trim()}
                   className="btn-primary text-sm py-2 px-5 rounded-full">
-                  {sending ? 'Sending…' : attachedMoment ? 'Send 🖼️' : 'Send ✉️'}
+                  {sending ? 'Sending…' : 'Send ✉️'}
                 </button>
               </div>
             </div>
@@ -456,6 +385,7 @@ export default function LettersPage() {
   const { user } = useAuth()
   const [letters, setLetters]   = useState([])
   const [streaks, setStreaks]   = useState([])
+  const [streakSavers, setStreakSavers] = useState(3)
   const [friends, setFriends]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState('received')
@@ -558,7 +488,7 @@ export default function LettersPage() {
         </button>
       </div>
 
-      <StreakDropdown streaks={streaks} />
+      <StreakDropdown streaks={streaks} streakSavers={streakSavers} onUseSaver={handleUseSaver} />
 
       {/* Tabs */}
       <div className="px-5 py-2 border-b border-forest-800 flex gap-1 flex-shrink-0">
