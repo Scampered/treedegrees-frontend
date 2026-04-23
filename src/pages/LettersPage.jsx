@@ -202,9 +202,14 @@ function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
                       {saving === s.friendId ? '…' : canSave ? `${s.brokenStreakDays}d · tap to save` : `${s.brokenStreakDays}d · expired`}
                     </span>
                   ) : (
-                    <span className="text-forest-600 text-xs">
-                      {s.iSentToday ? '🔥' : '❄️'}{s.streakDays}
-                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="flex gap-0.5">
+                        {[0,1,2].map(i => (
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < (s.fuel ?? 3) ? 'bg-amber-400' : 'bg-forest-800'}`} />
+                        ))}
+                      </div>
+                      <span className="text-forest-600 text-xs">{s.iSentToday ? '🔥' : '❄️'}{s.streakDays}</span>
+                    </div>
                   )}
                 </div>
               </div>
