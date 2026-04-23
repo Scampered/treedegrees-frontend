@@ -25,7 +25,10 @@ import VerifyEmailPage from './pages/VerifyEmailPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import JobsPage from './pages/JobsPage'
-import MapPage3D from './pages/MapPage3D'
+import MapPage3D        from './pages/MapPage3D'
+import MemoriesPage    from './pages/MemoriesPage'
+import MarketplacePage from './pages/MarketplacePage'
+import ProfilePage     from './pages/ProfilePage'
 import MaintenanceGuard from './components/MaintenanceGuard'
 import { adminApi } from './api/client'
 import Layout from './components/Layout'
@@ -118,7 +121,10 @@ export default function App() {
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
             <Route path="/guide" element={<GuidePage />} />
             <Route path="/groups" element={<GroupsPage />} />
-            <Route path="/3dmap" element={<MapPage3D />} />
+            <Route path="/3dmap"       element={<MapPage3D />} />
+            <Route path="/my-world"    element={<MemoriesPage />} />
+            <Route path="/marketplace" element={<MarketplacePage />} />
+            <Route path="/profile/:id" element={<ProfilePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
