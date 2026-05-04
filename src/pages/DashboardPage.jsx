@@ -358,8 +358,7 @@ export default function DashboardPage() {
       setLetterStats(s.data)
       setFriendNotes(feed.data || [])
       setInTransit(Array.isArray(it?.data) ? it.data : [])
-      const stData = st.data
-      setStreaks(Array.isArray(stData) ? stData : (stData?.streaks || []))
+      setStreaks(Array.isArray(st.data) ? st.data : (st.data?.streaks || st.data || []))
     }).finally(() => setLoading(false))
   }, [])
 

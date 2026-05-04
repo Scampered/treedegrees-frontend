@@ -152,7 +152,7 @@ function useMidnightCountdown() {
   return label
 }
 
-function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
+function StreakDropdown({ streaks, onUseSaver }) {
   const [open, setOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(null)
   const midnight = useMidnightCountdown()
@@ -169,11 +169,7 @@ function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
 
   return (
     <div className="border-b border-forest-800 flex-shrink-0">
-      {/* Saver count badge */}
-      <div className="px-5 pt-2 flex items-center gap-2">
-        <SaverDots count={Math.min(streakSavers, 3)} />
-        <span className="text-forest-600 text-xs">{streakSavers} streak saver{streakSavers !== 1 ? 's' : ''}</span>
-      </div>
+
       {/* Scrollable pill row */}
       <div className="px-5 py-2.5 flex gap-3 overflow-x-auto">
         {all.map(s => {
@@ -181,7 +177,7 @@ function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
           const daysSinceBroken = isBroken
             ? (Date.now() - new Date(s.brokenAt).getTime()) / 86400000
             : 0
-          const canSave = isBroken && daysSinceBroken < 3 && streakSavers > 0
+          const canSave = isBroken && daysSinceBroken < 2 && (s.streakSavers ?? 3) > 0
 
           return (
             <button key={s.friendId}
@@ -199,13 +195,16 @@ function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
                 <div className="flex items-center gap-1 mt-1">
                   {isBroken ? (
                     <span className="text-red-400 text-xs">
-                      {saving === s.friendId ? '…' : canSave ? `${s.brokenStreakDays}d · tap to save` : `${s.brokenStreakDays}d · expired`}
+                      {saving === s.friendId ? 'saving…'
+                        : canSave
+                          ? `${s.brokenStreakDays}d · tap to restore (${s.streakSavers ?? 3} left)`
+                          : `${s.brokenStreakDays}d · expired`}
                     </span>
                   ) : (
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <div className="flex gap-0.5">
                         {[0,1,2].map(i => (
-                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < (s.fuel ?? 3) ? 'bg-amber-400' : 'bg-forest-800'}`} />
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < (s.streakSavers ?? 3) ? 'bg-amber-400' : 'bg-forest-800'}`} />
                         ))}
                       </div>
                       <span className="text-forest-600 text-xs">{s.iSentToday ? '🔥' : '❄️'}{s.streakDays}</span>
@@ -263,7 +262,7 @@ function StreakDropdown({ streaks, streakSavers, onUseSaver }) {
   )
 }
 
-function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId, initialFriendData, streakSavers = 3 }) {
+function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId, initialFriendData }) {
   const [step, setStep]       = useState(1)
   const [selected, setSelected] = useState(null)
 
@@ -350,7 +349,7 @@ function SendModal({ friends, streaks, letters, onSend, onClose, initialFriendId
                 <div>
                   <p className="text-forest-300 text-sm">{sel.tierLabel} delivery</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <SaverDots count={streakSavers} />
+                    <SaverDots count={sel?.streakSavers ?? 3} />
                     <span className="text-forest-600 text-xs">🔥 {sel.streakDays} day streak</span>
                   </div>
                 </div>
@@ -391,7 +390,6 @@ export default function LettersPage() {
   const { user } = useAuth()
   const [letters, setLetters]   = useState([])
   const [streaks, setStreaks]   = useState([])
-  const [streakSavers, setStreakSavers] = useState(3)
   const [friends, setFriends]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [tab, setTab]           = useState('received')
@@ -403,8 +401,7 @@ export default function LettersPage() {
 
   const handleUseSaver = async (friendId) => {
     try {
-      const r = await lettersApi.useStreakSaver(friendId)
-      setStreakSavers(r.data.saversLeft)
+      await lettersApi.useStreakSaver(friendId)
       await reload()
     } catch(e) {
       alert(e.response?.data?.error || 'Could not use streak saver')
@@ -419,11 +416,8 @@ export default function LettersPage() {
         friendsApi.list(),
       ])
       setLetters(l.data)
-      const streakResp = s.data
-      const streakArr = Array.isArray(streakResp) ? streakResp : (streakResp?.streaks || [])
-      const saversCount = streakResp?.savers ?? 3
+      const streakArr = Array.isArray(s.data) ? s.data : (s.data?.streaks || s.data || [])
       setStreaks(streakArr)
-      setStreakSavers(saversCount)
       // Sort by streak descending
       const streakData = streakArr
       const sorted = (f.data || []).sort((a, b) => {
@@ -508,7 +502,7 @@ export default function LettersPage() {
         </button>
       </div>
 
-      <StreakDropdown streaks={streaks} streakSavers={streakSavers} onUseSaver={handleUseSaver} />
+      <StreakDropdown streaks={streaks} onUseSaver={handleUseSaver} />
 
       {/* Tabs */}
       <div className="px-5 py-2 border-b border-forest-800 flex gap-1 flex-shrink-0">
@@ -629,7 +623,6 @@ export default function LettersPage() {
           onSend={reload} onClose={() => setShowSend(false)}
           initialFriendId={initialFriendId}
           initialFriendData={initialFriendData}
-          streakSavers={streakSavers}
         />
       )}
     </div>
